@@ -36,7 +36,7 @@ app.use('/api/profile', proxy(PROFILE_SERVICE_URL));
 
 app.use('/api/jobs', proxy(JOB_SERVICE_URL, {
     proxyReqPathResolver: function (req) {
-        return req.originalUrl.replace('/api', '');
+        return req.originalUrl.replace('/api/jobs', '');
     }
 }));
 

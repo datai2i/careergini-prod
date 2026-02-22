@@ -149,6 +149,51 @@ app.post('/profile', verifyToken, async (req, res) => {
     }
 });
 
+// Internal Route: Sync resume data from haystack-service into the profile DB
+// Called server-side after resume upload — no user token required (internal only)
+app.post('/sync-resume', async (req, res) => {
+    const { user_id, full_name, headline, summary, location, skills, experience, education } = req.body;
+    if (!user_id) return res.status(400).json({ error: 'user_id is required' });
+
+    try {
+        // UPDATE only — the profiles row is created at login via auth upsert
+        // skills is text[] in pg; experience/education are jsonb
+        const query = `
+            UPDATE profiles
+            SET headline = COALESCE($2, headline),
+                summary = COALESCE($3, summary),
+                location = COALESCE($4, location),
+                skills = COALESCE($5, skills),
+                experience = COALESCE($6::jsonb, experience),
+                education = COALESCE($7::jsonb, education),
+                last_parsed_at = NOW(),
+                updated_at = NOW()
+            WHERE user_id = $1::uuid
+            RETURNING *
+        `;
+        const values = [
+            user_id,
+            headline || full_name || null,
+            summary || null,
+            location || null,
+            skills && skills.length ? skills : null,          // text[] — pass JS array directly
+            experience && experience.length ? JSON.stringify(experience) : null,  // jsonb
+            education && education.length ? JSON.stringify(education) : null,     // jsonb
+        ];
+        const result = await db.query(query, values);
+        if (result.rowCount === 0) {
+            console.warn(`[sync-resume] No profile row found for user ${user_id} — user must complete onboarding first`);
+            return res.json({ status: 'no_profile', message: 'Profile not found; data will be available after onboarding' });
+        }
+        console.log(`[sync-resume] Synced profile for user ${user_id}`);
+        res.json({ status: 'ok', profile: result.rows[0] });
+    } catch (err) {
+        console.error('[sync-resume] Error:', err);
+        res.status(500).json({ error: 'Failed to sync resume to profile', detail: err.message });
+    }
+});
+
+
 app.listen(PORT, () => {
     console.log(`Profile Service running on port ${PORT}`);
 });

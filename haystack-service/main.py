@@ -21,6 +21,7 @@ import logging
 import os
 import json
 import asyncio
+import httpx
 import PyPDF2
 import docx
 import io
@@ -160,11 +161,33 @@ async def upload_resume(
         with open(persona_path, "w") as f:
             json.dump(persona, f, indent=2)
             
-        # Update Unified Persona
+        # Update Unified Persona (local file cache)
         from persona_manager import PersonaManager
         pm = PersonaManager(user_id)
         pm.ingest_resume_data(persona)
-            
+
+        # Sync to profile-service PostgreSQL database
+        profile_service_url = os.getenv("PROFILE_SERVICE_URL", "http://careergini-profile:3001")
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                sync_payload = {
+                    "user_id": user_id,
+                    "full_name": persona.get("full_name") or persona.get("name", ""),
+                    "headline": persona.get("professional_title") or persona.get("title", ""),
+                    "summary": persona.get("summary", ""),
+                    "location": persona.get("location", ""),
+                    "skills": persona.get("top_skills") or persona.get("skills") or [],
+                    "experience": persona.get("experience_highlights") or persona.get("experience") or [],
+                    "education": persona.get("education") or [],
+                }
+                resp = await client.post(f"{profile_service_url}/sync-resume", json=sync_payload)
+                if resp.status_code == 200:
+                    logger.info(f"[resume-upload] Profile synced to DB for user {user_id}")
+                else:
+                    logger.warning(f"[resume-upload] Profile sync returned {resp.status_code}: {resp.text}")
+        except Exception as sync_err:
+            logger.warning(f"[resume-upload] Profile sync to DB failed (non-fatal): {sync_err}")
+
         logger.info(f"Successfully extracted persona for {user_id}")
         
         return {

@@ -139,20 +139,62 @@ class PersonaManager:
         self.save()
 
     def get_context_for_llm(self) -> str:
-        """Generate a concise context string for LLM system prompt"""
+        """Generate a rich context string for LLM, merging unified profile and resume persona."""
         p = self.profile
         identity = p["identity"]
-        
-        context = f"""
-USER PROFILE:
-Name: {identity.get('full_name', 'User')}
-Title: {identity.get('professional_title', 'Professional')}
-Location: {identity.get('location', 'Unknown')}
-Skills: {', '.join(p['skills'][:20])}  # Top 20 skills
-Goals: {', '.join(p['goals'])}
-Job Preferences: {p['job_preferences']}
-"""
-        return context
+
+        # Also try to read from persona.json (resume upload) as a richer fallback
+        persona_path = f"{self.base_dir}/persona.json"
+        resume_persona = {}
+        if os.path.exists(persona_path):
+            try:
+                with open(persona_path, "r") as f:
+                    resume_persona = json.load(f)
+            except Exception:
+                pass
+
+        # Merge fields - prefer unified profile but fall back to resume persona
+        full_name = identity.get("full_name") or resume_persona.get("full_name") or resume_persona.get("name") or "User"
+        title = identity.get("professional_title") or resume_persona.get("professional_title") or resume_persona.get("title") or "Professional"
+        location = identity.get("location") or resume_persona.get("location") or "Unknown"
+        skills = p["skills"] or resume_persona.get("top_skills") or resume_persona.get("skills") or []
+        goals = p["goals"]
+        experience = p.get("experience") or resume_persona.get("experience_highlights") or resume_persona.get("experience") or []
+        education = p.get("education") or resume_persona.get("education") or []
+        summary = resume_persona.get("summary") or ""
+
+        context = f"USER PROFILE:\nName: {full_name}\nTitle: {title}\nLocation: {location}\n"
+        if summary:
+            context += f"Summary: {summary[:300]}\n"
+        if skills:
+            context += f"Top Skills: {', '.join(list(skills)[:20])}\n"
+        if goals:
+            context += f"Career Goals: {', '.join(goals)}\n"
+
+        exp_lines = []
+        for exp in experience[:4]:
+            if isinstance(exp, dict):
+                role = exp.get("role") or exp.get("title", "")
+                company = exp.get("company", "")
+                duration = exp.get("duration", "")
+                achievement = exp.get("key_achievement") or exp.get("description", "")
+                exp_lines.append(f"  - {role} at {company} ({duration}): {str(achievement)[:120]}")
+        if exp_lines:
+            context += "Work Experience:\n" + "\n".join(exp_lines) + "\n"
+
+        edu_lines = []
+        for edu in education[:2]:
+            if isinstance(edu, dict):
+                edu_lines.append(f"  - {edu.get('degree', '')} from {edu.get('school', '')} ({edu.get('year', '')})")
+        if edu_lines:
+            context += "Education:\n" + "\n".join(edu_lines) + "\n"
+
+        prefs = p.get("job_preferences", {})
+        if prefs.get("target_roles"):
+            context += f"Target Roles: {', '.join(prefs['target_roles'])}\n"
+
+        return context.strip()
+
 
     def _add_source(self, source_name: str):
         if source_name not in self.profile["meta"]["sources"]:
