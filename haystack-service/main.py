@@ -12,7 +12,6 @@ from skill_gap_analyzer import analyze_skill_gaps
 from interview_simulator import create_interview_session, evaluate_interview_answer
 from career_path_predictor import predict_career_path
 from proactive_advisor import generate_career_nudges
-from proactive_advisor import generate_career_nudges
 from analytics_dashboard import generate_analytics_dashboard
 from agents.resume_advisor_agent import ResumeAdvisorAgent
 from agents.job_hunter_agent import JobHunterAgent
@@ -167,7 +166,7 @@ async def upload_resume(
         pm.ingest_resume_data(persona)
 
         # Sync to profile-service PostgreSQL database
-        profile_service_url = os.getenv("PROFILE_SERVICE_URL", "http://careergini-profile:3001")
+        profile_service_url = os.getenv("PROFILE_SERVICE_URL", "http://profile-service:3001")
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 sync_payload = {
@@ -179,6 +178,8 @@ async def upload_resume(
                     "skills": persona.get("top_skills") or persona.get("skills") or [],
                     "experience": persona.get("experience_highlights") or persona.get("experience") or [],
                     "education": persona.get("education") or [],
+                    "latest_resume_filename": file.filename,
+                    "latest_resume_path": f"uploads/{user_id}/{file.filename}"
                 }
                 resp = await client.post(f"{profile_service_url}/sync-resume", json=sync_payload)
                 if resp.status_code == 200:
@@ -241,6 +242,7 @@ async def update_resume_persona(user_id: str, request: PersonaUpdateRequest):
             json.dump(merged, f, indent=2)
             
         # Update the unified PersonaManager state
+        logger.info(f"[main] Updating persona for {user_id} with names: {merged.get('full_name')}")
         pm.ingest_resume_data(merged)
         
         return {"status": "success", "message": "Persona updated successfully", "persona": merged}

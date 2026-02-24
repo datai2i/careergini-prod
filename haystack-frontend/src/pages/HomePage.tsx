@@ -48,10 +48,10 @@ export const HomePage: React.FC = () => {
     const quickActions = [
         {
             icon: MessageSquare,
-            title: 'AI Career Advisor',
-            description: 'Get personalized career guidance and advice',
+            title: 'GINI Chat',
+            description: 'Get personalized career guidance and advice from GINI',
             color: 'from-blue-500 to-blue-600',
-            path: '/chat'
+            path: '/gini-chat'
         },
         {
             icon: FileText,

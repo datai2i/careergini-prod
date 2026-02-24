@@ -18,54 +18,54 @@ class OllamaClient:
     
     def __init__(self):
         self.base_url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
-        num_threads = int(os.getenv("OLLAMA_NUM_THREADS", "6"))
+        num_threads = int(os.getenv("OLLAMA_NUM_THREADS", "8"))
         
         logger.info(f"Initializing Haystack Ollama client with base_url: {self.base_url}")
         
         # Model 1: Complex Reasoning (Supervisor, Resume Builder)
         self.generator_reasoning = OllamaGenerator(
-            model="phi3:mini",
+            model="qwen2.5:1.5b",
             url=self.base_url,
             timeout=1200,
             generation_kwargs={
                 "temperature": 0.7,
-                "num_ctx": 8192,
+                "num_ctx": 4096,
                 "num_thread": num_threads,
                 "top_p": 0.9,
                 "repeat_penalty": 1.1
             }
         )
-        logger.info("✓ Loaded reasoning model generator: phi3:mini")
+        logger.info("✓ Loaded reasoning model generator: qwen2.5:1.5b")
         
         # Model 2: Fast Tasks (Profile, Jobs, Learning)
         self.generator_fast = OllamaGenerator(
-            model="phi3:mini",
+            model="qwen2.5:1.5b",
             url=self.base_url,
             timeout=1200,
             generation_kwargs={
                 "temperature": 0.3,
-                "num_ctx": 8192,
+                "num_ctx": 4096,
                 "num_thread": num_threads,
                 "top_p": 0.95,
                 "repeat_penalty": 1.0
             }
         )
-        logger.info("✓ Loaded fast model generator: phi3:mini")
+        logger.info("✓ Loaded fast model generator: qwen2.5:1.5b")
         
-        # Model 3: Technical/Coding Tasks (Skills Gap)
+        # Model 3: Technical/Technical Tasks (Skills Gap)
         self.generator_coder = OllamaGenerator(
-            model="phi3:mini",
+            model="qwen2.5:1.5b",
             url=self.base_url,
             timeout=1200,
             generation_kwargs={
                 "temperature": 0.2,
-                "num_ctx": 8192,
+                "num_ctx": 4096,
                 "num_thread": num_threads,
                 "top_p": 0.9,
                 "repeat_penalty": 1.05
             }
         )
-        logger.info("✓ Loaded coder model generator: phi3:mini")
+        logger.info("✓ Loaded coder model generator: qwen2.5:1.5b")
     
     def get_generator(self, task_type: Literal["reasoning", "fast", "coding"]) -> OllamaGenerator:
         """

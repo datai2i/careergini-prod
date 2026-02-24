@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Upload, FileText, CheckCircle, Download, ArrowRight, RefreshCw, AlertCircle, History, Clock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { notifyStep, requestNotificationPermission } from '../utils/notify';
+import { ProcessingOverlay } from '../components/common/ProcessingOverlay';
 import { useToast } from '../context/ToastContext';
 
 interface ResumePersona {
@@ -16,10 +17,15 @@ interface ResumePersona {
         duration: string;
         key_achievement: string;
     }>;
+    education?: Array<{
+        degree: string;
+        school: string;
+        year: string;
+    }>;
 }
 
 export const ResumeBuilderPage: React.FC = () => {
-    const { user } = useAuth();
+    const { user, refreshUser } = useAuth();
     const { showToast } = useToast();
     const [step, setStep] = useState(1);
     const [uploading, setUploading] = useState(false);
@@ -111,6 +117,7 @@ export const ResumeBuilderPage: React.FC = () => {
 
                 if (response.ok) {
                     setPersona(data.persona);
+                    await refreshUser(); // Update global user state (name, resume metadata)
                     setStep(2);
                     notifyStep('✅ Resume Parsed!', 'Your resume has been analysed. Ready to set your target role.');
                     showToast('Resume parsed successfully', 'success');
@@ -122,6 +129,64 @@ export const ResumeBuilderPage: React.FC = () => {
             } finally {
                 setUploading(false);
             }
+        }
+    };
+
+    const handlePersonaConfirm = async () => {
+        if (!persona) return;
+
+        setUploading(true); // Reuse uploading state for sync visual
+        try {
+            // Sync 1: Central Database (Profile Service)
+            const dbSyncPromise = fetch('/api/profile/sync-resume', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: user?.id,
+                    full_name: persona.full_name,
+                    headline: persona.professional_title,
+                    summary: persona.summary,
+                    skills: persona.top_skills,
+                    experience: persona.experience_highlights,
+                    education: persona.education
+                })
+            });
+
+            // Sync 2: AI Local Context (Haystack Service)
+            const aiSyncPromise = fetch(`/api/resume/persona/${user?.id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    persona: {
+                        full_name: persona.full_name,
+                        professional_title: persona.professional_title,
+                        summary: persona.summary,
+                        top_skills: persona.top_skills,
+                        experience_highlights: persona.experience_highlights,
+                        education: persona.education
+                    }
+                })
+            });
+
+            const [dbSync, aiSync] = await Promise.all([dbSyncPromise, aiSyncPromise]);
+
+            if (dbSync.ok && aiSync.ok) {
+                await refreshUser();
+                setStep(3);
+                showToast('Profile & AI Context updated!', 'success');
+            } else {
+                if (!dbSync.ok) console.error('DB Sync failed');
+                if (!aiSync.ok) console.error('AI Sync failed');
+
+                await refreshUser(); // Still refresh what we can
+                setStep(3);
+                showToast('Partial sync completed. AI context may delay.', 'warning');
+            }
+        } catch (err) {
+            console.error('Persona sync failed:', err);
+            setStep(3);
+        } finally {
+            setUploading(false);
         }
     };
 
@@ -223,7 +288,12 @@ export const ResumeBuilderPage: React.FC = () => {
     };
 
     return (
-        <div className="max-w-6xl mx-auto p-6 space-y-8">
+        <div className="max-w-6xl mx-auto p-6 space-y-8 animate-fadeIn">
+            <ProcessingOverlay
+                isOpen={uploading || tailoring || loadingSession}
+                message={uploading ? 'Analyzing your resume...' : tailoring ? 'Tailoring to your dream job...' : 'Loading session...'}
+                headline={persona?.professional_title}
+            />
             {/* Header */}
             <div className="flex justify-between items-center">
                 <div>
@@ -313,7 +383,7 @@ export const ResumeBuilderPage: React.FC = () => {
                             <h3 className="text-lg font-bold text-gray-800 mb-2">Existing Resume</h3>
                             <p className="text-sm text-gray-500 mb-5 flex-1">
                                 {persona
-                                    ? `Your previous resume for ${persona.full_name} is ready. Jump straight to entering a job description.`
+                                    ? `Your ${user?.latest_resume_filename ? `resume '${user.latest_resume_filename}'` : 'previous resume'} for ${persona.full_name} is ready. Jump straight to entering a job description.`
                                     : 'No parsed resume found. Upload a new resume first to enable this option.'}
                             </p>
                             <button
@@ -523,10 +593,12 @@ export const ResumeBuilderPage: React.FC = () => {
 
                     <div className="flex justify-end">
                         <button
-                            onClick={() => setStep(3)}
-                            className="bg-gray-900 text-white px-8 py-3 rounded-xl font-medium hover:bg-black transition-colors flex items-center shadow-lg"
+                            onClick={handlePersonaConfirm}
+                            disabled={uploading}
+                            className="bg-gray-900 text-white px-8 py-3 rounded-xl font-medium hover:bg-black transition-colors flex items-center shadow-lg disabled:opacity-50"
                         >
-                            Next: Tailor to Job <ArrowRight className="w-5 h-5 ml-2" />
+                            {uploading ? 'Updating Profile...' : 'Looks good! Next: Tailor to Job'}
+                            {!uploading && <ArrowRight className="w-5 h-5 ml-2" />}
                         </button>
                     </div>
                 </div>

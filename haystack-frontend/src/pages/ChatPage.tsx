@@ -140,7 +140,7 @@ export const ChatPage: React.FC = () => {
                 newMessages[newMessages.length - 1].content = 'Error: Could not connect to AI service.';
                 return newMessages;
             });
-            showToast('Failed to get AI response', 'error');
+            showToast('Failed to get GINI response', 'error');
         } finally {
             setLoading(false);
         }
@@ -156,8 +156,8 @@ export const ChatPage: React.FC = () => {
                         <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center mb-4">
                             <Bot size={32} className="text-blue-600 dark:text-blue-400" />
                         </div>
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">How can I help you today?</h3>
-                        <p className="max-w-md">Ask me to review your resume, suggest career paths, or find job openings relevant to your skills.</p>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">How can GINI help you today?</h3>
+                        <p className="max-w-md">Ask GINI to review your resume, suggest career paths, or find job openings relevant to your skills.</p>
                     </div>
                 )}
 

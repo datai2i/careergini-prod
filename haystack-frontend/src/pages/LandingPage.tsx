@@ -80,7 +80,7 @@ export const LandingPage: React.FC = () => {
 
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                             <button
-                                onClick={() => handleAction('/chat')}
+                                onClick={() => handleAction('/gini-chat')}
                                 className="w-full sm:w-auto px-8 py-4 bg-blue-600 text-white rounded-2xl font-semibold text-lg hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2"
                             >
                                 Start Free Consultation <ArrowRight size={20} />

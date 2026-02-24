@@ -6,13 +6,16 @@ interface User {
     full_name: string;
     avatar_url: string;
     onboarding_completed: boolean;
+    latest_resume_filename?: string;
+    latest_resume_path?: string;
 }
 
 interface AuthContextType {
     user: User | null;
     loading: boolean;
-    login: (token: string) => Promise<void>;
+    login: (token: string) => Promise<User | null>;
     logout: () => void;
+    refreshUser: () => Promise<User | null>;
     isAuthenticated: boolean;
 }
 
@@ -43,6 +46,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (response.ok) {
                 const userData = await response.json();
                 setUser(userData);
+                return userData;
             } else {
                 localStorage.removeItem('auth_token');
                 setUser(null);
@@ -53,11 +57,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } finally {
             setLoading(false);
         }
+        return null;
     };
 
     const login = async (token: string) => {
         localStorage.setItem('auth_token', token);
-        await checkAuth();
+        return await checkAuth();
     };
 
     const logout = () => {
@@ -66,8 +71,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         window.location.href = '/login';
     };
 
+    const refreshUser = async () => {
+        return await checkAuth();
+    };
+
     return (
-        <AuthContext.Provider value={{ user, loading, login, logout, isAuthenticated: !!user }}>
+        <AuthContext.Provider value={{ user, loading, login, logout, refreshUser, isAuthenticated: !!user }}>
             {children}
         </AuthContext.Provider>
     );

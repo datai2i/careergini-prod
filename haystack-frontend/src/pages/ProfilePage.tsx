@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { User, Briefcase, GraduationCap, MapPin, Mail, Phone, Edit2, Save } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Briefcase, GraduationCap, MapPin, Mail, Phone, Edit2, Save, RefreshCw, Upload, FileText } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+import { ProcessingOverlay } from '../components/common/ProcessingOverlay';
 
 interface ProfileData {
     name: string;
@@ -14,8 +18,12 @@ interface ProfileData {
 }
 
 export const ProfilePage: React.FC = () => {
+    const navigate = useNavigate();
+    const { user, refreshUser } = useAuth();
+    const { showToast } = useToast();
     const [editing, setEditing] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [uploading, setUploading] = useState(false);
     const [profile, setProfile] = useState<ProfileData>({
         name: 'Loading...',
         email: 'Loading...',
@@ -91,6 +99,41 @@ export const ProfilePage: React.FC = () => {
         }
     };
 
+    const handleResumeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const selectedFile = e.target.files[0];
+            setUploading(true);
+            const token = localStorage.getItem('auth_token');
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            try {
+                const response = await fetch(`/api/resume/upload?user_id=${user?.id}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData,
+                });
+
+                if (response.ok) {
+                    showToast('Resume updated successfully!', 'success');
+                    // Refresh user data in context to get latest_resume_filename and name
+                    await refreshUser();
+                    // Optionally re-fetch profile data if needed, but refreshUser() triggers re-render
+                } else {
+                    const data = await response.json();
+                    showToast(data.detail || 'Upload failed', 'error');
+                }
+            } catch (err) {
+                showToast('An error occurred during upload.', 'error');
+            } finally {
+                setUploading(false);
+            }
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-screen">
@@ -101,15 +144,28 @@ export const ProfilePage: React.FC = () => {
 
     return (
         <div className="max-w-4xl mx-auto space-y-6">
+            <ProcessingOverlay
+                isOpen={uploading}
+                message="Updating your profile and analyzing resume..."
+                headline={profile.title}
+            />
             {/* Header */}
             <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white">My Profile</h1>
-                <button
-                    onClick={() => editing ? saveProfile() : setEditing(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                    {editing ? <><Save size={18} /> Save</> : <><Edit2 size={18} /> Edit</>}
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => navigate('/onboarding')}
+                        className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-dark-border text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                    >
+                        <RefreshCw size={18} /> Reset / Re-upload
+                    </button>
+                    <button
+                        onClick={() => editing ? saveProfile() : setEditing(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                        {editing ? <><Save size={18} /> Save</> : <><Edit2 size={18} /> Edit</>}
+                    </button>
+                </div>
             </div>
 
             {/* Profile Card */}
@@ -231,6 +287,56 @@ export const ProfilePage: React.FC = () => {
                             </span>
                         ))}
                     </div>
+                </div>
+            </div>
+
+            {/* Resume Management Section */}
+            <div className="bg-white dark:bg-dark-card rounded-2xl shadow-sm border border-gray-200 dark:border-dark-border p-8">
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                        <FileText className="text-purple-600" size={24} />
+                        <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Resume Management</h3>
+                    </div>
+                    <label className={`cursor-pointer flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                        {uploading ? <RefreshCw size={18} className="animate-spin" /> : <Upload size={18} />}
+                        <span>{uploading ? 'Uploading...' : 'Upload New Resume'}</span>
+                        <input
+                            type="file"
+                            className="hidden"
+                            accept=".pdf,.docx,.txt"
+                            onChange={handleResumeUpload}
+                            disabled={uploading}
+                        />
+                    </label>
+                </div>
+
+                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6 border border-dashed border-gray-300 dark:border-gray-600">
+                    {user?.latest_resume_filename ? (
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                                    <FileText className="text-purple-600 dark:text-purple-400" size={24} />
+                                </div>
+                                <div>
+                                    <p className="font-semibold text-gray-900 dark:text-white">{user.latest_resume_filename}</p>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">Current "Golden Record" resume</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => navigate('/builder')}
+                                    className="px-4 py-2 text-sm font-medium text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg transition-colors"
+                                >
+                                    Use in Builder
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="text-center py-4">
+                            <Upload className="mx-auto text-gray-400 mb-2" size={32} />
+                            <p className="text-gray-500 dark:text-gray-400">No resume uploaded yet. Upload one to start building your professional profile.</p>
+                        </div>
+                    )}
                 </div>
             </div>
 

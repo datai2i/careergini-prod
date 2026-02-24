@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Upload, CheckCircle2, ChevronRight, Check, AlertCircle, Loader2, Link as LinkIcon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { ProcessingOverlay } from '../components/common/ProcessingOverlay';
 
 export const OnboardingPage: React.FC = () => {
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user, refreshUser } = useAuth();
     const [step, setStep] = useState(1);
     const [inputMethod, setInputMethod] = useState<'resume' | 'linkedin' | null>(null);
     const [linkedinUrl, setLinkedinUrl] = useState('');
@@ -168,11 +169,40 @@ export const OnboardingPage: React.FC = () => {
                 body: JSON.stringify({ persona: personaUpdate })
             });
 
+            // Refresh global user state to get updated name/onboarding status
+            await refreshUser();
+
             // Navigate to home dashboard after successful onboarding
             navigate('/home');
         } catch (err: any) {
             console.error('Error saving profile:', err);
             setError(err.message || 'Failed to save profile. Please try again.');
+        }
+    };
+    const handleSkip = async () => {
+        try {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                navigate('/login');
+                return;
+            }
+
+            // Mark onboarding as completed even if skipped
+            await fetch('/api/profile/profile', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    onboarding_completed: true
+                })
+            });
+
+            navigate('/home');
+        } catch (err) {
+            console.error('Error skipping onboarding:', err);
+            navigate('/home'); // Still navigate even if notification fails
         }
     };
 
@@ -181,6 +211,11 @@ export const OnboardingPage: React.FC = () => {
 
     return (
         <div className="max-w-4xl mx-auto py-12 px-4">
+            <ProcessingOverlay
+                isOpen={parsing}
+                message={inputMethod === 'resume' ? 'Analyzing your resume...' : 'Parsing LinkedIn profile...'}
+                headline={formData.headline}
+            />
             {/* Progress Steps */}
             <div className="flex justify-between items-center mb-12 relative">
                 <div className="absolute top-1/2 left-0 w-full h-1 bg-gray-200 dark:bg-dark-border -z-10 transform -translate-y-1/2" />
@@ -253,7 +288,7 @@ export const OnboardingPage: React.FC = () => {
                                 </div>
 
                                 <button
-                                    onClick={() => navigate('/home')}
+                                    onClick={handleSkip}
                                     className="mt-8 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 underline decoration-dotted"
                                 >
                                     Skip setup and go to Dashboard

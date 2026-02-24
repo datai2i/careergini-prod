@@ -14,6 +14,11 @@ app.use(morgan('dev'));
 app.use(express.json());
 app.use(passport.initialize());
 
+console.log('[startup] FRONTEND_URL from env:', process.env.FRONTEND_URL);
+if (!process.env.FRONTEND_URL) {
+    console.warn('[startup] WARNING: FRONTEND_URL is not set! Using fallback: https://www.careergini.com');
+}
+
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
 // Generate JWT Token
@@ -29,8 +34,15 @@ app.get('/health', (req, res) => {
 // --- Auth Routes ---
 
 const getFrontendUrl = (state) => {
-    // Both legacy and haystack versions now securely route through the same production domain
-    return process.env.FRONTEND_URL || 'https://www.careergini.com';
+    // Priority 1: explicitly set environment variable
+    if (process.env.FRONTEND_URL) {
+        console.log('[auth] Using FRONTEND_URL from process.env:', process.env.FRONTEND_URL);
+        return process.env.FRONTEND_URL;
+    }
+
+    // Priority 2: Hardcoded fallback (Production)
+    console.warn('[auth] FRONTEND_URL missing at runtime, falling back to Prod');
+    return 'https://www.careergini.com';
 };
 
 // Google
@@ -98,6 +110,7 @@ app.get('/me', verifyToken, async (req, res) => {
             // Get user info
             const userRes = await client.query('SELECT id, email, full_name, avatar_url FROM users WHERE id = $1', [req.user.id]);
             const user = userRes.rows[0];
+            console.log(`[me] Serving user data for ${req.user.id}: name="${user?.full_name}"`);
 
             if (!user) return res.status(404).json({ error: 'User not found' });
 
@@ -110,7 +123,14 @@ app.get('/me', verifyToken, async (req, res) => {
                 // Should not happen with new schema, but good fallback
             }
 
+            // Prevent profile.id from overwriting user.id
+            if (profile.id) {
+                profile.profile_id = profile.id;
+                delete profile.id;
+            }
+
             res.json({ ...user, ...profile });
+
         } finally {
             client.release();
         }
@@ -152,23 +172,40 @@ app.post('/profile', verifyToken, async (req, res) => {
 // Internal Route: Sync resume data from haystack-service into the profile DB
 // Called server-side after resume upload — no user token required (internal only)
 app.post('/sync-resume', async (req, res) => {
-    const { user_id, full_name, headline, summary, location, skills, experience, education } = req.body;
+    const { user_id, full_name, headline, summary, location, skills, experience, education, latest_resume_filename, latest_resume_path } = req.body;
+
     if (!user_id) return res.status(400).json({ error: 'user_id is required' });
+
+    // UUID Validation Helper
+    const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
+    if (!isUUID(user_id)) {
+        console.warn(`[sync-resume] Refusing sync for non-UUID user_id: ${user_id}`);
+        return res.status(400).json({ error: 'Invalid user_id format (UUID required)' });
+    }
 
     try {
         // UPDATE only — the profiles row is created at login via auth upsert
         // skills is text[] in pg; experience/education are jsonb
         const query = `
-            UPDATE profiles
-            SET headline = COALESCE($2, headline),
-                summary = COALESCE($3, summary),
-                location = COALESCE($4, location),
-                skills = COALESCE($5, skills),
-                experience = COALESCE($6::jsonb, experience),
-                education = COALESCE($7::jsonb, education),
+            INSERT INTO profiles (
+                user_id, headline, summary, location, skills, experience, education, 
+                latest_resume_filename, latest_resume_path, last_parsed_at, updated_at
+            )
+            VALUES (
+                $1::uuid, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9, NOW(), NOW()
+            )
+            ON CONFLICT (user_id) DO UPDATE
+            SET headline = COALESCE(EXCLUDED.headline, profiles.headline),
+                summary = COALESCE(EXCLUDED.summary, profiles.summary),
+                location = COALESCE(EXCLUDED.location, profiles.location),
+                skills = COALESCE(EXCLUDED.skills, profiles.skills),
+                experience = COALESCE(EXCLUDED.experience, profiles.experience),
+                education = COALESCE(EXCLUDED.education, profiles.education),
+                latest_resume_filename = COALESCE(EXCLUDED.latest_resume_filename, profiles.latest_resume_filename),
+                latest_resume_path = COALESCE(EXCLUDED.latest_resume_path, profiles.latest_resume_path),
                 last_parsed_at = NOW(),
                 updated_at = NOW()
-            WHERE user_id = $1::uuid
             RETURNING *
         `;
         const values = [
@@ -179,8 +216,27 @@ app.post('/sync-resume', async (req, res) => {
             skills && skills.length ? skills : null,          // text[] — pass JS array directly
             experience && experience.length ? JSON.stringify(experience) : null,  // jsonb
             education && education.length ? JSON.stringify(education) : null,     // jsonb
+            latest_resume_filename || null,
+            latest_resume_path || null
         ];
         const result = await db.query(query, values);
+
+        // --- ADVANCED SYNC: Update the main User Name if provided ---
+        // Only update if it's a real name (not the default 'Candidate')
+        console.log(`[sync-resume] Advanced sync check for name: "${full_name}"`);
+        if (full_name && full_name.trim() && full_name.toLowerCase() !== 'candidate') {
+            try {
+                const userUpdate = await db.query('UPDATE users SET full_name = $1 WHERE id = $2::uuid RETURNING *', [full_name.trim(), user_id]);
+                if (userUpdate.rowCount > 0) {
+                    console.log(`[sync-resume] SUCCESS: Updated official full_name for user ${user_id} to "${full_name.trim()}"`);
+                } else {
+                    console.warn(`[sync-resume] WARNING: No user found with id ${user_id} in users table`);
+                }
+            } catch (err) {
+                console.error(`[sync-resume] ERROR: Failed to update official full_name: ${err.message}`);
+            }
+        }
+
         if (result.rowCount === 0) {
             console.warn(`[sync-resume] No profile row found for user ${user_id} — user must complete onboarding first`);
             return res.json({ status: 'no_profile', message: 'Profile not found; data will be available after onboarding' });

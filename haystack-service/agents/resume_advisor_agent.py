@@ -179,31 +179,27 @@ class ResumeAdvisorAgent(BaseAgent):
         We pass up to 4000 chars (covers ~2-page PDF) so no section is lost.
         We then ask the model to extract compactly so the response stays fast.
         """
-        # Pass a meaningful slice — enough to cover the whole 2-page resume
-        resume_snippet = str(resume_text).strip()[:4000]
+        # Pass a meaningful slice — 3000 chars is enough for most resumes
+        resume_snippet = str(resume_text).strip()[:3000]
 
-        prompt = f"""Extract structured information from this resume. Output ONLY valid JSON. No preamble.
-
+        prompt = f"""Extract structured information from this resume. Output ONLY valid JSON.
 Resume text:
 {resume_snippet}
 
-Required JSON (extract as much as possible from the resume — do not invent anything):
+Required JSON structure (extract real info only):
 {{
   "full_name": "Full name",
-  "professional_title": "Current or most recent job title",
+  "professional_title": "Current role",
   "years_experience": 0,
-  "email": "email if present else null",
-  "phone": "phone if present else null",
-  "location": "city/country if present else null",
-  "summary": "2-3 sentence professional summary (write one if missing, based only on actual experience)",
-  "top_skills": ["All real skills from resume"],
-  "experience_highlights": [
-    {{"role":"Exact title","company":"Exact company","duration":"Exact dates","key_achievement":"Key bullet or achievement from resume"}}
-  ],
+  "email": "email",
+  "phone": "phone",
+  "location": "city, country",
+  "summary": "2-3 sentence bio",
+  "top_skills": ["Skill 1", "Skill 2"],
+  "experience_highlights": [{{"role":"Title","company":"Company","duration":"Dates","key_achievement":"One bullet"}}],
   "education": [{{"degree":"Degree","school":"School","year":"Year"}}],
-  "certifications": ["Any certifications listed"],
-  "career_level": "Entry/Mid/Senior/Executive",
-  "suggested_roles": ["2-3 relevant job titles they could apply to"]
+  "career_level": "Entry/Mid/Senior/Exec",
+  "suggested_roles": ["Role 1", "Role 2"]
 }}"""
 
         try:

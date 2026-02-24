@@ -29,7 +29,7 @@ const navItems = [
 ];
 
 const aiToolItems = [
-    { icon: MessageSquare, label: 'AI Chat', path: '/chat' },
+    { icon: MessageSquare, label: 'GINI Chat', path: '/gini-chat' },
     { icon: Target, label: 'Skill Gaps', path: '/skill-gaps' },
     { icon: Mic, label: 'Interview Prep', path: '/interview-practice' },
     { icon: Map, label: 'Career Roadmap', path: '/career-roadmap' },

@@ -40,6 +40,7 @@ class PersonaManager:
             "identity": {
                 "full_name": "",
                 "professional_title": "",
+                "summary": "",
                 "email": "",
                 "phone": "",
                 "location": ""
@@ -73,12 +74,15 @@ class PersonaManager:
 
     def ingest_resume_data(self, resume_data: Dict[str, Any]):
         """Merge data from parsed resume"""
-        logger.info("Merging resume data into persona")
+        logger.info(f"[PersonaManager] Merging resume data into persona for {self.user_id}")
+        logger.info(f"[PersonaManager] Incoming full_name: {resume_data.get('full_name') or resume_data.get('name')}")
         
         # Update Identity if empty or from resume (resume usually authoritative for basic info)
         if hasattr(resume_data, "get"):
              full_name = resume_data.get("full_name") or resume_data.get("name")
-             if full_name: self.profile["identity"]["full_name"] = full_name
+             if full_name: 
+                 logger.info(f"[PersonaManager] Updating name from '{self.profile['identity']['full_name']}' to '{full_name}'")
+                 self.profile["identity"]["full_name"] = full_name
              
              title = resume_data.get("professional_title") or resume_data.get("title")
              if title: self.profile["identity"]["professional_title"] = title
@@ -90,19 +94,20 @@ class PersonaManager:
              if phone: self.profile["identity"]["phone"] = phone
              
              location = resume_data.get("location")
-             if location: self.profile["identity"]["location"] = location
+             summary = resume_data.get("summary")
+             if summary: self.profile["identity"]["summary"] = summary
 
-             # Merge Skills (Union)
+             # Replace Skills (Resume/Manual confirmation is the new source of truth)
              new_skills = resume_data.get("top_skills") or resume_data.get("skills") or []
              if new_skills:
-                 current_skills = set(self.profile["skills"])
-                 current_skills.update(new_skills)
-                 self.profile["skills"] = list(current_skills)
+                 self.profile["skills"] = list(new_skills)
+                 logger.info(f"[PersonaManager] Updated skills: {len(self.profile['skills'])} items")
 
              # Replace Experience (Resume usually has the best structured experience)
              experience = resume_data.get("experience_highlights") or resume_data.get("experience")
              if experience:
                  self.profile["experience"] = experience
+                 logger.info(f"[PersonaManager] Updated experience: {len(self.profile['experience'])} items")
 
              # Replace Education
              education = resume_data.get("education")
@@ -157,11 +162,11 @@ class PersonaManager:
         full_name = identity.get("full_name") or resume_persona.get("full_name") or resume_persona.get("name") or "User"
         title = identity.get("professional_title") or resume_persona.get("professional_title") or resume_persona.get("title") or "Professional"
         location = identity.get("location") or resume_persona.get("location") or "Unknown"
+        summary = identity.get("summary") or resume_persona.get("summary") or ""
         skills = p["skills"] or resume_persona.get("top_skills") or resume_persona.get("skills") or []
         goals = p["goals"]
         experience = p.get("experience") or resume_persona.get("experience_highlights") or resume_persona.get("experience") or []
         education = p.get("education") or resume_persona.get("education") or []
-        summary = resume_persona.get("summary") or ""
 
         context = f"USER PROFILE:\nName: {full_name}\nTitle: {title}\nLocation: {location}\n"
         if summary:

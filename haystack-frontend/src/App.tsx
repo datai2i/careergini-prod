@@ -44,7 +44,7 @@ function App() {
                 <HomePage />
               </ProtectedRoute>
             } />
-            <Route path="chat" element={
+            <Route path="gini-chat" element={
               <ProtectedRoute>
                 <ChatPage />
               </ProtectedRoute>

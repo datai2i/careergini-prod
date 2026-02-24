@@ -32,6 +32,8 @@ async function findOrCreateUser(profile, provider, accessToken, refreshToken) {
 
             if (userRes.rows.length > 0) {
                 userId = userRes.rows[0].id;
+                // Ensure profile exists for existing users
+                await client.query('INSERT INTO profiles (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING', [userId]);
             } else {
                 // Create new user
                 const newUser = await client.query(
@@ -69,10 +71,13 @@ async function findOrCreateUser(profile, provider, accessToken, refreshToken) {
 
 // Google Strategy
 if (process.env.GOOGLE_CLIENT_ID) {
+    const googleCallback = process.env.GOOGLE_CALLBACK_URL || `${process.env.FRONTEND_URL}/api/profile/auth/google/callback`;
+    console.log('[auth] Registering GoogleStrategy with callbackURL:', googleCallback);
     passport.use(new GoogleStrategy({
         clientID: process.env.GOOGLE_CLIENT_ID,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        callbackURL: process.env.GOOGLE_CALLBACK_URL || `${process.env.FRONTEND_URL}/api/profile/auth/google/callback`,
+        // Force the absolute URL built from FRONTEND_URL rather than letting Passport guess from the Host header
+        callbackURL: googleCallback,
         proxy: true
     }, async (accessToken, refreshToken, profile, done) => {
         try {
