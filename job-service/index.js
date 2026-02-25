@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const redis = require('redis');
-const { RemoteOKClient, RemotiveClient, JobicyClient, ArbeitnowClient, AdzunaIndiaClient } = require('./integrations/jobApis');
+const { RemoteOKClient, RemotiveClient, JobicyClient, ArbeitnowClient, AdzunaIndiaClient, HimalayasClient, TheMuseClient } = require('./integrations/jobApis');
 require('dotenv').config();
 
 const app = express();
@@ -25,6 +25,8 @@ const remotive = new RemotiveClient();
 const jobicy = new JobicyClient();
 const arbeitnow = new ArbeitnowClient();
 const adzunaIndia = new AdzunaIndiaClient();
+const himalayas = new HimalayasClient();
+const themuse = new TheMuseClient();
 
 // Normalize verbose profile titles into effective search queries
 // e.g. "Associate Software Engineer Intern" → "Software Engineer"
@@ -75,21 +77,47 @@ function deduplicateJobs(jobs) {
 
 // Score a job's relevance to given skills/query
 function scoreJob(job, skillsArray, query) {
-    const text = `${job.title} ${job.description || ''} ${(job.tags || []).join(' ')}`.toLowerCase();
+    const title = (job.title || '').toLowerCase();
+    const txt = `${title} ${job.description || ''} ${(job.tags || []).join(' ')}`.toLowerCase();
+    const qLower = (query || '').toLowerCase();
     let score = 0;
 
-    // Skill matching — each match +3
+    // 1. Exact or partial query match in TITLE brings the most weight
+    if (qLower) {
+        if (title === qLower) score += 20;
+        else if (title.includes(qLower)) score += 10;
+
+        // 2. Heavy penalties for explicit role mismatches
+        // E.g., if user wants "Java Developer", penalize "Site Reliability", "Data Engineer", "SRE"
+        if (qLower.includes('developer') || qLower.includes('engineer') || qLower.includes('stack')) {
+            if (!qLower.includes('site reliability') && title.includes('site reliability')) score -= 25;
+            if (!qLower.includes('sre') && /\bsre\b/.test(title)) score -= 25;
+            if (!qLower.includes('devops') && title.includes('devops')) score -= 20;
+            if (!qLower.includes('data') && title.includes('data')) score -= 15;
+            if (!qLower.includes('machine learning') && title.includes('machine learning')) score -= 15;
+        }
+
+        // Intern penalty check
+        if (!qLower.includes('intern') && title.includes('intern')) score -= 10;
+        if (qLower.includes('intern') && title.includes('senior')) score -= 10;
+    }
+
+    // 3. Skill matching — each match +3
     skillsArray.forEach(skill => {
-        if (text.includes(skill.toLowerCase())) score += 3;
+        if (txt.includes(skill.toLowerCase())) score += 3;
     });
 
-    // Query in title is most valuable
-    if (query && job.title?.toLowerCase().includes(query.toLowerCase())) score += 5;
+    // 4. Strict tech-check penalty to aggressively drop non-tech spam from broad fallbacks
+    // If the title contains translation, writing, administrative, or accounting terms, heavily penalize it
+    const nonTechSpamCheck = ['übersetz', 'translation', 'writer', 'administrative', 'accounting', 'assistant', 'praktikum', 'sales', 'marketing', 'hr', 'recruiter', 'compliance'];
+    if (nonTechSpamCheck.some(spamWord => title.includes(spamWord))) {
+        score -= 50;
+    }
 
-    // Remote/worldwide bonus for India users
+    // 5. Remote/worldwide bonus
     const loc = (job.location || '').toLowerCase();
     if (job.isRemote || loc.includes('remote') || loc.includes('worldwide') || loc.includes('anywhere')) {
-        score += 1;
+        score += 2;
     }
 
     return score;
@@ -98,7 +126,18 @@ function scoreJob(job, skillsArray, query) {
 function rankJobs(jobs, skillsArray, query) {
     return jobs
         .map(job => ({ ...job, relevanceScore: scoreJob(job, skillsArray, query) }))
-        .sort((a, b) => b.relevanceScore - a.relevanceScore);
+        // Filter out completely irrelevant jobs
+        // Score must be > 2, meaning it must have AT LEAST a skill match (3 pts) or be a tech fallback (3 pts)
+        .filter(job => job.relevanceScore > 2)
+        // Compound sorting: Relevance first, Recency second
+        .sort((a, b) => {
+            if (b.relevanceScore !== a.relevanceScore) {
+                return b.relevanceScore - a.relevanceScore;
+            }
+            const dateA = a.posted ? new Date(a.posted).getTime() : 0;
+            const dateB = b.posted ? new Date(b.posted).getTime() : 0;
+            return dateB - dateA;
+        });
 }
 
 // India city detection
@@ -125,7 +164,7 @@ app.get('/jobs', async (req, res) => {
         // Normalize verbose profile titles → effective search terms
         const effectiveQuery = normalizeQuery(query);
 
-        const cacheKey = `jobs_v4:${effectiveQuery}:${indiaUser ? 'india' : location}:${skillsArray.slice(0, 5).join(',')}`;
+        const cacheKey = `jobs_v7:${effectiveQuery}:${indiaUser ? 'india' : location}:${skillsArray.slice(0, 5).join(',')}`;
         const cached = await redisClient.get(cacheKey);
         if (cached) {
             console.log('✓ Cache HIT:', cacheKey);
@@ -135,11 +174,13 @@ app.get('/jobs', async (req, res) => {
         console.log(`✗ Cache MISS — original="${query}" effective="${effectiveQuery}", india=${indiaUser}`);
 
         // Fetch from ALL sources in parallel using normalized query
-        const [r1, r2, r3, r4, r5] = await Promise.allSettled([
+        const [r1, r2, r3, r4, r5, r6, r7] = await Promise.allSettled([
             remoteOK.searchJobs(effectiveQuery, skillsArray),
             remotive.searchJobs(effectiveQuery),
             jobicy.searchJobs(effectiveQuery),
             arbeitnow.searchJobs(effectiveQuery),
+            himalayas.searchJobs(effectiveQuery),
+            themuse.searchJobs(effectiveQuery),
             indiaUser ? adzunaIndia.searchJobs(effectiveQuery, 'India') : Promise.resolve([])
         ]);
 
@@ -149,6 +190,8 @@ app.get('/jobs', async (req, res) => {
         if (r3.status === 'fulfilled') allJobs.push(...r3.value);
         if (r4.status === 'fulfilled') allJobs.push(...r4.value);
         if (r5.status === 'fulfilled') allJobs.push(...r5.value);
+        if (r6.status === 'fulfilled') allJobs.push(...r6.value);
+        if (r7.status === 'fulfilled') allJobs.push(...r7.value);
 
         console.log(`Total before dedup: ${allJobs.length}`);
         allJobs = deduplicateJobs(allJobs);
@@ -157,18 +200,33 @@ app.get('/jobs', async (req, res) => {
         // Rank by relevance
         allJobs = rankJobs(allJobs, skillsArray, query);
 
-        // If STILL less than 10 jobs (e.g. all APIs failed), emergency fallback
+        // If STILL less than 10 jobs (e.g. all APIs failed, or query too specific), emergency fallback
         if (allJobs.length < 10) {
-            console.log('Emergency fallback: fetching unfiltered RemoteOK + Remotive');
-            const [fb1, fb2] = await Promise.allSettled([
-                remoteOK.searchJobs('', []),
-                remotive.searchJobs('')
+            console.log('Emergency fallback: fetching unfiltered generic remote jobs to guarantee results');
+            const fallbackQuery = 'developer';
+            const [fb1, fb2, fb3] = await Promise.allSettled([
+                remoteOK.searchJobs(fallbackQuery, []),
+                remotive.searchJobs(fallbackQuery),
+                himalayas.searchJobs(fallbackQuery)
             ]);
-            const extra = [];
+            let extra = [];
             if (fb1.status === 'fulfilled') extra.push(...fb1.value);
             if (fb2.status === 'fulfilled') extra.push(...fb2.value);
+            if (fb3.status === 'fulfilled') extra.push(...fb3.value);
+
+            // Artificial relevance boost for fallback jobs so they pass the >2 filter
+            extra = extra.map(job => ({ ...job, relevanceScore: 3 }));
+
             allJobs = deduplicateJobs([...allJobs, ...extra]);
-            allJobs = rankJobs(allJobs, skillsArray, query);
+
+            // Filter and Sort again
+            allJobs = allJobs.filter(job => job.relevanceScore > 2);
+            allJobs.sort((a, b) => {
+                if (b.relevanceScore !== a.relevanceScore) return b.relevanceScore - a.relevanceScore;
+                const d1 = a.posted ? new Date(a.posted).getTime() : 0;
+                const d2 = b.posted ? new Date(b.posted).getTime() : 0;
+                return d2 - d1;
+            });
         }
 
         const result = allJobs.slice(0, 50);
@@ -191,36 +249,56 @@ app.get('/recommendations', async (req, res) => {
         const rawTitle = title || skillsArray[0] || 'software';
         const query = normalizeQuery(rawTitle);
 
-        const cacheKey = `recs_v4:${query}:${skillsArray.slice(0, 3).join(',')}`;
+        const cacheKey = `recs_v7:${query}:${skillsArray.slice(0, 3).join(',')}`;
         const cached = await redisClient.get(cacheKey);
         if (cached) return res.json(JSON.parse(cached));
 
-        // Fetch from 3 best sources using normalized query
-        const [r1, r2, r3] = await Promise.allSettled([
+        // Fetch from best sources using normalized query
+        const [r1, r2, r3, r4, r5] = await Promise.allSettled([
             remoteOK.searchJobs(query, skillsArray),
             remotive.searchJobs(query),
-            jobicy.searchJobs(query)
+            jobicy.searchJobs(query),
+            himalayas.searchJobs(query),
+            themuse.searchJobs(query)
         ]);
 
         let jobs = [];
         if (r1.status === 'fulfilled') jobs.push(...r1.value);
         if (r2.status === 'fulfilled') jobs.push(...r2.value);
         if (r3.status === 'fulfilled') jobs.push(...r3.value);
+        if (r4.status === 'fulfilled') jobs.push(...r4.value);
+        if (r5.status === 'fulfilled') jobs.push(...r5.value);
 
         jobs = deduplicateJobs(jobs);
         jobs = rankJobs(jobs, skillsArray, query);
 
         // Guarantee min 5 (broaden if needed)
         if (jobs.length < 5) {
-            const [fb1, fb2] = await Promise.allSettled([
-                remoteOK.searchJobs('', []),
-                remotive.searchJobs('')
+            console.log('Emergency fallback recs: fetching unfiltered general jobs');
+            const fallbackQuery = 'developer';
+            const [fb1, fb2, fb3] = await Promise.allSettled([
+                remoteOK.searchJobs(fallbackQuery, []),
+                remotive.searchJobs(fallbackQuery),
+                himalayas.searchJobs(fallbackQuery)
             ]);
-            const extra = [];
+            let extra = [];
             if (fb1.status === 'fulfilled') extra.push(...fb1.value);
             if (fb2.status === 'fulfilled') extra.push(...fb2.value);
+            if (fb3.status === 'fulfilled') extra.push(...fb3.value);
+
+            // Artificial relevance boost for fallback jobs so they pass the filter
+            extra = extra.map(job => ({ ...job, relevanceScore: 3 }));
+
             jobs = deduplicateJobs([...jobs, ...extra]);
-            jobs = rankJobs(jobs, skillsArray, query);
+
+            // Filter and Sort again
+            jobs = jobs.filter(job => job.relevanceScore > 2);
+            jobs.sort((a, b) => {
+                if (b.relevanceScore !== a.relevanceScore) return b.relevanceScore - a.relevanceScore;
+                const d1 = a.posted ? new Date(a.posted).getTime() : 0;
+                const d2 = b.posted ? new Date(b.posted).getTime() : 0;
+                return d2 - d1;
+            });
         }
 
         const result = jobs.slice(0, 20);
@@ -234,5 +312,5 @@ app.get('/recommendations', async (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Job Service running on port ${PORT}`);
-    console.log(`APIs: RemoteOK ✅, Remotive ✅, Jobicy ✅, Arbeitnow ✅, Adzuna India (if keyed)`);
+    console.log(`APIs: RemoteOK ✅, Remotive ✅, Jobicy ✅, Arbeitnow ✅, Himalayas ✅, TheMuse ✅`);
 });

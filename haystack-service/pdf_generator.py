@@ -269,6 +269,46 @@ def _exp_block(exp: dict, S: dict, creative: bool = False) -> List:
 # Main API
 # ─────────────────────────────────────────────────────────────────────────────
 
+def generate_cover_letter_pdf(
+    output_path: str,
+    persona: Dict[str, Any],
+    template: str = "classic",
+) -> bool:
+    """Generate a separate Cover Letter PDF."""
+    _ensure_fonts()
+    ml = mr = 0.60 * inch
+    mt = mb = 0.55 * inch
+
+    S = build_styles(template, page_count=2)
+    doc = SimpleDocTemplate(
+        output_path, pagesize=letter,
+        leftMargin=ml, rightMargin=mr,
+        topMargin=mt, bottomMargin=mb,
+    )
+
+    story: List = []
+
+    name = persona.get("full_name", "")
+    contacts = [p for p in [persona.get("email"), persona.get("phone"), persona.get("location")] if p]
+    story.append(Paragraph(name, S["name"]))
+    if contacts:
+        story.append(Paragraph(" | ".join(contacts), S["contact"]))
+    
+    story.append(Spacer(1, 16))
+    story.append(HRFlowable(width="100%", thickness=1.5, color=S["_accent"], spaceAfter=20))
+
+    cl = str(persona.get("cover_letter", "")).replace("\n", "<br/>")
+    story.append(Paragraph(cl, S["body_left"]))
+
+    try:
+        doc.build(story)
+        logger.info(f"Cover Letter PDF built → {output_path}")
+        return True
+    except Exception as e:
+        logger.error(f"Cover Letter generation failed: {e}")
+        return False
+        
+        
 def generate_pdf(
     output_path: str,
     persona: Dict[str, Any],
@@ -361,19 +401,6 @@ def generate_pdf(
                 leftMargin=ml, rightMargin=mr,
                 topMargin=mt, bottomMargin=mb,
             )
-
-        # ── Cover letter ─────────────────────────────────────────────
-        if persona.get("cover_letter"):
-            name     = persona.get("full_name", "")
-            contacts = [p for p in [persona.get("email"), persona.get("phone")] if p]
-            story.append(Paragraph(name, S["name"]))
-            story.append(Paragraph(" | ".join(contacts), S["contact"]))
-            story.append(Spacer(1, 28))
-            cl = str(persona["cover_letter"]).replace("\n", "<br/>")
-            story.append(Paragraph(cl, S["body"]))
-            if template == "modern":
-                story.append(NextPageTemplate("First"))
-            story.append(PageBreak())
 
         # ─────────────────────────────────────────────────────────────
         # MODERN — two-column sidebar

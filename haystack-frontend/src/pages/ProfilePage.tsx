@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Briefcase, GraduationCap, MapPin, Mail, Phone, Edit2, Save, RefreshCw, Upload, FileText } from 'lucide-react';
+import { Briefcase, GraduationCap, MapPin, Mail, Phone, Edit2, Save, RefreshCw, Upload, FileText, Edit3 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { ProcessingOverlay } from '../components/common/ProcessingOverlay';
+import { DraftResumeModal } from '../components/DraftResumeModal';
 
 interface ProfileData {
     name: string;
@@ -131,6 +132,53 @@ export const ProfilePage: React.FC = () => {
             } finally {
                 setUploading(false);
             }
+        }
+    };
+
+    const [isDraftModalOpen, setIsDraftModalOpen] = useState(false);
+
+    const handleDraftSave = async (draftData: any) => {
+        try {
+            setUploading(true);
+            const token = localStorage.getItem('auth_token');
+            const resp = await fetch('/api/resume/draft', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ ...draftData, user_id: user?.id })
+            });
+
+            if (!resp.ok) throw new Error('Failed to save drafted resume');
+
+            showToast('Draft saved successfully!', 'success');
+            await refreshUser();
+            setIsDraftModalOpen(false);
+
+            // Re-fetch profile
+            const profileResp = await fetch('/api/profile/me', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (profileResp.ok) {
+                const data = await profileResp.json();
+                setProfile({
+                    name: data.full_name || data.name || 'Your Name',
+                    email: data.email || 'your.email@example.com',
+                    phone: data.phone || '',
+                    location: data.location || '',
+                    title: data.headline || data.title || 'Your Professional Title',
+                    bio: data.summary || data.bio || 'Tell us about yourself...',
+                    skills: Array.isArray(data.skills) ? data.skills : [],
+                    experience: data.experience || '0',
+                    education: data.education || 'Your Education'
+                });
+            }
+        } catch (err: any) {
+            console.error('Draft save failed:', err);
+            showToast(err.message || 'Could not save drafted resume.', 'error');
+        } finally {
+            setUploading(false);
         }
     };
 
@@ -297,17 +345,26 @@ export const ProfilePage: React.FC = () => {
                         <FileText className="text-purple-600" size={24} />
                         <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Resume Management</h3>
                     </div>
-                    <label className={`cursor-pointer flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                        {uploading ? <RefreshCw size={18} className="animate-spin" /> : <Upload size={18} />}
-                        <span>{uploading ? 'Uploading...' : 'Upload New Resume'}</span>
-                        <input
-                            type="file"
-                            className="hidden"
-                            accept=".pdf,.docx,.txt"
-                            onChange={handleResumeUpload}
-                            disabled={uploading}
-                        />
-                    </label>
+                    <div className="flex flex-wrap gap-2">
+                        <button
+                            onClick={() => setIsDraftModalOpen(true)}
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800/40 transition-colors font-medium border border-blue-200 dark:border-blue-800"
+                        >
+                            <Edit3 size={18} />
+                            <span>Draft Manually</span>
+                        </button>
+                        <label className={`cursor-pointer flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                            {uploading ? <RefreshCw size={18} className="animate-spin" /> : <Upload size={18} />}
+                            <span>{uploading ? 'Uploading...' : 'Upload New Resume'}</span>
+                            <input
+                                type="file"
+                                className="hidden"
+                                accept=".pdf,.docx,.txt"
+                                onChange={handleResumeUpload}
+                                disabled={uploading}
+                            />
+                        </label>
+                    </div>
                 </div>
 
                 <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6 border border-dashed border-gray-300 dark:border-gray-600">
@@ -371,6 +428,12 @@ export const ProfilePage: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            <DraftResumeModal
+                isOpen={isDraftModalOpen}
+                onClose={() => setIsDraftModalOpen(false)}
+                onSave={handleDraftSave}
+            />
         </div>
     );
 };

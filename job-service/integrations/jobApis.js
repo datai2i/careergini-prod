@@ -278,10 +278,139 @@ class AdzunaIndiaClient {
     }
 }
 
+/**
+ * Himalayas App API
+ * Free API delivering JSON without auth. Focuses on tech & remote jobs.
+ */
+class HimalayasClient {
+    constructor() {
+        this.baseUrl = 'https://himalayas.app/jobs/api';
+    }
+
+    async searchJobs(query = '') {
+        try {
+            const response = await axios.get(this.baseUrl, {
+                params: { limit: 50 },
+                headers: { 'User-Agent': 'CareerGini/1.0' },
+                timeout: 10000
+            });
+
+            let jobs = response.data.jobs || [];
+            console.log(`Himalayas returned ${jobs.length} jobs`);
+
+            if (query) {
+                const q = query.toLowerCase();
+                const matched = jobs.filter(job =>
+                    job.title?.toLowerCase().includes(q) ||
+                    job.companyName?.toLowerCase().includes(q) ||
+                    job.categories?.some(c => c.toLowerCase().includes(q))
+                );
+                if (matched.length >= 3) jobs = matched;
+            }
+
+            return jobs.map(job => this.formatJob(job));
+        } catch (error) {
+            console.error('Himalayas API error:', error.message);
+            return [];
+        }
+    }
+
+    formatJob(job) {
+        return {
+            id: `himala_${job.guid || job.applicationLink}`,
+            title: job.title || 'Unknown Role',
+            company: job.companyName || 'Unknown Company',
+            location: job.locationRestrictions && job.locationRestrictions.length ? job.locationRestrictions.join(', ') : 'Remote / Worldwide',
+            type: job.employmentType || 'Remote',
+            description: job.excerpt || `${job.title} at ${job.companyName}`,
+            url: job.applicationLink,
+            tags: job.categories || [],
+            salary: (job.minSalary && job.maxSalary) ? `$${job.minSalary} - $${job.maxSalary}` : null,
+            posted: job.pubDate ? new Date(job.pubDate * 1000).toISOString() : new Date().toISOString(),
+            logo: job.companyLogo || null,
+            source: 'Himalayas',
+            isRemote: true
+        };
+    }
+}
+
+/**
+ * TheMuse API
+ * Free public API without auth. We query for Flexible/Remote locations out of the box.
+ */
+class TheMuseClient {
+    constructor() {
+        this.baseUrl = 'https://www.themuse.com/api/public/jobs';
+    }
+
+    async searchJobs(query = '') {
+        try {
+            const params = {
+                page: 1,
+                location: 'Flexible / Remote'
+            };
+
+            // TheMuse doesn't allow 'search' for titles easily on the free tier, 
+            // so we fetch category based if possible, or filter locally.
+            const categoryMap = {
+                'software': 'Software Engineer', 'data': 'Data Science',
+                'design': 'Design', 'product': 'Product'
+            };
+            const q = query.toLowerCase();
+            for (const [k, v] of Object.entries(categoryMap)) {
+                if (q.includes(k)) { params.category = v; break; }
+            }
+
+            const response = await axios.get(this.baseUrl, {
+                params,
+                headers: { 'User-Agent': 'CareerGini/1.0' },
+                timeout: 10000
+            });
+
+            let jobs = response.data.results || [];
+            console.log(`TheMuse returned ${jobs.length} jobs`);
+
+            if (query) {
+                const matched = jobs.filter(job =>
+                    job.name?.toLowerCase().includes(q) ||
+                    job.company?.name?.toLowerCase().includes(q)
+                );
+                if (matched.length >= 3) jobs = matched;
+            }
+
+            return jobs.map(job => this.formatJob(job));
+        } catch (error) {
+            console.error('TheMuse API error:', error.message);
+            return [];
+        }
+    }
+
+    formatJob(job) {
+        const type = (job.levels && job.levels.length) ? job.levels[0].name : 'Remote';
+        return {
+            id: `themuse_${job.id}`,
+            title: job.name || 'Unknown Role',
+            company: job.company?.name || 'Unknown Company',
+            location: (job.locations && job.locations.length) ? job.locations[0].name : 'Remote',
+            type: type,
+            description: job.contents || `${job.name} position`,
+            url: job.refs?.landing_page,
+            tags: job.categories?.map(c => c.name) || [],
+            salary: null,
+            posted: job.publication_date ? new Date(job.publication_date).toISOString() : new Date().toISOString(),
+            logo: null,
+            source: 'TheMuse',
+            isRemote: true
+        };
+    }
+}
+
 module.exports = {
     RemoteOKClient,
     RemotiveClient,
     JobicyClient,
     ArbeitnowClient,
-    AdzunaIndiaClient
+    AdzunaIndiaClient,
+    HimalayasClient,
+    TheMuseClient
 };

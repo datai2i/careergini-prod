@@ -190,21 +190,11 @@ export const JobsPage: React.FC = () => {
                 return jobTitle.includes(kwLower) || jobTags.includes(kwLower) || jobDesc.includes(kwLower);
             });
 
-        let matchesLocation = true;
-        if (remoteOnly) {
-            const loc = (job.location || '').toLowerCase();
-            matchesLocation = job.isRemote ||
-                loc.includes('remote') || loc.includes('worldwide') ||
-                loc.includes('anywhere') || loc.includes('global') || loc === '';
-        } else if (locationFilter) {
-            const loc = (job.location || '').toLowerCase();
-            const filter = locationFilter.toLowerCase();
-            const isRemoteOrWorld = loc.includes('remote') || loc.includes('worldwide') ||
-                loc.includes('anywhere') || job.isRemote;
-            matchesLocation = isRemoteOrWorld || loc.includes(filter);
-        }
+        // Location filter removed: The backend fetches Remote/Global jobs, 
+        // so we don't want to hide them on the frontend just because the 
+        // string "remote" is missing from the location field or doesn't match the user's city exactly.
 
-        return matchesKeywords && matchesLocation;
+        return matchesKeywords;
     });
 
     const formatDate = (dateStr: string) => {
@@ -280,7 +270,7 @@ export const JobsPage: React.FC = () => {
     return (
         <div className="max-w-6xl mx-auto space-y-5">
             <div>
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-1">Job Board</h1>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-1">Job Search</h1>
                 <p className="text-gray-500 dark:text-gray-400 text-sm">Remote &amp; India-friendly opportunities matched to your profile</p>
             </div>
 

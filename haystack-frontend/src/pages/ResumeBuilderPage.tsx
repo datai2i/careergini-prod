@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, FileText, CheckCircle, Download, ArrowRight, RefreshCw, AlertCircle, History, Clock } from 'lucide-react';
+import { Upload, FileText, CheckCircle, Download, ArrowRight, RefreshCw, AlertCircle, History, Clock, Edit3 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { notifyStep, requestNotificationPermission } from '../utils/notify';
 import { ProcessingOverlay } from '../components/common/ProcessingOverlay';
 import { useToast } from '../context/ToastContext';
+import { DraftResumeModal } from '../components/DraftResumeModal';
 
 interface ResumePersona {
     full_name: string;
@@ -37,6 +38,7 @@ export const ResumeBuilderPage: React.FC = () => {
     const [profilePicBase64, setProfilePicBase64] = useState<string | null>(null);
     const [generatingPDF, setGeneratingPDF] = useState(false);
     const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+    const [coverLetterUrl, setCoverLetterUrl] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [pageCount, setPageCount] = useState<number>(2);
     const [sessions, setSessions] = useState<Array<{ session_id: string; timestamp: string; job_title_snippet: string }>>([]);
@@ -129,6 +131,38 @@ export const ResumeBuilderPage: React.FC = () => {
             } finally {
                 setUploading(false);
             }
+        }
+    };
+
+    const [isDraftModalOpen, setIsDraftModalOpen] = useState(false);
+
+    const handleDraftSave = async (draftData: any) => {
+        try {
+            setUploading(true);
+            const token = localStorage.getItem('auth_token');
+            const resp = await fetch('/api/resume/draft', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ ...draftData, user_id: user?.id })
+            });
+
+            if (!resp.ok) throw new Error('Failed to save drafted resume');
+
+            const result = await resp.json();
+            setPersona(result.persona);
+            await refreshUser(); // Update global user state (name, resume metadata)
+            setStep(2);
+            setIsDraftModalOpen(false);
+            notifyStep('✅ Manual Draft Saved!', 'Your resume draft is ready. Ready to tailor it.');
+            showToast('Drafted resume saved successfully', 'success');
+        } catch (err: any) {
+            console.error('Draft save failed:', err);
+            setError(err.message || 'Could not save drafted resume.');
+        } finally {
+            setUploading(false);
         }
     };
 
@@ -264,9 +298,14 @@ export const ResumeBuilderPage: React.FC = () => {
             const pdfData = await pdfResponse.json();
             if (pdfResponse.ok) {
                 setPdfUrl(pdfData.pdf_url);
+                if (pdfData.cover_letter_url) {
+                    setCoverLetterUrl(pdfData.cover_letter_url);
+                } else {
+                    setCoverLetterUrl(null);
+                }
                 setStep(5);
-                notifyStep('🎉 PDF Ready!', 'Your professional resume PDF has been generated. Click to download!');
-                showToast('PDF ready to download! 🎉', 'success');
+                notifyStep('🎉 PDF Ready!', 'Your professional resume and cover letter have been generated. Click to download!');
+                showToast('Files ready to download! 🎉', 'success');
             } else {
                 setError(pdfData.detail || "Failed to generate PDF");
             }
@@ -348,29 +387,37 @@ export const ResumeBuilderPage: React.FC = () => {
                     {/* Three option cards */}
                     <div className="grid md:grid-cols-3 gap-5">
 
-                        {/* Card 1: Upload New Resume */}
+                        {/* Card 1: Start Fresh */}
                         <div className="bg-white/60 backdrop-blur-sm border-2 border-purple-100 hover:border-purple-400 rounded-2xl p-7 flex flex-col items-center text-center shadow-md hover:shadow-lg transition-all group">
                             <div className="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-purple-200 transition-colors">
                                 <Upload className="w-8 h-8 text-purple-600" />
                             </div>
-                            <h3 className="text-lg font-bold text-gray-800 mb-2">Upload New Resume</h3>
+                            <h3 className="text-lg font-bold text-gray-800 mb-2">Start Fresh</h3>
                             <p className="text-sm text-gray-500 mb-5 flex-1">
-                                Start fresh. We'll parse your resume and guide you through all 4 steps to tailor and generate your perfect resume.
+                                We'll parse your resume or you can draft it manually, then guide you through 4 steps to tailor and generate your perfect resume.
                             </p>
-                            <label className="cursor-pointer w-full text-center bg-gradient-to-r from-purple-600 to-blue-600 text-white px-5 py-2.5 rounded-xl font-medium hover:opacity-90 transition-all inline-flex items-center justify-center shadow">
-                                {uploading ? (
-                                    <><RefreshCw className="w-4 h-4 mr-2 animate-spin" /> Analyzing...</>
-                                ) : (
-                                    <><FileText className="w-4 h-4 mr-2" /> Choose File</>
-                                )}
-                                <input
-                                    type="file"
-                                    className="hidden"
-                                    accept=".pdf,.docx,.txt"
-                                    onChange={handleFileUpload}
-                                    disabled={uploading}
-                                />
-                            </label>
+                            <div className="w-full flex flex-col gap-2">
+                                <button
+                                    onClick={() => setIsDraftModalOpen(true)}
+                                    className="w-full text-center bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-200 px-5 py-2.5 rounded-xl font-medium transition-all inline-flex items-center justify-center shadow-sm"
+                                >
+                                    <Edit3 className="w-4 h-4 mr-2" /> Draft Manually
+                                </button>
+                                <label className="cursor-pointer w-full text-center bg-gradient-to-r from-purple-600 to-blue-600 text-white px-5 py-2.5 rounded-xl font-medium hover:opacity-90 transition-all inline-flex items-center justify-center shadow">
+                                    {uploading ? (
+                                        <><RefreshCw className="w-4 h-4 mr-2 animate-spin" /> Analyzing...</>
+                                    ) : (
+                                        <><FileText className="w-4 h-4 mr-2" /> Upload Resume</>
+                                    )}
+                                    <input
+                                        type="file"
+                                        className="hidden"
+                                        accept=".pdf,.docx,.txt"
+                                        onChange={handleFileUpload}
+                                        disabled={uploading}
+                                    />
+                                </label>
+                            </div>
                         </div>
 
                         {/* Card 2: Existing Resume → Step 3 */}
@@ -842,19 +889,35 @@ export const ResumeBuilderPage: React.FC = () => {
                         </div>
                         <div className="flex items-center justify-between mt-4">
                             <span className="font-medium text-gray-700">Included</span>
-                            <span className="bg-purple-100 text-purple-800 px-2 py-0.5 rounded text-sm font-medium">Cover Letter + Resume</span>
+                            <span className="bg-purple-100 text-purple-800 px-2 py-0.5 rounded text-sm font-medium">
+                                {coverLetterUrl ? 'Cover Letter + Resume (Separate Files)' : 'Resume'}
+                            </span>
                         </div>
                     </div>
 
-                    <a
-                        href={pdfUrl}
-                        target="_blank"
-                        download={`Tailored_Resume_${selectedTemplate}.pdf`}
-                        className="block w-full bg-black text-white py-4 rounded-xl font-bold text-lg hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1"
-                    >
-                        <Download className="w-6 h-6 inline-block mr-2" />
-                        Download PDF
-                    </a>
+                    <div className="flex flex-col sm:flex-row gap-4">
+                        <a
+                            href={pdfUrl}
+                            target="_blank"
+                            download={`Tailored_Resume_${selectedTemplate}.pdf`}
+                            className="flex-1 bg-black text-white py-4 rounded-xl font-bold text-lg hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex justify-center items-center"
+                        >
+                            <Download className="w-6 h-6 inline-block mr-2" />
+                            Download Resume
+                        </a>
+
+                        {coverLetterUrl && (
+                            <a
+                                href={coverLetterUrl}
+                                target="_blank"
+                                download={`Cover_Letter_${selectedTemplate}.pdf`}
+                                className="flex-1 bg-white text-black border-2 border-black py-3.5 rounded-xl font-bold text-lg hover:bg-gray-50 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex justify-center items-center"
+                            >
+                                <Download className="w-6 h-6 inline-block mr-2" />
+                                Download Cover Letter
+                            </a>
+                        )}
+                    </div>
 
                     <button
                         onClick={() => setStep(4)}
@@ -864,6 +927,12 @@ export const ResumeBuilderPage: React.FC = () => {
                     </button>
                 </div>
             )}
+
+            <DraftResumeModal
+                isOpen={isDraftModalOpen}
+                onClose={() => setIsDraftModalOpen(false)}
+                onSave={handleDraftSave}
+            />
         </div>
     );
 };

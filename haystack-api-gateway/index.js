@@ -36,7 +36,13 @@ app.use('/api/profile', proxy(PROFILE_SERVICE_URL));
 
 app.use('/api/jobs', proxy(JOB_SERVICE_URL, {
     proxyReqPathResolver: function (req) {
-        return req.originalUrl.replace('/api/jobs', '');
+        let path = req.originalUrl.replace('/api/jobs', '');
+        // If the path is empty or just starts with query string, route to /jobs
+        if (!path || path.startsWith('?')) {
+            return '/jobs' + path;
+        }
+        // Otherwise (e.g., /recommendations), preserve it
+        return path;
     }
 }));
 

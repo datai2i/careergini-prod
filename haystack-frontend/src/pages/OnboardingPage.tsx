@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, CheckCircle2, ChevronRight, Check, AlertCircle, Loader2, Link as LinkIcon } from 'lucide-react';
+import { Upload, CheckCircle2, ChevronRight, Check, AlertCircle, Loader2, Edit3 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ProcessingOverlay } from '../components/common/ProcessingOverlay';
+import { DraftResumeModal } from '../components/DraftResumeModal';
 
 export const OnboardingPage: React.FC = () => {
     const navigate = useNavigate();
     const { user, refreshUser } = useAuth();
     const [step, setStep] = useState(1);
-    const [inputMethod, setInputMethod] = useState<'resume' | 'linkedin' | null>(null);
-    const [linkedinUrl, setLinkedinUrl] = useState('');
+    const [inputMethod, setInputMethod] = useState<'resume' | 'linkedin' | 'draft' | null>(null);
     const [parsing, setParsing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [isDraftModalOpen, setIsDraftModalOpen] = useState(false);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -66,63 +67,38 @@ export const OnboardingPage: React.FC = () => {
         }
     };
 
-    // Step 1: LinkedIn URL Parsing
-    const handleLinkedInParse = async () => {
-        if (!linkedinUrl.trim()) {
-            setError('Please enter a LinkedIn profile URL');
-            return;
-        }
-
-        setParsing(true);
-        setError(null);
-
+    const handleDraftSave = async (draftData: any) => {
         try {
-            const parseRes = await fetch('/api/ai/linkedin/parse', {
+            const resp = await fetch('/api/resume/draft', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: linkedinUrl }),
+                body: JSON.stringify({ ...draftData, user_id: user?.id })
             });
 
-            if (!parseRes.ok) {
-                const errorData = await parseRes.json();
-                throw new Error(errorData.detail || 'Failed to parse LinkedIn profile');
-            }
+            if (!resp.ok) throw new Error('Failed to save drafted resume');
 
-            const parseJson = await parseRes.json();
-            console.log("DEBUG: LinkedIn Parse Response", parseJson);
-            const { parsed_data } = parseJson;
-
-            // Populate form with LinkedIn data
-            // LinkedIn often returns name in format "Name - Company" or "Name (Title)"
-            // Use name for headline if headline is empty
-            const extractedHeadline = parsed_data.headline || parsed_data.name || '';
+            const result = await resp.json();
+            const persona = result.persona || {};
 
             setFormData(prev => ({
                 ...prev,
-                headline: extractedHeadline,
-                location: parsed_data.location || '',
-                summary: parsed_data.summary || parsed_data.headline || '',
-                skills: parsed_data.skills || [],
-                experience: parsed_data.experience || [],
-                education: parsed_data.education || []
+                headline: persona.professional_title || persona.full_name || '',
+                location: persona.location || '',
+                summary: persona.summary || '',
+                skills: persona.top_skills || [],
+                experience: persona.experience_highlights || [],
+                education: persona.education || []
             }));
 
-            if (parsed_data.note) {
-                setError(parsed_data.note);
-            }
-
-            // Move to Review Step
+            setIsDraftModalOpen(false);
             setStep(2);
-
         } catch (err: any) {
-            console.error(err);
-            setError(err.message || 'Could not parse LinkedIn profile. Please try resume upload instead.');
-        } finally {
-            setParsing(false);
+            console.error('Draft save failed:', err);
+            setError(err.message || 'Could not save drafted resume.');
         }
     };
 
-    const handleComplete = async () => {
+    const handleSaveProfile = async () => {
         try {
             // Save profile data to backend
             const token = localStorage.getItem('auth_token');
@@ -272,17 +248,17 @@ export const OnboardingPage: React.FC = () => {
                                         </p>
                                     </button>
 
-                                    {/* LinkedIn URL Option */}
+                                    {/* Draft Manually Option */}
                                     <button
-                                        onClick={() => setInputMethod('linkedin')}
+                                        onClick={() => setIsDraftModalOpen(true)}
                                         className="group p-8 border-2 border-gray-200 dark:border-gray-700 rounded-2xl hover:border-blue-500 dark:hover:border-blue-400 hover:shadow-lg transition-all text-left"
                                     >
                                         <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center mb-4 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
-                                            <LinkIcon size={24} />
+                                            <Edit3 size={24} />
                                         </div>
-                                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">LinkedIn Profile</h3>
+                                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Draft Manually</h3>
                                         <p className="text-sm text-gray-600 dark:text-gray-400">
-                                            Provide your LinkedIn profile URL to import your professional data
+                                            Don't have a resume handy? Enter your details manually to build your profile
                                         </p>
                                     </button>
                                 </div>
@@ -335,64 +311,7 @@ export const OnboardingPage: React.FC = () => {
                                     </p>
                                 )}
                             </div>
-                        ) : (
-                            // LinkedIn URL Input UI
-                            <div className="text-center">
-                                <button
-                                    onClick={() => setInputMethod(null)}
-                                    className="mb-6 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 flex items-center gap-2 mx-auto"
-                                >
-                                    ← Back to options
-                                </button>
-
-                                <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-6 text-blue-600 dark:text-blue-400">
-                                    <LinkIcon size={32} />
-                                </div>
-                                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">LinkedIn Profile</h2>
-                                <p className="text-gray-600 dark:text-gray-400 mb-8 max-w-md mx-auto">
-                                    Enter your LinkedIn profile URL to import your professional information.
-                                </p>
-
-                                <div className="max-w-md mx-auto space-y-4">
-                                    <input
-                                        type="url"
-                                        value={linkedinUrl}
-                                        onChange={(e) => setLinkedinUrl(e.target.value)}
-                                        placeholder="https://www.linkedin.com/in/your-profile"
-                                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        disabled={parsing}
-                                    />
-
-                                    <button
-                                        onClick={handleLinkedInParse}
-                                        disabled={parsing || !linkedinUrl.trim()}
-                                        className="w-full inline-flex items-center justify-center gap-3 px-8 py-4 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-lg hover:shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        {parsing ? (
-                                            <>
-                                                <Loader2 size={20} className="animate-spin" />
-                                                <span>Parsing LinkedIn Profile...</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <span>Import from LinkedIn</span>
-                                                <ChevronRight size={20} />
-                                            </>
-                                        )}
-                                    </button>
-                                </div>
-
-                                {parsing && (
-                                    <p className="mt-4 text-sm text-gray-500 animate-pulse">
-                                        Extracting your professional information...
-                                    </p>
-                                )}
-
-                                <p className="mt-6 text-xs text-gray-500 max-w-md mx-auto">
-                                    Note: Only public LinkedIn profiles can be parsed. Private profiles may have limited data extraction.
-                                </p>
-                            </div>
-                        )}
+                        ) : null}
                     </div>
                 )}
 
@@ -474,7 +393,7 @@ export const OnboardingPage: React.FC = () => {
                             We've set up your personalized dashboard based on your resume.
                         </p>
                         <button
-                            onClick={handleComplete}
+                            onClick={handleSaveProfile}
                             className="px-10 py-4 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all font-bold shadow-lg shadow-blue-600/30"
                         >
                             Go to Dashboard
@@ -482,6 +401,12 @@ export const OnboardingPage: React.FC = () => {
                     </div>
                 )}
             </div>
-        </div>
+
+            <DraftResumeModal
+                isOpen={isDraftModalOpen}
+                onClose={() => setIsDraftModalOpen(false)}
+                onSave={handleDraftSave}
+            />
+        </div >
     );
 };

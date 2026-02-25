@@ -58,6 +58,15 @@ class ChatResponse(BaseModel):
 class PersonaUpdateRequest(BaseModel):
     persona: Dict[str, Any]
 
+class DraftResumeRequest(BaseModel):
+    user_id: str
+    full_name: str
+    professional_title: str
+    summary: str
+    top_skills: List[str]
+    experience_highlights: List[Dict[str, str]]
+    education: List[Dict[str, str]]
+
 @app.on_event("startup")
 async def startup_event():
     """Check connections on startup"""
@@ -204,6 +213,79 @@ async def upload_resume(
         logger.error(f"Error processing resume: {e}")
         raise HTTPException(status_code=500, detail=f"Error processing resume: {str(e)}")
 
+@app.post("/resume/draft")
+async def draft_resume(request: DraftResumeRequest):
+    """Save manually entered resume drafted by user (bypasses LLM parsing)"""
+    try:
+        user_id = request.user_id
+        if not user_id:
+            user_id = "default"
+            
+        upload_dir = f"uploads/{user_id}"
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        # Construct standard persona schema
+        persona = {
+            "full_name": request.full_name,
+            "professional_title": request.professional_title,
+            "summary": request.summary,
+            "top_skills": request.top_skills,
+            "skills": request.top_skills, # duplicate for broader compat
+            "experience_highlights": request.experience_highlights,
+            "experience": request.experience_highlights, 
+            "education": request.education,
+            "years_experience": 0,
+            "career_level": "Professional"
+        }
+        
+        # Save Persona to disk
+        persona_path = f"{upload_dir}/persona.json"
+        with open(persona_path, "w") as f:
+            json.dump(persona, f, indent=2)
+            
+        # Update Unified Persona (local file cache)
+        from persona_manager import PersonaManager
+        pm = PersonaManager(user_id)
+        pm.ingest_resume_data(persona)
+
+        # Sync to profile-service PostgreSQL database (only if we have a real user_id)
+        if user_id != "default":
+            profile_service_url = os.getenv("PROFILE_SERVICE_URL", "http://profile-service:3001")
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    sync_payload = {
+                        "user_id": user_id,
+                        "full_name": request.full_name,
+                        "headline": request.professional_title,
+                        "summary": request.summary,
+                        "location": "",
+                        "skills": request.top_skills,
+                        "experience": request.experience_highlights,
+                        "education": request.education,
+                        "latest_resume_filename": "manual_draft.json",
+                        "latest_resume_path": f"uploads/{user_id}/manual_draft.json"
+                    }
+                    resp = await client.post(f"{profile_service_url}/sync-resume", json=sync_payload)
+                    if resp.status_code == 200:
+                        logger.info(f"[resume-draft] Profile synced to DB for user {user_id}")
+                    else:
+                        logger.warning(f"[resume-draft] Profile sync returned {resp.status_code}: {resp.text}")
+            except Exception as sync_err:
+                logger.warning(f"[resume-draft] Profile sync to DB failed (non-fatal): {sync_err}")
+        else:
+            logger.info("Skipping DB sync as user_id is 'default' (likely Onboarding)")
+
+        logger.info(f"Successfully saved manual draft persona for {user_id}")
+        
+        return {
+            "filename": "manual_draft.json",
+            "persona": persona,
+            "status": "success"
+        }
+    except Exception as e:
+        logger.error(f"Error saving drafted resume: {e}")
+        raise HTTPException(status_code=500, detail=f"Error saving drafted resume: {str(e)}")
+
 @app.get("/resume/persona/{user_id}")
 async def get_resume_persona(user_id: str):
     """Retrieve saved persona for user"""
@@ -249,6 +331,105 @@ async def update_resume_persona(user_id: str, request: PersonaUpdateRequest):
     except Exception as e:
         logger.error(f"Error updating persona: {e}")
         raise HTTPException(status_code=500, detail="Error updating persona")
+
+@app.get("/resume/gini-guide/{user_id}")
+async def generate_gini_guide(user_id: str):
+    """Generate hyper-personalized GINI Guide (Summary + Key Skills)"""
+    try:
+        from persona_manager import PersonaManager
+        import re
+        pm = PersonaManager(user_id)
+        
+        ollama = get_ollama_client()
+        generator = ollama.get_generator("fast")
+        
+        # Format user profile for context
+        identity = pm.profile.get("identity", {})
+        skills = pm.profile.get("skills", [])
+        experience = pm.profile.get("experience", [])
+        
+        exp_text = ""
+        for i, exp in enumerate(experience[:3]):
+            exp_text += f"- {exp.get('role', 'Professional')} at {exp.get('company', 'Company')} ({exp.get('duration', '')})\n"
+            highlights = exp.get("highlights", exp.get("key_achievement", exp.get("tailored_bullets", [])))
+            if isinstance(highlights, list):
+                highlights = " | ".join(highlights)
+            if highlights:
+                exp_text += f"  Highlights: {highlights[:200]}\n"
+        
+        prompt = f"""You are GINI, an AI career advisor. Analyze this user's profile and provide a hyper-personalized career guide.
+
+User Profile:
+Name: {identity.get("full_name", "User")}
+Current Title: {identity.get("professional_title", "Professional")}
+Current Skills: {', '.join(skills[:20])}
+Recent Experience:
+{exp_text}
+
+Task:
+1. Determine their most logical next 'target_role' (e.g. "Senior Frontend Developer", "Java Full Stack Intern", "Product Manager"). Do not use generic terms like "Software Engineer" if their experience is more specific.
+2. Identify up to 5 of their 'top_skills' that are most relevant to this target role.
+3. Identify exactly 3 'missing_skills' (technologies, methodologies, or soft skills) they critically need to learn to land this target role.
+4. Write a hyper-personalized, encouraging, and direct 2-paragraph career 'summary' addressing them as "you". Discuss their trajectory from their current role to the target role, and highlight why they need those missing skills. No pleasantries like "Hi".
+
+Output EXACTLY AND ONLY valid JSON in this format:
+{{
+  "target_role": "Calculated Role",
+  "top_skills": ["Skill1", "Skill2", "Skill3", "Skill4", "Skill5"],
+  "missing_skills": ["Missing1", "Missing2", "Missing3"],
+  "summary": "The 2-paragraph summary text."
+}}
+"""
+
+        logger.info(f"Generating dynamic JSON GINI Guide for user {user_id}...")
+        response = await asyncio.to_thread(generator.run, prompt=prompt)
+        content = response["replies"][0].strip()
+        
+        # Robustly extract JSON
+        if "```json" in content:
+            content = content.split("```json")[1].split("```")[0]
+        elif "```" in content:
+            content = content.split("```")[1].split("```")[0]
+            
+        match = re.search(r'\{.*\}', content, re.DOTALL)
+        if match:
+            raw = match.group(0)
+            raw = re.sub(r',(\s*[}\]])', r'\1', raw)
+            try:
+                data = json.loads(raw)
+            except json.JSONDecodeError:
+                data = json.loads(content.strip())
+        else:
+            data = json.loads(content.strip())
+            
+        # Ensure fallback fields
+        target_role = data.get("target_role", identity.get("professional_title", "Professional"))
+        top_skills = data.get("top_skills", skills[:5])
+        missing_skills = data.get("missing_skills", ["Communication", "Leadership", "System Design"])
+        summary = data.get("summary", "Welcome to your career dashboard! Keep building your skills to reach the next level.")
+
+        return {
+            "status": "success",
+            "guide": {
+                "summary": summary,
+                "top_skills": top_skills[:5],
+                "missing_skills": missing_skills[:3],
+                "target_role": target_role
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error generating GINI guide: {e}")
+        # Return graceful fallback so UI doesn't break
+        return {
+            "status": "success",
+            "guide": {
+                "summary": "Welcome to your career dashboard! Upload your resume or complete your profile to receive hyper-personalized career guidance.",
+                "top_skills": ["Communication", "Problem Solving"],
+                "missing_skills": ["Data Analysis"],
+                "target_role": "Professional"
+            }
+        }
 
 @app.post("/resume/tailor")
 async def tailor_resume_endpoint(request: ResumeTailorRequest):
@@ -376,26 +557,37 @@ async def generate_resume_pdf(request: ResumeTailorRequest):
         # For now, we will return a mock success response to unblock the frontend
         
         from starlette.concurrency import run_in_threadpool
-        from pdf_generator import generate_pdf
+        from pdf_generator import generate_pdf, generate_cover_letter_pdf
         
-        output_path = f"uploads/{request.user_id}/tailored_resume.pdf"
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        output_dir = f"uploads/{request.user_id}"
+        os.makedirs(output_dir, exist_ok=True)
         
+        output_resume_path = f"{output_dir}/tailored_resume.pdf"
+        output_cl_path     = f"{output_dir}/cover_letter.pdf"
+
         logger.info(f"Generating PDF for {request.user_id}. Persona keys: {list(request.persona.keys())}")
-        if "cover_letter" in request.persona:
+        
+        has_cl = False
+        if "cover_letter" in request.persona and str(request.persona["cover_letter"]).strip():
             logger.info("Cover letter found in persona data.")
             logger.info(f"Cover letter length: {len(str(request.persona['cover_letter']))}")
+            # Generate cover letter in background thread
+            has_cl = await run_in_threadpool(generate_cover_letter_pdf, output_cl_path, request.persona, request.template)
         else:
             logger.warning("Cover letter MISSING from persona data")
 
-        # Run blocking PDF generation in threadpool using the new module
-        await run_in_threadpool(generate_pdf, output_path, request.persona, request.template, request.profile_pic, request.page_count or 2)
+        # Run blocking Resume PDF generation in threadpool
+        await run_in_threadpool(generate_pdf, output_resume_path, request.persona, request.template, request.profile_pic, request.page_count or 2)
         
-        return {
+        response_data = {
              "status": "success",
              "pdf_url": f"/api/uploads/{request.user_id}/tailored_resume.pdf",
              "message": "Resume generated successfully"
         }
+        if has_cl:
+             response_data["cover_letter_url"] = f"/api/uploads/{request.user_id}/cover_letter.pdf"
+             
+        return response_data
         
     except Exception as e:
         logger.error(f"Error generating PDF: {e}")

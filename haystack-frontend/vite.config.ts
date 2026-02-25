@@ -11,9 +11,9 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
-    allowedHosts: ['careergini.com', 'www.careergini.com', '51.89.225.112.nip.io', 'localhost'],
+    allowedHosts: ['careergini.com', 'www.careergini.com', '51.89.225.112.nip.io', 'localhost', '51.89.225.112'],
     hmr: {
-      host: 'www.careergini.com',
+      host: '51.89.225.112',
     },
     proxy: {
       '/api': {

@@ -5,7 +5,7 @@ import {
     MessageSquare,
     User,
     Briefcase,
-    BookOpen,
+    GraduationCap,
     FileText,
     Settings,
     LogOut,
@@ -24,8 +24,8 @@ import clsx from 'clsx';
 const navItems = [
     { icon: Home, label: 'Home', path: '/home' },
     { icon: FileText, label: 'Resume Builder', path: '/resume-builder' },
-    { icon: Briefcase, label: 'Jobs', path: '/jobs' },
-    { icon: BookOpen, label: 'Learning', path: '/learning' },
+    { icon: Briefcase, label: 'Job Search', path: '/jobs' },
+    { icon: GraduationCap, label: 'Learning Hub', path: '/learning' },
 ];
 
 const aiToolItems = [
