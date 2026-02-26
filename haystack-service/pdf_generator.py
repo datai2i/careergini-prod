@@ -442,10 +442,15 @@ def generate_pdf(
             left.append(Paragraph(persona.get("professional_title", ""), S["title"]))
             left.append(Spacer(1, 8))
 
-            for key in ("email", "phone", "location"):
+            for key in ("email", "phone", "location", "linkedin", "portfolio_url"):
                 v = persona.get(key)
                 if v:
-                    left.append(Paragraph(str(v), S["sidebar"]))
+                    if key in ("linkedin", "portfolio_url"):
+                        url = v if str(v).startswith("http") else "https://" + str(v)
+                        text = f'<link href="{url}"><font color="#3b82f6">{v}</font></link>'
+                    else:
+                        text = str(v)
+                    left.append(Paragraph(text, S["sidebar"]))
 
             if persona.get("top_skills"):
                 left.extend(_section_header("Skills", S))
@@ -504,9 +509,15 @@ def generate_pdf(
             # ── Header ───────────────────────────────────────────────
             name_p = Paragraph(persona.get("full_name", ""), S["name"])
             ttl_p  = Paragraph(persona.get("professional_title", ""), S["title"])
-            contacts = [p for p in [
-                persona.get("email"), persona.get("phone"), persona.get("location"),
-            ] if p]
+            contacts = []
+            for key in ("email", "phone", "location", "linkedin", "portfolio_url"):
+                v = persona.get(key)
+                if v:
+                    if key in ("linkedin", "portfolio_url"):
+                        url = v if str(v).startswith("http") else "https://" + str(v)
+                        contacts.append(f'<link href="{url}"><font color="#3b82f6">{v}</font></link>')
+                    else:
+                        contacts.append(str(v))
             con_p = Paragraph(" | ".join(contacts), S["contact"])
 
             if profile_pic:

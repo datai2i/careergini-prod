@@ -62,7 +62,7 @@ class TailorResumeComponent:
         self.generator = generator
 
     @component.output_types(tailored_result=Dict[str, Any])
-    def run(self, persona: Dict[str, Any], job_description: str):
+    def run(self, persona: Dict[str, Any], job_description: str, target_industry: str = "", focus_area: str = ""):
         # Pass the full authentic experience (up to 6 roles, 300 chars each)
         experiences = [
             _fmt_exp(e)
@@ -79,12 +79,17 @@ class TailorResumeComponent:
         }
         slim_jd = str(job_description)[:700]
 
+        industry_prompt = f"- Align the vocabulary and metrics to the {target_industry} industry standard." if target_industry else ""
+        focus_prompt = f"- Give special emphasis to {focus_area} in the summary and bullets." if focus_area else ""
+
         prompt = f"""You are a professional resume writer. Tailor this candidate's resume for the job below.
 
 STRICT RULES:
 - DO NOT invent any job titles, companies, projects, or dates that are not in the candidate data.
 - DO NOT add fake achievements. Only rewrite and improve existing ones with stronger action verbs and quantifiable metrics where possible.
 - Act as a senior executive resume writer. Use Harvard Business School standard formatting. Keep sentences punchy and impactful.
+{industry_prompt}
+{focus_prompt}
 - Generate 3-4 impactful bullet points per role based ONLY on the provided highlights.
 - Produce a 3-sentence professional summary (Objective) aligned with the JD.
 - Output order MUST strictly respect the reference layout: Objective (Summary) -> Education -> Projects -> Experience -> Skills.
@@ -129,15 +134,20 @@ class CoverLetterComponent:
         self.generator = generator
 
     @component.output_types(cover_letter=str)
-    def run(self, persona: Dict[str, Any], job_description: str):
+    def run(self, persona: Dict[str, Any], job_description: str, target_industry: str = "", focus_area: str = ""):
         name  = persona.get("full_name", "Candidate")
         title = persona.get("professional_title", "Professional")
         top3  = (persona.get("top_skills") or [])[:3]
         slim_jd = str(job_description)[:500]
 
+        industry_prompt = f"- Use tone appropriate for the {target_industry} industry." if target_industry else ""
+        focus_prompt = f"- Emphasize {focus_area}." if focus_area else ""
+
         prompt = f"""Write a professional cover letter for {name} ({title}) applying to this role.
 
 Rules:
+{industry_prompt}
+{focus_prompt}
 - MAXIMUM 150 words total. Be crisp and punchy.
 - 2 short paragraphs only: (1) intro + value proposition, (2) call to action.
 - Mention 2-3 specific skills: {', '.join(top3)}.
@@ -232,7 +242,7 @@ Required JSON structure (extract real info only):
                 "suggested_roles":       [],
             }
 
-    async def tailor_resume(self, persona: Dict[str, Any], job_description: str) -> Dict[str, Any]:
+    async def tailor_resume(self, persona: Dict[str, Any], job_description: str, target_industry: str = "", focus_area: str = "") -> Dict[str, Any]:
         """Tailor persona to a JD, running components sequentially to avoid Ollama queue issues."""
         print("Resume Advisor Agent tailoring resume sequentially...")
 
@@ -243,11 +253,11 @@ Required JSON structure (extract real info only):
 
         tailor_result = await loop.run_in_executor(
             None,
-            lambda: tailor_comp.run(persona=persona, job_description=job_description)
+            lambda: tailor_comp.run(persona=persona, job_description=job_description, target_industry=target_industry, focus_area=focus_area)
         )
         cl_result = await loop.run_in_executor(
             None,
-            lambda: cl_comp.run(persona=persona, job_description=job_description)
+            lambda: cl_comp.run(persona=persona, job_description=job_description, target_industry=target_industry, focus_area=focus_area)
         )
 
         final = tailor_result["tailored_result"]

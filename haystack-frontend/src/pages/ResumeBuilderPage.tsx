@@ -38,6 +38,21 @@ interface ResumePersona {
     ats_score?: number;
 }
 
+const generateMockJD = (role: string, persona: any) => {
+    const skills = persona?.top_skills?.slice(0, 5).join(", ") || "relevant technical and soft skills";
+    const title = persona?.professional_title || "professional";
+
+    return `About the Role:\nWe are actively seeking a highly motivated and experienced ${role} to join our dynamic and fast-paced team. In this pivotal role, you will be responsible for driving key initiatives, collaborating with cross-functional teams, and delivering high-impact results that align with our strategic business objectives.\n\nKey Responsibilities:\n- Lead the design, development, and execution of core projects and deliverables related to the ${role} function.\n- Partner with stakeholders across the organization to align strategies and ensure successful project outcomes.\n- Leverage your expertise as a ${title} to mentor junior team members and establish best practices.\n- Analyze data, identify trends, and implement innovative solutions to complex deliverables.\n\nQualifications & Requirements:\n- Proven track record and hands-on experience in the field, with a strong portfolio of successful projects.\n- Demonstrated proficiency with key industry tools and methodologies, specifically including: ${skills}.\n- Exceptional communication, leadership, and problem-solving abilities.\n- Ability to thrive in an agile, collaborative, and fast-paced environment.`;
+};
+
+const getDynamicRoles = (persona: any) => {
+    let roles = persona?.suggested_roles || [];
+    const defaults = ["Software Engineer", "Product Manager", "Data Scientist", "Marketing Director", "Operations Manager"];
+    roles = [...roles, ...defaults];
+    // De-dupe and take top 5
+    return Array.from(new Set(roles)).slice(0, 5);
+};
+
 export const ResumeBuilderPage: React.FC = () => {
     const { user, refreshUser } = useAuth();
     const { showToast } = useToast();
@@ -56,6 +71,8 @@ export const ResumeBuilderPage: React.FC = () => {
     const [pageCount, setPageCount] = useState<number>(2);
     const [sessions, setSessions] = useState<Array<{ session_id: string; timestamp: string; job_title_snippet: string }>>([]);
     const [loadingSession, setLoadingSession] = useState(false);
+    const [targetIndustry, setTargetIndustry] = useState<string>('');
+    const [focusArea, setFocusArea] = useState<string>('');
 
     // Load existing persona on mount
     useEffect(() => {
@@ -261,7 +278,9 @@ export const ResumeBuilderPage: React.FC = () => {
                 body: JSON.stringify({
                     user_id: user?.id || 'default',
                     job_description: jobDescription,
-                    persona: persona
+                    persona: persona,
+                    target_industry: targetIndustry,
+                    focus_area: focusArea
                 }),
             });
 
@@ -617,7 +636,7 @@ export const ResumeBuilderPage: React.FC = () => {
                                 />
                             </div>
 
-                            <div className="grid md:grid-cols-2 gap-8">
+                            <div className="flex flex-col gap-8">
                                 <div>
                                     <div className="flex justify-between items-center mb-3">
                                         <h3 className="font-semibold text-gray-800 flex items-center">
@@ -762,9 +781,72 @@ export const ResumeBuilderPage: React.FC = () => {
                                         </ul>
                                     </div>
                                 </div>
+
+                                {/* Education */}
+                                <div>
+                                    <div className="flex justify-between items-center mb-3">
+                                        <h3 className="font-semibold text-gray-800 flex items-center">
+                                            <svg className="w-4 h-4 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
+                                            </svg>
+                                            Education
+                                        </h3>
+                                        <button
+                                            onClick={() => setPersona({ ...persona, education: [...(persona.education || []), { degree: "New Degree", school: "School Name", year: "YYYY" }] })}
+                                            className="text-xs text-purple-600 hover:text-purple-800 font-medium bg-purple-50 px-2 py-1 rounded"
+                                        >
+                                            + Add Education
+                                        </button>
+                                    </div>
+                                    <ul className="space-y-4 max-h-[200px] overflow-y-auto pr-2 mb-6">
+                                        {(persona.education || []).map((edu, i) => (
+                                            <li key={i} className="text-sm bg-gray-50 p-3 rounded-xl border border-gray-100 relative group">
+                                                <button
+                                                    onClick={() => {
+                                                        const newEdu = persona.education!.filter((_, idx) => idx !== i);
+                                                        setPersona({ ...persona, education: newEdu });
+                                                    }}
+                                                    className="absolute top-2 right-2 text-gray-300 hover:text-red-500 hidden group-hover:block"
+                                                >×</button>
+                                                <div className="flex flex-wrap gap-2">
+                                                    <input
+                                                        value={edu.degree}
+                                                        onChange={(e) => {
+                                                            const newEdu = [...persona.education!];
+                                                            newEdu[i].degree = e.target.value;
+                                                            setPersona({ ...persona, education: newEdu });
+                                                        }}
+                                                        className="font-medium text-gray-800 bg-transparent border-b border-dashed border-gray-300 focus:border-purple-500 outline-none w-full md:w-5/12"
+                                                        placeholder="Degree (e.g., BS Computer Science)"
+                                                    />
+                                                    <input
+                                                        value={edu.school}
+                                                        onChange={(e) => {
+                                                            const newEdu = [...persona.education!];
+                                                            newEdu[i].school = e.target.value;
+                                                            setPersona({ ...persona, education: newEdu });
+                                                        }}
+                                                        className="font-medium text-gray-800 bg-transparent border-b border-dashed border-gray-300 focus:border-purple-500 outline-none w-full md:w-4/12"
+                                                        placeholder="Institution"
+                                                    />
+                                                    <input
+                                                        value={edu.year}
+                                                        onChange={(e) => {
+                                                            const newEdu = [...persona.education!];
+                                                            newEdu[i].year = e.target.value;
+                                                            setPersona({ ...persona, education: newEdu });
+                                                        }}
+                                                        className="font-medium text-gray-800 bg-transparent border-b border-dashed border-gray-300 focus:border-purple-500 outline-none w-full md:w-2/12"
+                                                        placeholder="Year"
+                                                    />
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
                             </div>
 
-                            <div className="flex justify-end">
+                            <div className="flex justify-end mt-8">
                                 <button
                                     onClick={handlePersonaConfirm}
                                     disabled={uploading}
@@ -776,77 +858,159 @@ export const ResumeBuilderPage: React.FC = () => {
                             </div>
                         </div>
                     </div>
-                )}
+                )
+                }
 
                 {/* Step 3: Tailor */}
-                {step === 3 && (
-                    <div className="grid md:grid-cols-2 gap-8 h-[600px]">
-                        {/* Left: Persona Summary */}
-                        <div className="bg-white/50 rounded-2xl p-6 border border-white/20 overflow-y-auto">
-                            <h3 className="font-semibold text-gray-700 mb-4">Your Profile</h3>
-                            <p className="text-sm text-gray-600 mb-4">{persona?.summary}</p>
-                            <div className="flex flex-wrap gap-2">
-                                {persona?.top_skills?.map((skill, i) => (
-                                    <span key={i} className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">
-                                        {skill}
-                                    </span>
-                                ))}
+                {
+                    step === 3 && (
+                        <div className="grid md:grid-cols-2 gap-8 lg:h-[700px]">
+                            {/* Left: Persona Summary (Full Profile Review) */}
+                            <div className="bg-white/50 rounded-2xl p-6 border border-white/20 overflow-y-auto flex flex-col gap-6 shadow-sm">
+                                <div>
+                                    <h3 className="text-xl font-bold text-gray-800 mb-1">{persona?.full_name}</h3>
+                                    <p className="text-sm font-medium text-purple-600 mb-3">{persona?.professional_title}</p>
+                                    <p className="text-sm text-gray-600 leading-relaxed font-serif italic border-l-4 border-purple-200 pl-3">
+                                        {persona?.summary}
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-semibold text-gray-800 border-b pb-1 mb-3">Core Competencies</h4>
+                                    <div className="flex flex-wrap gap-2">
+                                        {persona?.top_skills?.map((skill, i) => (
+                                            <span key={i} className="bg-purple-50 text-purple-700 px-2 py-1 rounded-md border border-purple-100 text-xs font-medium">
+                                                {skill}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {persona?.experience_highlights && persona.experience_highlights.length > 0 && (
+                                    <div>
+                                        <h4 className="font-semibold text-gray-800 border-b pb-1 mb-3">Professional Experience</h4>
+                                        <div className="space-y-4">
+                                            {persona.experience_highlights.map((exp: any, i: number) => (
+                                                <div key={i} className="bg-white p-3 rounded-lg border border-gray-100 shadow-sm transition hover:shadow-md">
+                                                    <div className="flex justify-between items-start mb-1">
+                                                        <h5 className="font-medium text-sm text-gray-800">{exp.role}</h5>
+                                                        <span className="text-xs font-medium text-purple-500 whitespace-nowrap ml-2 bg-purple-50 px-1.5 py-0.5 rounded">{exp.duration}</span>
+                                                    </div>
+                                                    <p className="text-xs font-semibold text-gray-500 mb-2">{exp.company}</p>
+                                                    <p className="text-xs text-gray-600 line-clamp-3">{exp.key_achievement}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {persona?.education && persona.education.length > 0 && (
+                                    <div>
+                                        <h4 className="font-semibold text-gray-800 border-b pb-1 mb-3">Education</h4>
+                                        <div className="space-y-2">
+                                            {persona.education.map((edu: any, i: number) => (
+                                                <div key={i} className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-gray-100 shadow-sm">
+                                                    <div>
+                                                        <h5 className="font-medium text-xs text-gray-800">{edu.degree}</h5>
+                                                        <p className="text-xs text-gray-500">{edu.school}</p>
+                                                    </div>
+                                                    <span className="text-xs font-medium text-gray-400">{edu.year}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-                        </div>
 
-                        {/* Right: JD Input */}
-                        <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-xl flex flex-col">
-                            <h3 className="font-semibold text-gray-800 mb-2">Target Job Description</h3>
-                            <textarea
-                                className="flex-1 w-full bg-gray-50 border border-gray-200 rounded-xl p-4 focus:ring-2 focus:ring-purple-500 focus:outline-none resize-none text-sm mb-4"
-                                placeholder="Paste the job description here..."
-                                value={jobDescription}
-                                onChange={(e) => setJobDescription(e.target.value)}
-                            />
+                            {/* Right: JD Input & Customisation Options */}
+                            <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-xl flex flex-col overflow-y-auto">
+                                <h3 className="text-xl font-bold text-gray-800 mb-6">Hyper-Personalisation Engine</h3>
 
-                            {/* Example JDs */}
-                            <div className="mb-4">
-                                <p className="text-xs text-gray-500 mb-2 font-medium uppercase tracking-wide">Or select an example:</p>
-                                <div className="flex flex-wrap gap-2">
-                                    {[
-                                        { label: "Software Engineer", jd: "We are looking for a Software Engineer with experience in React, Node.js, and Python. You will build scalable web applications and collaborate with cross-functional teams." },
-                                        { label: "Product Manager", jd: "Seeking a Product Manager to lead our mobile app development. Must have experience with agile methodologies, user research, and roadmap planning." },
-                                        { label: "Data Scientist", jd: "Join our data team to build predictive models. Proficiency in Python, SQL, and machine learning frameworks (scikit-learn, TensorFlow) is required." },
-                                        { label: "Marketing Specialist", jd: "We need a Marketing Specialist to drive our digital campaigns. Experience with SEO, content marketing, and social media analytics is a plus." }
-                                    ].map((example, i) => (
-                                        <button
-                                            key={i}
-                                            onClick={() => setJobDescription(example.jd)}
-                                            className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-full transition-colors border border-gray-200"
-                                        >
-                                            {example.label}
-                                        </button>
-                                    ))}
+                                <div className="space-y-6 flex-1">
+                                    {/* Job Description */}
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Target Job Description</label>
+                                        <textarea
+                                            className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 focus:ring-2 focus:ring-purple-500 focus:outline-none resize-none text-sm h-40"
+                                            placeholder="Paste the target job description here..."
+                                            value={jobDescription}
+                                            onChange={(e) => setJobDescription(e.target.value)}
+                                        />
+                                        {/* Example JDs */}
+                                        <div className="mt-2 text-right">
+                                            <div className="flex flex-wrap justify-end gap-1.5">
+                                                {getDynamicRoles(persona).map((role, i) => (
+                                                    <button
+                                                        key={i}
+                                                        onClick={() => setJobDescription(generateMockJD(role, persona))}
+                                                        className="text-[10px] bg-purple-50 hover:bg-purple-100 text-purple-700 font-medium px-2 py-1 rounded transition-colors"
+                                                    >
+                                                        {role}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {/* Target Industry */}
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Target Industry</label>
+                                            <select
+                                                value={targetIndustry}
+                                                onChange={(e) => setTargetIndustry(e.target.value)}
+                                                className="w-full bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-purple-500 focus:border-purple-500 block p-2.5 outline-none"
+                                            >
+                                                <option value="">Default (Auto-detect from JD)</option>
+                                                <option value="Technology / SaaS">Technology / SaaS</option>
+                                                <option value="Finance / Banking">Finance / Banking</option>
+                                                <option value="Healthcare / MedTech">Healthcare / MedTech</option>
+                                                <option value="Creative / Agency">Creative / Agency</option>
+                                                <option value="Retail / E-commerce">Retail / E-commerce</option>
+                                                <option value="Public Sector / NGO">Public Sector / NGO</option>
+                                            </select>
+                                        </div>
+
+                                        {/* Focus Area */}
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Primary Focus Tone</label>
+                                            <select
+                                                value={focusArea}
+                                                onChange={(e) => setFocusArea(e.target.value)}
+                                                className="w-full bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-purple-500 focus:border-purple-500 block p-2.5 outline-none"
+                                            >
+                                                <option value="">Standard ATS Optimisation</option>
+                                                <option value="Storytelling Without Buzzword Overload">Storytelling (No Buzzword Overload)</option>
+                                                <option value="Leadership & Strategy">Leadership & Strategy</option>
+                                                <option value="Technical Depth & Execution">Technical Depth & Execution</option>
+                                                <option value="Metrics & Revenue Focused">Metrics & Revenue Focused</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-8 pt-4 border-t border-gray-100 flex justify-end">
+                                    <button
+                                        onClick={handleTailorResume}
+                                        disabled={tailoring || !jobDescription}
+                                        className={`bg-purple-600 text-white px-6 py-4 rounded-xl font-bold flex items-center shadow-lg hover:bg-purple-700 transition-all ${tailoring ? 'opacity-70 cursor-not-allowed' : 'hover:-translate-y-1'}`}
+                                    >
+                                        {tailoring ? (
+                                            <>
+                                                <RefreshCw className="w-5 h-5 mr-3 animate-spin" />
+                                                Architecting Resume...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <CheckCircle className="w-5 h-5 mr-3 text-purple-200" />
+                                                Generate Hyper-Personalised Resume
+                                            </>
+                                        )}
+                                    </button>
                                 </div>
                             </div>
-
-                            <div className="mt-auto flex justify-end">
-                                <button
-                                    onClick={handleTailorResume}
-                                    disabled={tailoring || !jobDescription}
-                                    className={`bg-purple-600 text-white px-6 py-3 rounded-xl font-medium flex items-center shadow-lg hover:bg-purple-700 transition-all ${tailoring ? 'opacity-70 cursor-not-allowed' : ''}`}
-                                >
-                                    {tailoring ? (
-                                        <>
-                                            <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
-                                            Tailoring & Writing Cover Letter...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <CheckCircle className="w-5 h-5 mr-2" />
-                                            Generate Tailored Resume
-                                        </>
-                                    )}
-                                </button>
-                            </div>
                         </div>
-                    </div>
-                )}
+                    )}
 
                 {step === 4 && tailoredContent && (
                     <div className="space-y-8">
@@ -854,23 +1018,36 @@ export const ResumeBuilderPage: React.FC = () => {
                             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                                 <h2 className="text-2xl font-bold text-gray-800">Final Review & Formatting</h2>
 
-                                {/* ATS Score Display (Scaled for tailored output) */}
-                                {tailoredContent.ats_score !== undefined && (
-                                    <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
-                                        <div className="flex flex-col">
-                                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">ATS Match Score</span>
-                                            <div className="flex items-baseline gap-1">
-                                                <span className={`text-2xl font-extrabold ${Math.min(98, tailoredContent.ats_score + 40) >= 80 ? 'text-green-500' : Math.min(98, tailoredContent.ats_score + 40) >= 60 ? 'text-amber-500' : 'text-red-500'}`}>
-                                                    {Math.min(98, tailoredContent.ats_score + 40)}
-                                                </span>
-                                                <span className="text-sm text-gray-400 font-medium">/ 100</span>
+                                {/* ATS Score Display (Scaled for tailored output) & Regenerate */}
+                                <div className="flex items-center gap-4">
+                                    <button
+                                        onClick={async () => {
+                                            await handleTailorResume();
+                                        }}
+                                        disabled={tailoring}
+                                        className={`text-sm bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold py-2.5 px-5 rounded-xl flex items-center shadow-sm transition-colors border border-purple-100 ${tailoring ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    >
+                                        <RefreshCw className={`w-4 h-4 mr-2 ${tailoring ? 'animate-spin' : ''}`} />
+                                        {tailoring ? 'Architecting...' : 'Regenerate Tailored Resume'}
+                                    </button>
+
+                                    {tailoredContent.ats_score !== undefined && (
+                                        <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+                                            <div className="flex flex-col">
+                                                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">ATS Match Score</span>
+                                                <div className="flex items-baseline gap-1">
+                                                    <span className={`text-2xl font-extrabold ${Math.min(98, tailoredContent.ats_score + 40) >= 80 ? 'text-green-500' : Math.min(98, tailoredContent.ats_score + 40) >= 60 ? 'text-amber-500' : 'text-red-500'}`}>
+                                                        {Math.min(98, tailoredContent.ats_score + 40)}
+                                                    </span>
+                                                    <span className="text-sm text-gray-400 font-medium">/ 100</span>
+                                                </div>
+                                            </div>
+                                            <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gray-50 border-4" style={{ borderColor: Math.min(98, tailoredContent.ats_score + 40) >= 80 ? '#22c55e' : Math.min(98, tailoredContent.ats_score + 40) >= 60 ? '#f59e0b' : '#ef4444' }}>
+                                                {Math.min(98, tailoredContent.ats_score + 40) >= 80 ? <CheckCircle className="w-6 h-6 text-green-500" /> : <AlertCircle className="w-6 h-6 text-amber-500" />}
                                             </div>
                                         </div>
-                                        <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gray-50 border-4" style={{ borderColor: Math.min(98, tailoredContent.ats_score + 40) >= 80 ? '#22c55e' : Math.min(98, tailoredContent.ats_score + 40) >= 60 ? '#f59e0b' : '#ef4444' }}>
-                                            {Math.min(98, tailoredContent.ats_score + 40) >= 80 ? <CheckCircle className="w-6 h-6 text-green-500" /> : <AlertCircle className="w-6 h-6 text-amber-500" />}
-                                        </div>
-                                    </div>
-                                )}
+                                    )}
+                                </div>
                             </div>
 
                             {/* Profile Picture Upload */}
@@ -911,18 +1088,43 @@ export const ResumeBuilderPage: React.FC = () => {
                                     <textarea
                                         value={tailoredContent.summary}
                                         onChange={(e) => setTailoredContent({ ...tailoredContent, summary: e.target.value })}
-                                        className="w-full text-gray-700 leading-relaxed bg-gray-50 border border-gray-200 rounded-lg p-3 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none h-40 resize-none"
+                                        className="w-full text-gray-700 leading-relaxed bg-gray-50 border border-gray-200 rounded-lg p-3 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none h-40 resize-none text-sm font-serif"
                                     />
 
                                     <h3 className="font-semibold text-gray-800 border-b pb-2 mt-6">Tailored Skills</h3>
                                     <textarea
+                                        value={(tailoredContent.top_skills || []).join(', ')}
                                         onChange={(e) => {
                                             const skills = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
                                             setTailoredContent({ ...tailoredContent, top_skills: skills });
                                         }}
-                                        className="w-full text-gray-700 bg-gray-50 border border-gray-200 rounded-lg p-3 focus:border-purple-500 outline-none min-h-20"
+                                        className="w-full text-gray-700 bg-gray-50 border border-gray-200 rounded-lg p-3 focus:border-purple-500 outline-none min-h-20 text-sm font-medium"
                                         placeholder="Comma-separated skills..."
                                     />
+
+                                    <h3 className="font-semibold text-gray-800 border-b pb-2 mt-6">Tailored Experience (Generated Bullets)</h3>
+                                    <div className="space-y-4 pt-2 max-h-[400px] overflow-y-auto pr-2">
+                                        {tailoredContent.experience_highlights?.map((exp: any, i: number) => {
+                                            const expText = typeof exp.key_achievement === 'string' ? exp.key_achievement
+                                                : Array.isArray(exp.tailored_bullets) ? exp.tailored_bullets.join('\\n')
+                                                    : Array.isArray(exp.key_achievement) ? exp.key_achievement.join('\\n')
+                                                        : exp.key_achievement || '';
+                                            return (
+                                                <div key={i} className="bg-gray-50 border border-gray-200 p-3 rounded-lg shadow-sm">
+                                                    <div className="font-semibold text-xs text-purple-700 mb-2 uppercase tracking-wide">{exp.role} <span className="text-gray-400 font-normal">at</span> {exp.company}</div>
+                                                    <textarea
+                                                        value={expText}
+                                                        onChange={(e) => {
+                                                            const newExp = [...tailoredContent.experience_highlights];
+                                                            newExp[i].key_achievement = e.target.value;
+                                                            setTailoredContent({ ...tailoredContent, experience_highlights: newExp });
+                                                        }}
+                                                        className="w-full text-gray-700 bg-white border border-gray-200 rounded p-2 text-xs leading-relaxed focus:border-purple-500 outline-none resize-none h-28"
+                                                    />
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
                                 </div>
 
                                 <div className="space-y-4">
@@ -930,7 +1132,7 @@ export const ResumeBuilderPage: React.FC = () => {
                                     <textarea
                                         value={tailoredContent.cover_letter || ''}
                                         onChange={(e) => setTailoredContent({ ...tailoredContent, cover_letter: e.target.value })}
-                                        className="w-full text-gray-700 leading-relaxed bg-gray-50 border border-gray-200 rounded-lg p-3 h-[300px] resize-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none font-serif text-sm"
+                                        className="w-full text-gray-700 leading-relaxed bg-gray-50 border border-gray-200 rounded-lg p-3 h-full min-h-[400px] resize-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none font-serif text-sm"
                                     />
                                 </div>
                             </div>
@@ -1072,6 +1274,7 @@ export const ResumeBuilderPage: React.FC = () => {
                     </div>
                 )}
             </div>
+
             {(uploading || tailoring || generatingPDF) && (
                 <ProcessingOverlay isOpen={true} headline={persona?.professional_title} />
             )}

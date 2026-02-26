@@ -99,6 +99,8 @@ class ResumeTailorRequest(BaseModel):
     template: Optional[str] = "classic"
     profile_pic: Optional[str] = None
     page_count: Optional[int] = 2  # 1 = single page, 2 = full detail
+    target_industry: Optional[str] = None
+    focus_area: Optional[str] = None
 
 @app.post("/resume/upload")
 async def upload_resume(
@@ -448,7 +450,12 @@ async def tailor_resume_endpoint(request: ResumeTailorRequest):
             else:
                 raise HTTPException(status_code=400, detail="No persona provided or found. Please upload resume first.")
         
-        result = await agent.tailor_resume(persona, request.job_description)
+        result = await agent.tailor_resume(
+            persona=persona, 
+            job_description=request.job_description,
+            target_industry=request.target_industry,
+            focus_area=request.focus_area
+        )
         
         # Calculate ATS Score on the tailored result
         # To score, we need a flat text representation of the tailored persona
