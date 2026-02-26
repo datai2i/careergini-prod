@@ -79,11 +79,11 @@ export const LoginPage: React.FC = () => {
             {/* --- Sticky Navbar --- */}
             <nav className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 py-3 shadow-sm' : 'bg-transparent py-5'}`}>
                 <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <img src="/logo.png" alt="CareerGini Logo" className="h-12 md:h-14 w-auto mix-blend-multiply dark:mix-blend-normal" />
-                        <span className="hidden sm:flex items-center gap-2 border-l border-gray-200 dark:border-gray-700 pl-3">
-                            <span className="text-xs text-gray-400 dark:text-gray-500 font-medium">by</span>
-                            <img src="/datai2i-logo.png" alt="DATAi2i" className="h-5 w-auto opacity-70 hover:opacity-100 transition-opacity mix-blend-multiply dark:mix-blend-normal" />
+                    <div className="flex items-center gap-4">
+                        <img src="/logo.png" alt="CareerGini Logo" className="h-14 md:h-18 w-auto mix-blend-multiply dark:mix-blend-normal" />
+                        <span className="hidden sm:flex items-center gap-2.5 border-l border-gray-300 dark:border-gray-600 pl-4">
+                            <span className="text-xs text-gray-400 dark:text-gray-500 font-semibold tracking-wide">by</span>
+                            <img src="/datai2i-logo.png" alt="DATAi2i" className="h-8 w-auto opacity-80 hover:opacity-100 transition-opacity mix-blend-multiply dark:mix-blend-normal" />
                         </span>
                     </div>
 
