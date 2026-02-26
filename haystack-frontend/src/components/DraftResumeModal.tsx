@@ -72,6 +72,31 @@ export const DraftResumeModal: React.FC<DraftResumeModalProps> = ({ isOpen, onCl
         setEducation(newEdu);
     };
 
+    const handleNextOrSubmit = () => {
+        if (step === 1) {
+            if (email && !/^\S+@\S+\.\S+$/.test(email)) {
+                setError("Please enter a valid email address containing an '@' and a domain.");
+                return;
+            }
+            if (linkedin && /\s/.test(linkedin)) {
+                setError("LinkedIn URL should not contain spaces. Make sure it looks like a valid link.");
+                return;
+            }
+            if (portfolioUrl && /\s/.test(portfolioUrl)) {
+                setError("Portfolio/GitHub URL should not contain spaces.");
+                return;
+            }
+        }
+
+        setError(null);
+
+        if (step < 4) {
+            setStep(step + 1);
+        } else {
+            handleSubmit();
+        }
+    };
+
     const handleSubmit = async () => {
         setSubmitting(true);
         setError(null);
@@ -180,7 +205,10 @@ export const DraftResumeModal: React.FC<DraftResumeModalProps> = ({ isOpen, onCl
                                 </div>
                                 <div>
                                     <label className="block text-xs font-medium text-gray-500 mb-1">Phone <span className="font-normal text-gray-400 font-serif italic">(Optional)</span></label>
-                                    <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="(555) 123-4567" className="w-full px-3 py-1.5 text-sm bg-gray-50 dark:bg-dark-bg border border-gray-300 dark:border-dark-border rounded focus:border-blue-500 dark:text-white" />
+                                    <input type="tel" value={phone} onChange={e => {
+                                        const val = e.target.value.replace(/[^\d\s+\-()]/g, '');
+                                        setPhone(val);
+                                    }} placeholder="(555) 123-4567" className="w-full px-3 py-1.5 text-sm bg-gray-50 dark:bg-dark-bg border border-gray-300 dark:border-dark-border rounded focus:border-blue-500 dark:text-white" />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-medium text-gray-500 mb-1">Location <span className="font-normal text-gray-400 font-serif italic">(Optional)</span></label>
@@ -317,7 +345,7 @@ export const DraftResumeModal: React.FC<DraftResumeModalProps> = ({ isOpen, onCl
                     </button>
 
                     <button
-                        onClick={() => step < 4 ? setStep(step + 1) : handleSubmit()}
+                        onClick={handleNextOrSubmit}
                         disabled={submitting || (step === 1 && (!fullName || !title))}
                         className={`px-6 py-2 rounded-lg text-sm font-bold shadow-sm flex items-center gap-2 transition-all ${submitting || (step === 1 && (!fullName || !title)) ? 'bg-blue-400 cursor-not-allowed text-white' : 'bg-blue-600 hover:bg-blue-700 hover:shadow shadow-blue-500/20 text-white'}`}
                     >
