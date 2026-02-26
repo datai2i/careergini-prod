@@ -21,25 +21,25 @@ logger = logging.getLogger(__name__)
 
 PALETTES = {
     "professional": {
-        "accent":  RGBColor(0x1A, 0x35, 0x57),   # navy
-        "sub":     RGBColor(0x5A, 0x66, 0x77),   # cool gray
-        "rule":    RGBColor(0x1A, 0x35, 0x57),
-        "body":    RGBColor(0x2D, 0x2D, 0x2D),
-        "link":    RGBColor(0x25, 0x63, 0xEB),
+        "accent":  RGBColor(0x12, 0x12, 0x12),   # near black
+        "sub":     RGBColor(0x55, 0x55, 0x55),   # cold grey
+        "rule":    RGBColor(0xCC, 0xCC, 0xCC),   # hairline grey
+        "body":    RGBColor(0x22, 0x22, 0x22),
+        "link":    RGBColor(0x00, 0x00, 0xEE),
     },
     "executive": {
-        "accent":  RGBColor(0x1C, 0x1C, 0x1C),   # charcoal
-        "sub":     RGBColor(0x4A, 0x55, 0x68),   # slate
-        "rule":    RGBColor(0xB8, 0x98, 0x5E),   # platinum-gold
-        "body":    RGBColor(0x2D, 0x2D, 0x2D),
-        "link":    RGBColor(0x25, 0x63, 0xEB),
+        "accent":  RGBColor(0x00, 0x00, 0x00),   # pure black
+        "sub":     RGBColor(0x44, 0x44, 0x44),   # charcoal
+        "rule":    RGBColor(0xCC, 0xCC, 0xCC),   
+        "body":    RGBColor(0x22, 0x22, 0x22),
+        "link":    RGBColor(0x00, 0x00, 0xEE),
     },
     "fresher": {
-        "accent":  RGBColor(0x0D, 0x94, 0x88),   # teal
-        "sub":     RGBColor(0x47, 0x55, 0x69),   # slate
-        "rule":    RGBColor(0x0D, 0x94, 0x88),
-        "body":    RGBColor(0x2D, 0x2D, 0x2D),
-        "link":    RGBColor(0x25, 0x63, 0xEB),
+        "accent":  RGBColor(0x00, 0x00, 0x00),   
+        "sub":     RGBColor(0x55, 0x55, 0x55),   
+        "rule":    RGBColor(0xDD, 0xDD, 0xDD),
+        "body":    RGBColor(0x22, 0x22, 0x22),
+        "link":    RGBColor(0x00, 0x00, 0xEE),
     },
 }
 
@@ -134,7 +134,7 @@ def _add_section_header(doc, label, palette, compact):
     run.font.size = Pt(9.5 if compact else 11)
     _set_run_color(run, palette["accent"])
     _set_para_margins(p, top_pt=8 if compact else 14, bottom_pt=2)
-    _add_hr(doc, palette["rule"], thickness_pt=1.0 if compact else 1.5)
+    _add_hr(doc, palette["rule"], thickness_pt=0.25)
 
 
 def _add_body(doc, text, palette, compact, italic=False, bold=False, indent_pt=0):
@@ -300,10 +300,7 @@ def _render_executive_docx(doc, persona, palette, compact):
 
     if skills:
         _add_section_header(doc, "Core Competencies", palette, compact)
-        # Three per line
-        lines = [skills[i:i+3] for i in range(0, len(skills), 3)]
-        for line in lines:
-            _add_body(doc, "     ·     ".join(line), palette, compact)
+        _add_body(doc, ", ".join(skills), palette, compact)
 
     exps = persona.get("experience_highlights") or []
     if exps:
@@ -350,10 +347,7 @@ def _render_fresher_docx(doc, persona, palette, compact):
 
     if skills:
         _add_section_header(doc, "Technical Skills", palette, compact)
-        # 3 per line (tag-style in text)
-        lines = [skills[i:i + (3 if compact else 4)] for i in range(0, len(skills), 3 if compact else 4)]
-        for line in lines:
-            _add_body(doc, "  |  ".join(line), palette, compact)
+        _add_body(doc, ", ".join(skills), palette, compact)
 
     if projects:
         _add_section_header(doc, "Projects & Academic Work", palette, compact)

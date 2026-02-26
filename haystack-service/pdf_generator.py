@@ -128,31 +128,27 @@ def build_styles(template: str, page_count: int) -> dict:
     sp_after_exp  = 5 if compact else 9
     sp_before_sec = 8 if compact else 16
 
-    # ── Template palettes ────────────────────────────────────────────────────
+    # ── Template palettes (MINIMALIST OVERHAUL) ──────────────────────────────
+    # Focus on hierarchy through weighting and spacing, not color blocks.
     if template == "executive":
-        # Charcoal / platinum-gold — authoritative, premium
-        accent   = colors.HexColor("#1C1C1C")   # near-black name + role
-        sub      = colors.HexColor("#4A5568")   # muted slate section labels
-        sec_bar  = colors.HexColor("#B8985E")   # platinum-gold section rules
-        link_col = colors.HexColor("#2563EB")
+        accent   = colors.HexColor("#000000")   # Professional Black
+        sub      = colors.HexColor("#444444")   # Deep Charcoal
+        sec_bar  = colors.HexColor("#CCCCCC")   # Light Grey hairline
+        link_col = colors.HexColor("#0000EE")
         name_align = TA_LEFT
-        header_rule_thickness = 2.0
     elif template == "fresher":
-        # Teal / slate — modern, approachable, portfolio-forward
-        accent   = colors.HexColor("#0D9488")   # teal
-        sub      = colors.HexColor("#475569")   # slate secondary
-        sec_bar  = colors.HexColor("#0D9488")   # teal underlines
-        link_col = colors.HexColor("#2563EB")
+        accent   = colors.HexColor("#000000")   # Pure Black
+        sub      = colors.HexColor("#555555")   # Medium Charcoal
+        sec_bar  = colors.HexColor("#DDDDDD")   # Faint Separator
+        link_col = colors.HexColor("#0000EE")
         name_align = TA_LEFT
-        header_rule_thickness = 1.5
     else:
-        # Professional — clean navy — ATS-safe, universally readable
-        accent   = colors.HexColor("#1A3557")   # navy
-        sub      = colors.HexColor("#5A6677")   # cool gray subtitles
-        sec_bar  = colors.HexColor("#1A3557")   # navy underlines
-        link_col = colors.HexColor("#2563EB")
+        # Professional
+        accent   = colors.HexColor("#121212")   # Near Black
+        sub      = colors.HexColor("#555555")   # Cold Grey
+        sec_bar  = colors.HexColor("#CCCCCC")   # Light Grey
+        link_col = colors.HexColor("#0000EE")
         name_align = TA_LEFT
-        header_rule_thickness = 1.5
 
     S: Dict[str, Any] = {}
 
@@ -161,20 +157,21 @@ def build_styles(template: str, page_count: int) -> dict:
         textColor=accent, alignment=name_align, spaceAfter=2)
 
     S["title"] = _ps("title",
-        fontName=BFI, fontSize=ttl_sz, leading=ttl_lead,
+        fontName=BF, fontSize=ttl_sz, leading=ttl_lead,
         textColor=sub, alignment=TA_LEFT, spaceAfter=2)
 
     S["contact"] = _ps("contact",
         fontName=BF, fontSize=con_sz, leading=con_sz + 4,
-        textColor=colors.HexColor("#666666"), alignment=TA_LEFT, spaceAfter=3)
+        textColor=sub, alignment=TA_LEFT, spaceAfter=3)
 
     S["section"] = _ps("section",
         fontName=BFB, fontSize=sec_sz, leading=sec_lead,
-        textColor=accent, spaceBefore=sp_before_sec, spaceAfter=2)
+        textColor=accent, spaceBefore=sp_before_sec, spaceAfter=1,
+        textTransform="uppercase")
 
     S["body"] = _ps("body",
         fontName=BF, fontSize=body_sz, leading=body_lead,
-        textColor=colors.HexColor("#2D2D2D"), alignment=TA_JUSTIFY, spaceAfter=3)
+        textColor=colors.HexColor("#222222"), alignment=TA_JUSTIFY, spaceAfter=3)
 
     S["body_left"] = _ps("body_left", parent=S["body"], alignment=TA_LEFT)
     S["body_bold"] = _ps("body_bold", parent=S["body"], fontName=BFB, alignment=TA_LEFT)
@@ -185,12 +182,12 @@ def build_styles(template: str, page_count: int) -> dict:
 
     S["company"] = _ps("company",
         fontName=BFI, fontSize=co_sz, leading=co_lead,
-        spaceAfter=2, textColor=colors.HexColor("#666666"))
+        spaceAfter=2, textColor=sub)
 
     S["bullet"] = _ps("bullet",
         fontName=BF, fontSize=bl_sz, leading=bl_lead,
-        leftIndent=14, spaceAfter=2,
-        textColor=colors.HexColor("#2D2D2D"))
+        leftIndent=12, firstLineIndent=-12, spaceAfter=2,
+        textColor=colors.HexColor("#222222"))
 
     S["competency"] = _ps("competency",
         fontName=BF, fontSize=max(8.5, body_sz - 0.5), leading=body_lead,
@@ -204,7 +201,7 @@ def build_styles(template: str, page_count: int) -> dict:
     S["_compact"]          = compact
     S["_body_sz"]          = body_sz
     S["_sp_exp"]           = sp_after_exp
-    S["_hr_thickness"]     = header_rule_thickness
+    S["_hr_thickness"]     = 0.25  # Force hairline
     S["_template"]         = template
 
     return S
@@ -216,9 +213,10 @@ def build_styles(template: str, page_count: int) -> dict:
 
 def _section_header(label: str, S: dict) -> List:
     items = [Paragraph(label.upper(), S["section"])]
+    # Use ultra-thin hairline for professional separation
     items.append(HRFlowable(
         width="100%",
-        thickness=S["_hr_thickness"],
+        thickness=0.25,
         color=S["_sec_bar"],
         spaceAfter=4,
     ))
@@ -329,8 +327,8 @@ def _render_professional(story: List, persona: dict, S: dict, compact: bool):
     story.append(Paragraph(_clean(persona.get("professional_title")), S["title"]))
     story.extend(_contact_line(persona, S))
     story.append(Spacer(1, 4))
-    story.append(HRFlowable(width="100%", thickness=S["_hr_thickness"],
-                            color=S["_accent"], spaceAfter=4))
+    story.append(HRFlowable(width="100%", thickness=0.25,
+                            color=S["_sec_bar"], spaceAfter=4))
 
     # ── Summary ──────────────────────────────────────────────────────────────
     summary = _clean(persona.get("summary"))
@@ -402,7 +400,7 @@ def _render_executive(story: List, persona: dict, S: dict, compact: bool):
             continue
         if key in ("linkedin", "portfolio_url"):
             url = v if str(v).startswith("http") else "https://" + str(v)
-            contact_parts.append(f'<link href="{url}"><font color="#2563EB">{v}</font></link>')
+            contact_parts.append(f'<link href="{url}"><font color="#444444">{v}</font></link>')
         else:
             contact_parts.append(v)
 
@@ -432,10 +430,8 @@ def _render_executive(story: List, persona: dict, S: dict, compact: bool):
     if title_txt:
         story.append(Paragraph(title_txt, S["title"]))
 
-    story.append(Spacer(1, 5))
-    # Double rule: thick gold over thin charcoal — signature executive look
-    story.append(HRFlowable(width="100%", thickness=2.5, color=S["_sec_bar"], spaceAfter=1))
-    story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#CCCCCC"), spaceAfter=6))
+    story.append(Spacer(1, 4))
+    story.append(HRFlowable(width="100%", thickness=0.25, color=S["_sec_bar"], spaceAfter=4))
 
     # ── Executive Profile (summary) ──────────────────────────────────────────
     summary = _clean(persona.get("summary"))
@@ -506,8 +502,8 @@ def _render_fresher(story: List, persona: dict, S: dict, compact: bool):
     story.append(Paragraph(_clean(persona.get("professional_title")), S["title"]))
     story.extend(_contact_line(persona, S))
     story.append(Spacer(1, 4))
-    story.append(HRFlowable(width="100%", thickness=S["_hr_thickness"],
-                            color=S["_accent"], spaceAfter=4))
+    story.append(HRFlowable(width="100%", thickness=0.25,
+                            color=S["_sec_bar"], spaceAfter=4))
 
     # ── Career Objective ─────────────────────────────────────────────────────
     summary = _clean(persona.get("summary"))
@@ -524,34 +520,25 @@ def _render_fresher(story: List, persona: dict, S: dict, compact: bool):
         story.extend(_section_header("Education", S))
         story.extend(_education_block(persona, S))
 
-    # ── Skills — tag-style 4-column grid ─────────────────────────────────────
+    # ── Skills (Clean List, No Boxes) ────────────────────────────────────────
     if skills:
         story.extend(_section_header("Technical Skills", S))
-        BF = _font("regular")
-        tag_style = _ps("tag",
-            fontName=BF, fontSize=max(8, S["_body_sz"] - 0.5),
-            leading=S["_body_sz"] + 5,
-            textColor=S["_accent"],
-            borderColor=S["_accent"],
-            borderWidth=0.75,
-            borderPadding=(2, 6, 2, 6))
-        cols = 3 if compact else 4
+        # Group skills by 3 per row for clean scanning, purely text-based
+        cols = 3
         rows, row = [], []
         for i, sk in enumerate(skills):
-            row.append(Paragraph(sk, tag_style))
+            row.append(Paragraph(f"• {sk}", S["body_left"]))
             if len(row) == cols or i == len(skills) - 1:
-                while len(row) < cols:
-                    row.append(Paragraph("", S["body"]))
+                while len(row) < cols: row.append(Paragraph("", S["body"]))
                 rows.append(row)
                 row = []
         if rows:
-            tbl = Table(rows, colWidths=[f"{100//cols}%"] * cols)
+            tbl = Table(rows, colWidths=[f"{33}%"] * cols)
             tbl.setStyle(TableStyle([
-                ("ALIGN",         (0, 0), (-1, -1), "LEFT"),
-                ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-                ("TOPPADDING",    (0, 0), (-1, -1), 3),
-                ("LEFTPADDING",   (0, 0), (-1, -1), 2),
+                ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                ("TOPPADDING", (0, 0), (-1, -1), 1),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
             ]))
             story.append(tbl)
         story.append(Spacer(1, 4))
@@ -608,8 +595,8 @@ def generate_cover_letter_pdf(
     story.append(Paragraph(_clean(persona.get("full_name")), S["name"]))
     story.extend(_contact_line(persona, S))
     story.append(Spacer(1, 16))
-    story.append(HRFlowable(width="100%", thickness=S["_hr_thickness"],
-                            color=S["_accent"], spaceAfter=20))
+    story.append(HRFlowable(width="100%", thickness=0.25,
+                            color=S["_sec_bar"], spaceAfter=20))
 
     cl = str(persona.get("cover_letter", "")).replace("\n", "<br/>")
     story.append(Paragraph(cl, S["body_left"]))
