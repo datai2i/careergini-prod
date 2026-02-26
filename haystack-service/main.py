@@ -597,34 +597,53 @@ async def generate_resume_pdf(request: ResumeTailorRequest):
         
         from starlette.concurrency import run_in_threadpool
         from pdf_generator import generate_pdf, generate_cover_letter_pdf
+        from docx_generator import generate_resume_docx, generate_cover_letter_docx
         
+        # ── STAGE 2: Finalize text for specific template + page count ──────────
+        # This re-polishes the user-edited/JD-tailored text to fit the exact format
+        logger.info(f"Stage 2: Finalizing content for {request.template} - {request.page_count}p")
+        request.persona = await agent.finalize_resume(
+            persona=request.persona,
+            template=request.template or "professional",
+            page_count=request.page_count or 2,
+            job_description=request.job_description or ""
+        )
+
         output_dir = f"uploads/{request.user_id}"
         os.makedirs(output_dir, exist_ok=True)
         
-        output_resume_path = f"{output_dir}/tailored_resume.pdf"
-        output_cl_path     = f"{output_dir}/cover_letter.pdf"
+        output_resume_path      = f"{output_dir}/tailored_resume.pdf"
+        output_resume_docx_path = f"{output_dir}/tailored_resume.docx"
+        output_cl_path          = f"{output_dir}/cover_letter.pdf"
+        output_cl_docx_path     = f"{output_dir}/cover_letter.docx"
 
-        logger.info(f"Generating PDF for {request.user_id}. Persona keys: {list(request.persona.keys())}")
-        
         has_cl = False
         if "cover_letter" in request.persona and str(request.persona["cover_letter"]).strip():
-            logger.info("Cover letter found in persona data.")
-            logger.info(f"Cover letter length: {len(str(request.persona['cover_letter']))}")
-            # Generate cover letter in background thread
+            logger.info(f"Generating cover letter (len {len(str(request.persona['cover_letter']))})")
             has_cl = await run_in_threadpool(generate_cover_letter_pdf, output_cl_path, request.persona, request.template)
         else:
-            logger.warning("Cover letter MISSING from persona data")
+            logger.warning("No cover letter content found. Skipping cover letter generation.")
 
-        # Run blocking Resume PDF generation in threadpool
+        logger.info(f"Generating documents for {request.user_id} using {request.template} template.")
+        
+        # Run blocking generations in threadpool
+        # PDF Resume
         await run_in_threadpool(generate_pdf, output_resume_path, request.persona, request.template, request.profile_pic, request.page_count or 2)
+        # DOCX Resume
+        await run_in_threadpool(generate_resume_docx, output_resume_docx_path, request.persona, request.template, request.page_count or 2)
         
         response_data = {
              "status": "success",
              "pdf_url": f"/api/uploads/{request.user_id}/tailored_resume.pdf",
+             "docx_url": f"/api/uploads/{request.user_id}/tailored_resume.docx",
              "message": "Resume generated successfully"
         }
+        
         if has_cl:
+             # Also generate DOCX cover letter
+             await run_in_threadpool(generate_cover_letter_docx, output_cl_docx_path, request.persona, request.template)
              response_data["cover_letter_url"] = f"/api/uploads/{request.user_id}/cover_letter.pdf"
+             response_data["cover_letter_docx_url"] = f"/api/uploads/{request.user_id}/cover_letter.docx"
              
         return response_data
         

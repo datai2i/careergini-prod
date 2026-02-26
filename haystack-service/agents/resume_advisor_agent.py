@@ -89,6 +89,13 @@ class TailorResumeComponent:
 - Reframe skills as 9 leadership domains / competency areas (not just tool names). E.g. "P&L Management", "Enterprise Sales", "Cross-Functional Leadership".
 - Quantify everything possible: revenue, headcount, growth %, cost savings, cycle time reduction.
 - Tone: authoritative, visionary, board-room ready. No first-person pronouns."""
+        elif template == "fresher":
+            template_rules = """- Write a Career Objective (2-3 sentences) focused on what the candidate WANTS to contribute and learn, not just what they've done.
+- Emphasize academic achievements, coursework projects, hackathons, open-source, internships over formal career history.
+- Skills must be specific concrete tool/technology names (Python, React, SQL, Figma) learned in coursework or self-study.
+- For any internships or part-time work: frame contributions as learning + tangible delivery.
+- Tone: ambitious, enthusiastic, growth-focused. Max 2 bullet points per role.
+- If the candidate has limited work experience, prioritize projects — make project descriptions detailed and impactful."""
         else:
             template_rules = """- Write all bullet points as concise metric-driven ATS-optimised statements (action verb → task → quantified result).
 - Generate a tight 3-sentence professional summary (current title + top 2 skills + value to employer).
@@ -189,6 +196,95 @@ Job (excerpt):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Stage 2: Finalize content for specific template + page count
+# ─────────────────────────────────────────────────────────────────────────────
+
+@component
+class FinalizeResumeComponent:
+    """
+    Stage 2 AI step: takes Stage 1 tailored persona + user edits, then
+    re-polishes the final text for the selected template's tone/density
+    and page constraint (1-page compact vs 2-page full-detail).
+
+    NOT a re-tailor — JD alignment is preserved from Stage 1.
+    Its job: adapt length, tone, and emphasis for the chosen format.
+    """
+    def __init__(self, generator):
+        self.generator = generator
+
+    @component.output_types(final_result=Dict[str, Any])
+    def run(self, persona: Dict[str, Any], template: str, page_count: int, job_description: str = ""):
+        compact  = (page_count == 1)
+        slim_jd  = str(job_description)[:500]
+
+        tailored_summary = persona.get("summary") or persona.get("tailored_summary", "")
+        tailored_skills  = persona.get("top_skills") or persona.get("tailored_skills", [])
+        tailored_exp     = []
+        for e in (persona.get("experience_highlights") or persona.get("tailored_experience") or [])[:6]:
+            blist = e.get("tailored_bullets") or e.get("key_achievement") or []
+            if isinstance(blist, str):
+                blist = [b.strip() for b in blist.split(";") if b.strip()]
+            tailored_exp.append({
+                "role": e.get("role", ""), "company": e.get("company", ""),
+                "duration": e.get("duration", ""), "bullets": blist,
+            })
+
+        if template == "executive":
+            tone_rules = """- Tone: authoritative, board-room ready, no first-person pronouns.
+- Summary: 4-5 sentence strategic narrative (vision + impact + career arc).
+- Competencies: 9 leadership domain phrases (not tool names).
+- Bullets: scope (team/budget/revenue) then measurable outcome. Max 4 per role."""
+        elif template == "fresher":
+            tone_rules = f"""- Rewrite summary as Career Objective: 2 sentences — contribution intent + strongest qualification.
+- Skills: concrete tool/tech names only.
+- Bullets per role: max {'2' if compact else '3'} — frame as learning + tangible delivery.
+- Emphasize projects heavily — make descriptions specific and results-oriented.
+- Tone: ambitious, eager, forward-looking."""
+        else:
+            tone_rules = f"""- Tone: clean, confident, ATS-friendly.
+- Summary: exactly 3 sentences — role + top skill + value promise.
+- Bullets: action verb → task → metric. Max {'2' if compact else '4'} per role.
+- Skills: exact keyword phrases from JD."""
+
+        page_rules = f"""- Format: {'1-PAGE COMPACT (be concise, trim bullets to 2 per role, skills max 8)' if compact else '2-PAGE FULL-DETAIL (include all bullets and skills, be thorough)'}."""
+
+        prompt = f"""You are a professional resume editor finalizing content for a {template.upper()} template on {page_count} page(s).
+DO NOT re-invent or hallucinate content. Only adapt tone, length, and emphasis.
+
+Rules:
+{tone_rules}
+{page_rules}
+
+Tailored content to finalize:
+Summary: {tailored_summary[:600]}
+Skills: {', '.join(tailored_skills[:20])}
+Experience: {json.dumps(tailored_exp)}
+JD context: {slim_jd}
+
+Output ONLY valid JSON:
+{{"tailored_summary":"final summary","tailored_skills":["skill1","skill2"],"tailored_experience":[{{"role":"role","company":"company","duration":"duration","tailored_bullets":["bullet1","bullet2"]}}]}}"""
+
+        try:
+            response = self.generator.run(prompt=prompt)
+            content  = response["replies"][0]
+            result   = _parse_json(content)
+            result.setdefault("tailored_projects", persona.get("projects") or persona.get("tailored_projects", []))
+            result.setdefault("education", persona.get("education", []))
+            result["cover_letter"] = persona.get("cover_letter", "")
+            return {"final_result": result}
+        except Exception as e:
+            logger.error(f"Finalize failed: {e}")
+            return {"final_result": {
+                "tailored_summary":    tailored_summary,
+                "tailored_skills":     tailored_skills,
+                "tailored_experience": tailored_exp,
+                "tailored_projects":   persona.get("projects") or persona.get("tailored_projects", []),
+                "education":           persona.get("education", []),
+                "cover_letter":        persona.get("cover_letter", ""),
+            }}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main Agent
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -273,6 +369,19 @@ Required JSON structure (extract real info only):
         final = tailor_result["tailored_result"]
         final["cover_letter"] = cl_result["cover_letter"]
         return final
+
+    async def finalize_resume(self, persona: Dict[str, Any], template: str, page_count: int, job_description: str = "") -> Dict[str, Any]:
+        """Stage 2: Finalize content for specific template and page count."""
+        print(f"Resume Advisor Agent finalizing resume [{template}, {page_count}p]...")
+        
+        finalize_comp = FinalizeResumeComponent(self.generator)
+        loop = asyncio.get_event_loop()
+        
+        result = await loop.run_in_executor(
+            None,
+            lambda: finalize_comp.run(persona=persona, template=template, page_count=page_count, job_description=job_description)
+        )
+        return result["final_result"]
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Standard run method for workflow integration."""

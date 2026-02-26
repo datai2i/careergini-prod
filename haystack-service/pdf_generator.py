@@ -137,6 +137,14 @@ def build_styles(template: str, page_count: int) -> dict:
         link_col = colors.HexColor("#2563EB")
         name_align = TA_LEFT
         header_rule_thickness = 2.0
+    elif template == "fresher":
+        # Teal / slate — modern, approachable, portfolio-forward
+        accent   = colors.HexColor("#0D9488")   # teal
+        sub      = colors.HexColor("#475569")   # slate secondary
+        sec_bar  = colors.HexColor("#0D9488")   # teal underlines
+        link_col = colors.HexColor("#2563EB")
+        name_align = TA_LEFT
+        header_rule_thickness = 1.5
     else:
         # Professional — clean navy — ATS-safe, universally readable
         accent   = colors.HexColor("#1A3557")   # navy
@@ -474,6 +482,107 @@ def _render_executive(story: List, persona: dict, S: dict, compact: bool):
             story.append(Paragraph(f"•\u00a0{_clean(c)}", S["bullet"]))
 
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Fresher renderer
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _render_fresher(story: List, persona: dict, S: dict, compact: bool):
+    """
+    Fresher — teal, education-first, portfolio-forward layout.
+
+    Section order (same for 1 & 2 page):
+      Header → Career Objective → Education → Skills (tag grid) →
+      Projects → Work Experience (if any) → Certifications*
+    (* 2-page only)
+    """
+    max_bullets = 2 if compact else 3
+    max_skills  = 6 if compact else 12
+    max_projects = 2 if compact else None
+    skills = (persona.get("top_skills") or [])[:max_skills]
+
+    # ── Header ───────────────────────────────────────────────────────────────
+    story.append(Paragraph(_clean(persona.get("full_name")), S["name"]))
+    story.append(Paragraph(_clean(persona.get("professional_title")), S["title"]))
+    story.extend(_contact_line(persona, S))
+    story.append(Spacer(1, 4))
+    story.append(HRFlowable(width="100%", thickness=S["_hr_thickness"],
+                            color=S["_accent"], spaceAfter=4))
+
+    # ── Career Objective ─────────────────────────────────────────────────────
+    summary = _clean(persona.get("summary"))
+    if summary:
+        story.extend(_section_header("Career Objective", S))
+        if compact:
+            sentences = [s.strip() for s in summary.replace("!", ".|").replace("?", ".|").split(".") if s.strip()]
+            summary = ". ".join(sentences[:2]) + ("." if sentences else "")
+        story.append(Paragraph(summary, S["body"]))
+        story.append(Spacer(1, 2))
+
+    # ── Education (FIRST — most valuable asset for freshers) ─────────────────
+    if persona.get("education"):
+        story.extend(_section_header("Education", S))
+        story.extend(_education_block(persona, S))
+
+    # ── Skills — tag-style 4-column grid ─────────────────────────────────────
+    if skills:
+        story.extend(_section_header("Technical Skills", S))
+        BF = _font("regular")
+        tag_style = _ps("tag",
+            fontName=BF, fontSize=max(8, S["_body_sz"] - 0.5),
+            leading=S["_body_sz"] + 5,
+            textColor=S["_accent"],
+            borderColor=S["_accent"],
+            borderWidth=0.75,
+            borderPadding=(2, 6, 2, 6))
+        cols = 3 if compact else 4
+        rows, row = [], []
+        for i, sk in enumerate(skills):
+            row.append(Paragraph(sk, tag_style))
+            if len(row) == cols or i == len(skills) - 1:
+                while len(row) < cols:
+                    row.append(Paragraph("", S["body"]))
+                rows.append(row)
+                row = []
+        if rows:
+            tbl = Table(rows, colWidths=[f"{100//cols}%"] * cols)
+            tbl.setStyle(TableStyle([
+                ("ALIGN",         (0, 0), (-1, -1), "LEFT"),
+                ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ("TOPPADDING",    (0, 0), (-1, -1), 3),
+                ("LEFTPADDING",   (0, 0), (-1, -1), 2),
+            ]))
+            story.append(tbl)
+        story.append(Spacer(1, 4))
+
+    # ── Projects (prominently placed — key differentiator for freshers) ───────
+    projects = (persona.get("projects") or [])
+    if max_projects:
+        projects = projects[:max_projects]
+    if projects:
+        story.extend(_section_header("Projects & Academic Work", S))
+        for proj in projects:
+            name = _clean(proj.get("name"))
+            desc = _clean(proj.get("description"))
+            if name: story.append(Paragraph(f"<b>{name}</b>", S["body_bold"]))
+            if desc: story.append(Paragraph(desc, S["body_left"]))
+            story.append(Spacer(1, 4))
+
+    # ── Work Experience (internships, part-time — shown if present) ───────────
+    exps = persona.get("experience_highlights") or []
+    if exps:
+        story.extend(_section_header("Work Experience & Internships", S))
+        for exp in exps:
+            story.append(KeepTogether(_exp_block(exp, S, max_bullets=max_bullets)))
+
+    # ── Certifications ────────────────────────────────────────────────────────
+    if not compact and persona.get("certifications"):
+        story.extend(_section_header("Certifications & Achievements", S))
+        for c in (persona.get("certifications") or []):
+            story.append(Paragraph(f"•\u00a0{_clean(c)}", S["bullet"]))
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Cover letter
 # ─────────────────────────────────────────────────────────────────────────────
@@ -541,7 +650,7 @@ def generate_pdf(
     _ensure_fonts()
 
     # Remap legacy template names
-    if template not in ("professional", "executive"):
+    if template not in ("professional", "executive", "fresher"):
         template = "professional"
 
     compact = (page_count == 1)
@@ -594,6 +703,8 @@ def generate_pdf(
 
         if template == "executive":
             _render_executive(story, persona, S, compact)
+        elif template == "fresher":
+            _render_fresher(story, persona, S, compact)
         else:
             _render_professional(story, persona, S, compact)
 

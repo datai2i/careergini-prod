@@ -326,9 +326,9 @@ export const ResumeBuilderPage: React.FC = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     user_id: user?.id || 'default',
-                    job_description: jobDescription, // Pass to fulfill schema, though mostly unused here
+                    job_description: jobDescription,
                     persona: tailoredContent,
-                    template: selectedTemplate, // Resume uses selectedTemplate, structure is enforced separately
+                    template: selectedTemplate,
                     profile_pic: profilePicBase64,
                     page_count: pageCount,
                 })
@@ -337,11 +337,9 @@ export const ResumeBuilderPage: React.FC = () => {
             const pdfData = await pdfResponse.json();
             if (pdfResponse.ok) {
                 setPdfUrl(pdfData.pdf_url);
-                if (pdfData.cover_letter_url) {
-                    setCoverLetterUrl(pdfData.cover_letter_url);
-                } else {
-                    setCoverLetterUrl(null);
-                }
+                setDocxUrl(pdfData.docx_url);
+                setCoverLetterUrl(pdfData.cover_letter_url || null);
+                setCoverLetterDocxUrl(pdfData.cover_letter_docx_url || null);
                 setStep(5);
                 notifyStep('🎉 PDF Ready!', 'Your professional resume and cover letter have been generated. Click to download!');
                 showToast('Files ready to download! 🎉', 'success');
@@ -1137,131 +1135,57 @@ export const ResumeBuilderPage: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* Template Selection — 2 premium templates */}
+                            {/* Template Selection — 3 premium templates */}
                             <h3 className="font-semibold text-gray-800 mb-2">Select Resume Template</h3>
-                            <p className="text-sm text-gray-500 mb-4">Both templates are professionally benchmarked. Choose based on your career stage.</p>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
+                            <p className="text-sm text-gray-500 mb-4">Professionally benchmarked templates. Choose based on your career stage.</p>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                                 {[
                                     {
                                         id: 'professional',
                                         label: 'Professionally Crafted',
                                         badge: 'Most Popular',
                                         badgeColor: 'bg-blue-100 text-blue-800',
-                                        audience: 'Mid-level professionals, career switchers, global job seekers',
-                                        features: ['Clean navy single-column', 'ATS-optimised layout', 'Metric-driven bullet prompts', 'Inline skills — keyword-rich'],
-                                        preview: (
-                                            <svg viewBox="0 0 120 160" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-                                                <rect width="120" height="160" fill="#f8fafc" />
-                                                {/* Name block */}
-                                                <rect x="8" y="10" width="72" height="8" rx="2" fill="#1A3557" />
-                                                <rect x="8" y="21" width="48" height="4" rx="1" fill="#5A6677" />
-                                                <rect x="8" y="27" width="90" height="2" rx="1" fill="#CBD5E1" />
-                                                <rect x="8" y="31" width="60" height="2" rx="1" fill="#CBD5E1" />
-                                                {/* Rule */}
-                                                <rect x="8" y="36" width="104" height="1.5" rx="0.75" fill="#1A3557" />
-                                                {/* Summary section */}
-                                                <rect x="8" y="42" width="42" height="3.5" rx="1" fill="#1A3557" />
-                                                <rect x="8" y="47" width="104" height="1.5" rx="0.5" fill="#94A3B8" />
-                                                <rect x="8" y="50" width="104" height="1.5" rx="0.5" fill="#94A3B8" />
-                                                <rect x="8" y="53" width="80" height="1.5" rx="0.5" fill="#94A3B8" />
-                                                {/* Skills */}
-                                                <rect x="8" y="59" width="30" height="3.5" rx="1" fill="#1A3557" />
-                                                <rect x="8" y="64" width="104" height="1.5" rx="0.5" fill="#CBD5E1" />
-                                                {/* Experience */}
-                                                <rect x="8" y="70" width="50" height="3.5" rx="1" fill="#1A3557" />
-                                                <rect x="8" y="75" width="55" height="2.5" rx="1" fill="#334155" />
-                                                <rect x="8" y="79" width="40" height="2" rx="1" fill="#94A3B8" />
-                                                <rect x="12" y="83" width="90" height="1.5" rx="0.5" fill="#CBD5E1" />
-                                                <rect x="12" y="86" width="80" height="1.5" rx="0.5" fill="#CBD5E1" />
-                                                <rect x="8" y="91" width="50" height="2.5" rx="1" fill="#334155" />
-                                                <rect x="8" y="95" width="40" height="2" rx="1" fill="#94A3B8" />
-                                                <rect x="12" y="99" width="85" height="1.5" rx="0.5" fill="#CBD5E1" />
-                                                <rect x="12" y="102" width="70" height="1.5" rx="0.5" fill="#CBD5E1" />
-                                                {/* Education */}
-                                                <rect x="8" y="108" width="38" height="3.5" rx="1" fill="#1A3557" />
-                                                <rect x="8" y="113" width="80" height="2" rx="1" fill="#94A3B8" />
-                                            </svg>
-                                        ),
+                                        audience: 'Mid-level, career switchers, global seekers',
+                                        features: ['Clean navy single-column', 'ATS-optimised layout', 'Metric-driven prompts', 'Inline skills grid'],
                                     },
                                     {
                                         id: 'executive',
                                         label: 'Executive Level',
                                         badge: 'Senior & C-Suite',
                                         badgeColor: 'bg-amber-100 text-amber-800',
-                                        audience: 'Directors, VPs, C-suite, Board candidates',
-                                        features: ['Charcoal + platinum-gold accents', 'Split name/contact header', '3-column competency grid', 'Leadership-impact narrative'],
-                                        preview: (
-                                            <svg viewBox="0 0 120 160" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-                                                <rect width="120" height="160" fill="#f8fafc" />
-                                                {/* Name left, contact right */}
-                                                <rect x="8" y="10" width="60" height="8" rx="2" fill="#1C1C1C" />
-                                                <rect x="8" y="21" width="40" height="3.5" rx="1" fill="#4A5568" />
-                                                {/* Right contact block */}
-                                                <rect x="80" y="12" width="32" height="2" rx="1" fill="#888" />
-                                                <rect x="80" y="16" width="28" height="2" rx="1" fill="#888" />
-                                                <rect x="80" y="20" width="24" height="2" rx="1" fill="#888" />
-                                                {/* Double rule — gold then light */}
-                                                <rect x="8" y="27" width="104" height="2" rx="1" fill="#B8985E" />
-                                                <rect x="8" y="30" width="104" height="0.5" rx="0.25" fill="#D1D5DB" />
-                                                {/* Executive Profile */}
-                                                <rect x="8" y="36" width="52" height="3.5" rx="1" fill="#1C1C1C" />
-                                                <rect x="8" y="42" width="104" height="2" rx="1" fill="#B8985E" opacity="0.4" />
-                                                <rect x="8" y="46" width="104" height="1.5" rx="0.5" fill="#94A3B8" />
-                                                <rect x="8" y="49" width="90" height="1.5" rx="0.5" fill="#94A3B8" />
-                                                {/* Core Competencies 3-col grid */}
-                                                <rect x="8" y="55" width="58" height="3.5" rx="1" fill="#1C1C1C" />
-                                                <rect x="8" y="61" width="104" height="2" rx="1" fill="#B8985E" opacity="0.4" />
-                                                <rect x="8" y="65" width="30" height="2" rx="1" fill="#555" />
-                                                <rect x="44" y="65" width="30" height="2" rx="1" fill="#555" />
-                                                <rect x="80" y="65" width="30" height="2" rx="1" fill="#555" />
-                                                <rect x="8" y="69" width="28" height="2" rx="1" fill="#888" />
-                                                <rect x="44" y="69" width="26" height="2" rx="1" fill="#888" />
-                                                <rect x="80" y="69" width="28" height="2" rx="1" fill="#888" />
-                                                <rect x="8" y="73" width="30" height="2" rx="1" fill="#888" />
-                                                <rect x="44" y="73" width="24" height="2" rx="1" fill="#888" />
-                                                <rect x="80" y="73" width="26" height="2" rx="1" fill="#888" />
-                                                {/* Career Timeline */}
-                                                <rect x="8" y="79" width="50" height="3.5" rx="1" fill="#1C1C1C" />
-                                                <rect x="8" y="84" width="104" height="2" rx="1" fill="#B8985E" opacity="0.4" />
-                                                <rect x="8" y="88" width="55" height="2.5" rx="1" fill="#1C1C1C" />
-                                                <rect x="8" y="92" width="40" height="2" rx="1" fill="#4A5568" />
-                                                <rect x="12" y="96" width="90" height="1.5" rx="0.5" fill="#CBD5E1" />
-                                                <rect x="12" y="99" width="80" height="1.5" rx="0.5" fill="#CBD5E1" />
-                                                <rect x="12" y="102" width="70" height="1.5" rx="0.5" fill="#CBD5E1" />
-                                                {/* Education */}
-                                                <rect x="8" y="108" width="38" height="3.5" rx="1" fill="#1C1C1C" />
-                                                <rect x="8" y="113" width="104" height="2" rx="1" fill="#B8985E" opacity="0.4" />
-                                                <rect x="8" y="117" width="80" height="2" rx="1" fill="#94A3B8" />
-                                            </svg>
-                                        ),
+                                        audience: 'Directors, VPs, C-suite, Board members',
+                                        features: ['Charcoal + gold accents', 'Split header layout', '3-column competency grid', 'Leadership-impact narrative'],
+                                    },
+                                    {
+                                        id: 'fresher',
+                                        label: 'Fresher / Student',
+                                        badge: 'Career Starter',
+                                        badgeColor: 'bg-teal-100 text-teal-800',
+                                        audience: 'Students, new grads, bootcampers',
+                                        features: ['Teal modern palette', 'Education-first order', 'Project-focused logic', 'Growth-oriented tone'],
                                     },
                                 ].map(tpl => (
                                     <button
                                         key={tpl.id}
                                         onClick={() => setSelectedTemplate(tpl.id)}
-                                        className={`p-4 rounded-xl border-2 text-left transition-all relative group ${selectedTemplate === tpl.id
-                                                ? 'border-purple-600 bg-purple-50 shadow-md ring-2 ring-purple-100'
-                                                : 'border-gray-200 bg-white hover:border-purple-300 hover:shadow'
+                                        className={`p-5 rounded-xl border-2 text-left transition-all relative flex flex-col h-full ${selectedTemplate === tpl.id
+                                            ? 'border-purple-600 bg-purple-50 shadow-md ring-1 ring-purple-100'
+                                            : 'border-gray-200 bg-white hover:border-purple-300 hover:shadow-sm'
                                             }`}
                                     >
-                                        {/* Template thumbnail SVG */}
-                                        <div className="aspect-[3/4] w-full bg-slate-50 mb-3 rounded-lg overflow-hidden border border-gray-200 shadow-sm relative">
-                                            {tpl.preview}
-                                            {selectedTemplate === tpl.id && (
-                                                <div className="absolute inset-0 bg-purple-600 bg-opacity-5 rounded-lg" />
-                                            )}
+                                        <div className="flex items-start justify-between mb-2">
+                                            <span className="font-bold text-gray-900">{tpl.label}</span>
+                                            {selectedTemplate === tpl.id && <CheckCircle className="w-5 h-5 text-purple-600 flex-shrink-0" />}
                                         </div>
-                                        {/* Label + badge */}
-                                        <div className="flex items-start justify-between mb-1">
-                                            <span className="font-bold text-gray-800 text-sm">{tpl.label}</span>
-                                            {selectedTemplate === tpl.id && <CheckCircle className="w-4 h-4 text-purple-600 flex-shrink-0 ml-1" />}
-                                        </div>
-                                        <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full mb-2 ${tpl.badgeColor}`}>{tpl.badge}</span>
-                                        <p className="text-xs text-gray-500 mb-2 leading-snug">{tpl.audience}</p>
-                                        <ul className="space-y-0.5">
+                                        <span className={`inline-block text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full mb-3 self-start ${tpl.badgeColor}`}>
+                                            {tpl.badge}
+                                        </span>
+                                        <p className="text-xs text-gray-500 mb-4 line-clamp-2 leading-relaxed italic">{tpl.audience}</p>
+                                        <ul className="space-y-2 mt-auto">
                                             {tpl.features.map(f => (
-                                                <li key={f} className="text-xs text-gray-600 flex items-center gap-1">
-                                                    <span className="w-1 h-1 rounded-full bg-purple-400 flex-shrink-0" />{f}
+                                                <li key={f} className="text-[11px] text-gray-600 flex items-center gap-2">
+                                                    <div className="w-1 h-1 rounded-full bg-purple-400 flex-shrink-0" />
+                                                    {f}
                                                 </li>
                                             ))}
                                         </ul>
@@ -1342,27 +1266,47 @@ export const ResumeBuilderPage: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="flex flex-col sm:flex-row gap-4">
-                            <a
-                                href={pdfUrl}
-                                target="_blank"
-                                download={`CareerGini_Resume_${selectedTemplate === 'executive' ? 'Executive_Level' : 'Professionally_Crafted'}_${pageCount}p.pdf`}
-                                className="flex-1 bg-black text-white py-4 rounded-xl font-bold text-lg hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex justify-center items-center"
-                            >
-                                <Download className="w-6 h-6 inline-block mr-2" />
-                                Download Resume
-                            </a>
-
-                            {coverLetterUrl && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full">
+                            {/* Resume Section */}
+                            <div className="flex flex-col gap-3">
+                                <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider text-center">Final Resume</h4>
                                 <a
-                                    href={coverLetterUrl}
+                                    href={pdfUrl || '#'}
                                     target="_blank"
-                                    download={`CareerGini_Cover_Letter_${selectedTemplate === 'executive' ? 'Executive_Level' : 'Professionally_Crafted'}.pdf`}
-                                    className="flex-1 bg-white text-black border-2 border-black py-3.5 rounded-xl font-bold text-lg hover:bg-gray-50 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex justify-center items-center"
+                                    download={`CareerGini_Resume_${selectedTemplate}_${pageCount}p.pdf`}
+                                    className="bg-black text-white py-4 rounded-xl font-bold hover:bg-gray-800 transition-all shadow-lg flex justify-center items-center gap-2"
                                 >
-                                    <Download className="w-6 h-6 inline-block mr-2" />
-                                    Download Cover Letter
+                                    <Download className="w-5 h-5" /> PDF Resume
                                 </a>
+                                <a
+                                    href={docxUrl || '#'}
+                                    download={`CareerGini_Resume_${selectedTemplate}_${pageCount}p.docx`}
+                                    className="bg-white text-black border-2 border-black py-4 rounded-xl font-bold hover:bg-gray-50 transition-all shadow-md flex justify-center items-center gap-2"
+                                >
+                                    <FileText className="w-5 h-5 text-blue-600" /> DOCX Resume
+                                </a>
+                            </div>
+
+                            {/* Cover Letter Section */}
+                            {coverLetterUrl && (
+                                <div className="flex flex-col gap-3">
+                                    <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider text-center">Cover Letter</h4>
+                                    <a
+                                        href={coverLetterUrl || '#'}
+                                        target="_blank"
+                                        download={`CareerGini_CL_${selectedTemplate}.pdf`}
+                                        className="bg-purple-600 text-white py-4 rounded-xl font-bold hover:bg-purple-700 transition-all shadow-lg flex justify-center items-center gap-2"
+                                    >
+                                        <Download className="w-5 h-5" /> PDF Cover Letter
+                                    </a>
+                                    <a
+                                        href={coverLetterDocxUrl || '#'}
+                                        download={`CareerGini_CL_${selectedTemplate}.docx`}
+                                        className="bg-white text-purple-600 border-2 border-purple-600 py-4 rounded-xl font-bold hover:bg-purple-50 transition-all shadow-md flex justify-center items-center gap-2"
+                                    >
+                                        <FileText className="w-5 h-5" /> DOCX Cover Letter
+                                    </a>
+                                </div>
                             )}
                         </div>
 
