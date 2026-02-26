@@ -571,18 +571,43 @@ async def generate_resume_pdf(request: ResumeTailorRequest):
          
         # Ensure experience is in standard format if tailored structure is present
         if "tailored_experience" in request.persona and isinstance(request.persona["tailored_experience"], list):
-             # Only transform if experience_highlights is NOT already updated/valid
-             # or implicitly trust tailored_experience to be the source of truth for PDF
-            standard_exp = []
+            # Semantic Merge: Combine entries with same Role + Company + Duration
+            merged = {}
             for item in request.persona["tailored_experience"]:
+                role    = _clean(item.get("role"))
+                company = _clean(item.get("company"))
+                dur     = _clean(item.get("duration"))
+                key = f"{role.lower()}|{company.lower()}|{dur.lower()}"
+                
+                bullets = item.get("tailored_bullets") or item.get("key_achievement") or []
+                if isinstance(bullets, str):
+                    bullets = [b.strip() for b in bullets.replace(";", "\n").split("\n") if b.strip()]
+                
+                if key not in merged:
+                    merged[key] = {
+                        "role": role,
+                        "company": company,
+                        "duration": dur,
+                        "bullets": list(bullets)
+                    }
+                else:
+                    # Append unique bullets
+                    existing = set(merged[key]["bullets"])
+                    for b in bullets:
+                        if b not in existing:
+                            merged[key]["bullets"].append(b)
+            
+            # Reconstruct standard_exp
+            standard_exp = []
+            for m in merged.values():
                 exp_entry = {
-                    "role": item.get("role", ""),
-                    "company": item.get("company", ""),
-                    "duration": item.get("duration", ""),
-                    # Join bullets into a single string or pick the first one
-                    "key_achievement": "; ".join(item.get("tailored_bullets", [])) if isinstance(item.get("tailored_bullets"), list) else item.get("tailored_bullets", "")
+                    "role": m["role"],
+                    "company": m["company"],
+                    "duration": m["duration"],
+                    "key_achievement": "; ".join(m["bullets"])
                 }
                 standard_exp.append(exp_entry)
+            
             request.persona["experience_highlights"] = standard_exp
         
         # Mapping summary and skills is now redundant but kept for safety if frontend sends old format

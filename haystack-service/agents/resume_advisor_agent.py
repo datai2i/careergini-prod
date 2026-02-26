@@ -107,6 +107,7 @@ class TailorResumeComponent:
 STRICT RULES:
 - DO NOT invent any job titles, companies, projects, or dates that are not in the candidate data.
 - DO NOT add fake achievements. Only rewrite and improve existing ones with stronger action verbs and quantifiable metrics where possible.
+- CONSOLIDATE EXPERIENCE: If multiple entries exist for the same Role at the same Company and Date, MERGE them into a single entry with a unified list of bullet points. NEVER output duplicate roles.
 - Generate 3-4 impactful bullet points per role based ONLY on the provided highlights.
 {template_rules}
 {industry_prompt}
