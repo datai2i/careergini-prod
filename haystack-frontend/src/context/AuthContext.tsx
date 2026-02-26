@@ -5,6 +5,8 @@ interface User {
     email: string;
     full_name: string;
     avatar_url: string;
+    role: string;
+    plan: string;
     onboarding_completed: boolean;
     latest_resume_filename?: string;
     latest_resume_path?: string;

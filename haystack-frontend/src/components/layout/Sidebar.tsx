@@ -1,7 +1,6 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
+import React, { useState, useRef, useEffect } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
-    Home,
     MessageSquare,
     User,
     Briefcase,
@@ -11,41 +10,44 @@ import {
     LogOut,
     Target,
     Mic,
-    Map,
     Zap,
     BarChart3,
     LayoutDashboard,
     ChevronUp,
     ChevronDown,
+    Shield,
+    Compass
 } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
 import clsx from 'clsx';
-
-const navItems = [
-    { icon: Home, label: 'Home', path: '/home' },
-    { icon: FileText, label: 'Resume Builder', path: '/resume-builder' },
-    { icon: Briefcase, label: 'Job Search', path: '/jobs' },
-    { icon: GraduationCap, label: 'Learning Hub', path: '/learning' },
-];
-
-const aiToolItems = [
-    { icon: MessageSquare, label: 'GINI Chat', path: '/gini-chat' },
-    { icon: Target, label: 'Skill Gaps', path: '/skill-gaps' },
-    { icon: Mic, label: 'Interview Prep', path: '/interview-practice' },
-    { icon: Map, label: 'Career Roadmap', path: '/career-roadmap' },
-    { icon: Zap, label: 'Advisor', path: '/advisor' },
-    { icon: BarChart3, label: 'Analytics', path: '/analytics' },
-    { icon: LayoutDashboard, label: 'Applications', path: '/applications' },
-];
-
 import { useAuth } from '../../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { usePlanAccess } from '../../hooks/usePlanAccess';
 
 export const Sidebar: React.FC = () => {
     const { logout, user } = useAuth();
+    const { canAccess } = usePlanAccess();
     const navigate = useNavigate();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
+
+    const mainItems = [
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/home' },
+        { id: 'resume', label: 'Resume Builder', icon: FileText, path: '/resume-builder' },
+        { id: 'jobs', label: 'Job Search', icon: Briefcase, path: '/jobs', hidden: !canAccess('hasJobSearch') },
+        { id: 'learning', label: 'Learning Hub', icon: GraduationCap, path: '/learning', hidden: !canAccess('hasLearningHub') },
+    ];
+
+    const aiToolItems = [
+        { id: 'chat', label: 'GINI Chat', icon: MessageSquare, path: '/gini-chat', hidden: !canAccess('hasUnlimitedChat') },
+        { id: 'skill-gaps', label: 'Skill Gaps', icon: Target, path: '/skill-gaps', hidden: !canAccess('hasSkillGaps') },
+        { id: 'interview-prep', label: 'Interview Prep', icon: Mic, path: '/interview-practice', hidden: !canAccess('hasInterviewPrep') },
+        { id: 'roadmap', label: 'Career Roadmap', icon: Compass, path: '/career-roadmap', hidden: !canAccess('hasCareerRoadmap') },
+        { id: 'advisor', label: 'Advisor', icon: Zap, path: '/advisor', hidden: !canAccess('hasAdvisor') },
+        { id: 'analytics', label: 'Analytics', icon: BarChart3, path: '/analytics', hidden: !canAccess('hasAnalytics') },
+        { id: 'applications', label: 'Applications', icon: LayoutDashboard, path: '/applications', hidden: !canAccess('hasApplications') },
+    ];
+
+    const filteredMainItems = mainItems.filter(i => !i.hidden);
+    const filteredAiItems = aiToolItems.filter(i => !i.hidden);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -53,12 +55,32 @@ export const Sidebar: React.FC = () => {
                 setIsMenuOpen(false);
             }
         };
-
         document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
+        return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
+    const NavItem = ({ item, colorClass = "blue" }: { item: any, colorClass?: string }) => (
+        <NavLink
+            to={item.path}
+            className={({ isActive }) =>
+                clsx(
+                    "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
+                    isActive
+                        ? colorClass === "purple"
+                            ? "bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 font-medium shadow-sm"
+                            : "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium shadow-sm"
+                        : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-dark-border/50 hover:text-gray-900 dark:hover:text-gray-200"
+                )
+            }
+        >
+            {({ isActive }) => (
+                <>
+                    <item.icon size={20} className={clsx("transition-transform group-hover:scale-110", isActive && (colorClass === "purple" ? "text-purple-600 dark:text-purple-400" : "text-blue-600 dark:text-blue-400"))} />
+                    <span>{item.label}</span>
+                </>
+            )}
+        </NavLink>
+    );
 
     return (
         <aside className="hidden md:flex flex-col w-72 bg-white dark:bg-dark-card border-r border-gray-200 dark:border-dark-border">
@@ -68,56 +90,46 @@ export const Sidebar: React.FC = () => {
                 </div>
             </div>
 
-            <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
+            <nav className="flex-1 px-4 space-y-1 overflow-y-auto py-4">
                 <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
                     Menu
                 </div>
-                {navItems.map((item) => (
-                    <NavLink
-                        key={item.path}
-                        to={item.path}
-                        className={({ isActive }) =>
-                            clsx(
-                                "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
-                                isActive
-                                    ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium shadow-sm"
-                                    : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-dark-border/50 hover:text-gray-900 dark:hover:text-gray-200"
-                            )
-                        }
-                    >
-                        {({ isActive }) => (
-                            <>
-                                <item.icon size={20} className={clsx("transition-transform group-hover:scale-110", isActive && "text-blue-600 dark:text-blue-400")} />
-                                <span>{item.label}</span>
-                            </>
-                        )}
-                    </NavLink>
-                ))}
+                {filteredMainItems.map(item => <NavItem key={item.path} item={item} />)}
 
-                <div className="px-4 pt-4 pb-2 text-xs font-semibold text-purple-400 uppercase tracking-wider">
-                    AI Tools
-                </div>
-                {aiToolItems.map((item) => (
-                    <NavLink
-                        key={item.path}
-                        to={item.path}
-                        className={({ isActive }) =>
-                            clsx(
-                                "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
-                                isActive
-                                    ? "bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 font-medium shadow-sm"
-                                    : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-dark-border/50 hover:text-gray-900 dark:hover:text-gray-200"
-                            )
-                        }
-                    >
-                        {({ isActive }) => (
-                            <>
-                                <item.icon size={20} className={clsx("transition-transform group-hover:scale-110", isActive && "text-purple-600 dark:text-purple-400")} />
-                                <span>{item.label}</span>
-                            </>
-                        )}
-                    </NavLink>
-                ))}
+                {filteredAiItems.length > 0 && (
+                    <>
+                        <div className="px-4 pt-4 pb-2 text-xs font-semibold text-purple-400 uppercase tracking-wider">
+                            AI Tools
+                        </div>
+                        {filteredAiItems.map(item => <NavItem key={item.path} item={item} colorClass="purple" />)}
+                    </>
+                )}
+
+                {user?.role === 'admin' && (
+                    <>
+                        <div className="px-4 pt-4 pb-2 text-xs font-semibold text-rose-400 uppercase tracking-wider">
+                            Administration
+                        </div>
+                        <NavLink
+                            to="/admin"
+                            className={({ isActive }) =>
+                                clsx(
+                                    "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
+                                    isActive
+                                        ? "bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 font-medium shadow-sm"
+                                        : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-dark-border/50 hover:text-gray-900 dark:hover:text-gray-200"
+                                )
+                            }
+                        >
+                            {({ isActive }) => (
+                                <>
+                                    <Shield size={20} className={clsx("transition-transform group-hover:scale-110", isActive && "text-rose-600 dark:text-rose-400")} />
+                                    <span>Admin Portal</span>
+                                </>
+                            )}
+                        </NavLink>
+                    </>
+                )}
             </nav>
 
             <div className="p-4 border-t border-gray-100 dark:border-dark-border relative" ref={menuRef}>
@@ -175,3 +187,4 @@ export const Sidebar: React.FC = () => {
         </aside>
     );
 };
+

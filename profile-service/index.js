@@ -22,8 +22,14 @@ if (!process.env.FRONTEND_URL) {
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
 // Generate JWT Token
+// Generate JWT Token with Role & Plan
 function generateToken(user) {
-    return jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+    return jwt.sign({
+        id: user.id,
+        email: user.email,
+        role: user.role || 'user',
+        plan: user.plan || 'free'
+    }, JWT_SECRET, { expiresIn: '7d' });
 }
 
 // Health check
@@ -102,13 +108,23 @@ const verifyToken = async (req, res, next) => {
     }
 };
 
+// Middleware to verify Admin role
+const verifyAdmin = async (req, res, next) => {
+    await verifyToken(req, res, async () => {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ error: 'Admin access required' });
+        }
+        next();
+    });
+};
+
 // Protected Route: Get Profile
 app.get('/me', verifyToken, async (req, res) => {
     try {
         const client = await db.pool.connect();
         try {
             // Get user info
-            const userRes = await client.query('SELECT id, email, full_name, avatar_url FROM users WHERE id = $1', [req.user.id]);
+            const userRes = await client.query('SELECT id, email, full_name, avatar_url, role, plan FROM users WHERE id = $1', [req.user.id]);
             const user = userRes.rows[0];
             console.log(`[me] Serving user data for ${req.user.id}: name="${user?.full_name}"`);
 
@@ -249,6 +265,159 @@ app.post('/sync-resume', async (req, res) => {
     }
 });
 
+/**
+ * Internal Route: Log User Activity
+ * Primarily called by haystack-service
+ */
+app.post('/internal/log-activity', async (req, res) => {
+    const { user_id, activity_type, activity_data } = req.body;
+    if (!user_id || !activity_type) return res.status(400).json({ error: 'Missing required fields' });
+
+    try {
+        const query = 'INSERT INTO user_activity (user_id, activity_type, activity_data) VALUES ($1::uuid, $2, $3::jsonb) RETURNING id';
+        const result = await db.query(query, [user_id, activity_type, JSON.stringify(activity_data || {})]);
+        res.json({ status: 'ok', activity_id: result.rows[0].id });
+    } catch (err) {
+        console.error('[log-activity] Error:', err);
+        res.status(500).json({ error: 'Failed to log activity' });
+    }
+});
+
+/**
+ * Internal Route: Log Chat Interaction
+ * Primarily called by haystack-service
+ */
+app.post('/internal/log-chat', async (req, res) => {
+    const { user_id, session_id, message, response, agent_name } = req.body;
+    if (!message) return res.status(400).json({ error: 'Message is required' });
+
+    try {
+        const query = `
+            INSERT INTO chat_logs (user_id, session_id, message, response, agent_name) 
+            VALUES ($1::uuid, $2, $3, $4, $5) 
+            RETURNING id
+        `;
+        const result = await db.query(query, [user_id || null, session_id, message, response, agent_name]);
+        res.json({ status: 'ok', log_id: result.rows[0].id });
+    } catch (err) {
+        console.error('[log-chat] Error:', err);
+        res.status(500).json({ error: 'Failed to log chat' });
+    }
+});
+
+/**
+ * GET /internal/user-plan/:user_id
+ * Internal helper for other services to check plan limits
+ */
+app.get('/internal/user-plan/:user_id', async (req, res) => {
+    const { user_id } = req.params;
+    try {
+        const query = `
+            SELECT id, email, role, plan,
+                   (SELECT COUNT(*) FROM user_activity WHERE user_id = u.id AND activity_type = 'resume_generated') as resume_count
+            FROM users u
+            WHERE u.id = $1
+        `;
+        const result = await db.query(query, [user_id]);
+        if (result.rowCount === 0) return res.status(404).json({ error: 'User not found' });
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error('[internal-user-plan] Error:', err);
+        res.status(500).json({ error: 'Failed to fetch user plan' });
+    }
+});
+
+
+// --- Admin Specific Routes ---
+
+/**
+ * GET /admin/stats
+ * Dashboard overview metrics
+ */
+app.get('/admin/stats', verifyAdmin, async (req, res) => {
+    try {
+        const stats = {};
+        const userCount = await db.query('SELECT COUNT(*) FROM users');
+        stats.total_users = parseInt(userCount.rows[0].count);
+
+        const activityCount = await db.query('SELECT activity_type, COUNT(*) FROM user_activity GROUP BY activity_type');
+        stats.activity_breakdown = activityCount.rows;
+
+        const planLabels = await db.query('SELECT plan, COUNT(*) FROM users GROUP BY plan');
+        stats.plans = planLabels.rows;
+
+        res.json(stats);
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch admin stats' });
+    }
+});
+
+/**
+ * GET /admin/users
+ * List users with activity details
+ */
+app.get('/admin/users', verifyAdmin, async (req, res) => {
+    try {
+        const query = `
+            SELECT u.id, u.email, u.full_name, u.role, u.plan, u.created_at, u.last_login_at, u.login_count,
+                   (SELECT COUNT(*) FROM user_activity WHERE user_id = u.id AND activity_type = 'resume_generated') as resume_count,
+                   (SELECT MAX(created_at) FROM user_activity WHERE user_id = u.id) as last_active,
+                   (SELECT activity_data->>'pdf_path' FROM user_activity 
+                    WHERE user_id = u.id AND activity_type = 'resume_generated' 
+                    ORDER BY created_at DESC LIMIT 1) as latest_resume_path
+            FROM users u
+            ORDER BY COALESCE(u.last_login_at, u.created_at) DESC
+        `;
+        const result = await db.query(query);
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch users' });
+    }
+});
+
+/**
+ * POST /admin/users/:id/update
+ * Change user role or plan
+ */
+app.post('/admin/users/:id/update', verifyAdmin, async (req, res) => {
+    const { role, plan } = req.body;
+    const userId = req.params.id;
+    try {
+        const query = `
+            UPDATE users 
+            SET role = COALESCE($1, role),
+                plan = COALESCE($2, plan),
+                updated_at = NOW()
+            WHERE id = $3
+            RETURNING id, email, role, plan
+        `;
+        const result = await db.query(query, [role, plan, userId]);
+        if (result.rowCount === 0) return res.status(404).json({ error: 'User not found' });
+        res.json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to update user' });
+    }
+});
+
+/**
+ * GET /admin/logs/chats
+ * Audit Gini Chat history
+ */
+app.get('/admin/logs/chats', verifyAdmin, async (req, res) => {
+    try {
+        const query = `
+            SELECT c.*, u.email as user_email 
+            FROM chat_logs c
+            LEFT JOIN users u ON c.user_id = u.id
+            ORDER BY c.created_at DESC
+            LIMIT 100
+        `;
+        const result = await db.query(query);
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch chat logs' });
+    }
+});
 
 app.listen(PORT, () => {
     console.log(`Profile Service running on port ${PORT}`);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bell, Moon, Sun, Search, LogIn, User as UserIcon, LogOut } from 'lucide-react';
+import { Bell, Moon, Sun, Search, LogIn, User as UserIcon, LogOut, Shield } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useNavigate, Link } from 'react-router-dom';
@@ -58,6 +58,11 @@ export const Header: React.FC = () => {
                                         <Link to="/profile" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-dark-bg rounded-lg">
                                             <UserIcon size={16} /> Profile
                                         </Link>
+                                        {user?.role === 'admin' && (
+                                            <Link to="/admin" className="flex items-center gap-2 px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg">
+                                                <Shield size={16} /> Admin Portal
+                                            </Link>
+                                        )}
                                         <button
                                             onClick={logout}
                                             className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"

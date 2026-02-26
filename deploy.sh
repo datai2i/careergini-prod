@@ -44,23 +44,23 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 
 # 1. Pull latest code
 log "Pulling latest code..."
-git pull origin main && success "Code updated" || warn "Git pull failed (continuing)"
+git pull origin master && success "Code updated" || warn "Git pull failed (continuing)"
 
 # 2. Build Docker images
 if [ "$BUILD" = true ]; then
   log "Building Docker images..."
-  docker compose -f docker-compose.prod.yml build --no-cache
+  docker compose -p careergini -f docker-compose.prod.yml build --no-cache
   success "Docker images built"
 fi
 
 # 3. Start infrastructure services first
 log "Starting infrastructure (PostgreSQL, Redis, Ollama)..."
-docker compose -f docker-compose.prod.yml up -d postgres redis ollama
+docker compose -p careergini -f docker-compose.prod.yml up -d postgres redis ollama
 sleep 5
 
 # Wait for PostgreSQL
 log "Waiting for PostgreSQL..."
-until docker compose -f docker-compose.prod.yml exec -T postgres pg_isready -U careergini; do
+until docker compose -p careergini -f docker-compose.prod.yml exec -T postgres pg_isready -U careergini; do
   sleep 2
 done
 success "PostgreSQL ready"
@@ -68,24 +68,24 @@ success "PostgreSQL ready"
 # 4. Run database migrations
 if [ "$MIGRATE" = true ]; then
   log "Running database migrations..."
-  docker compose -f docker-compose.prod.yml exec -T postgres psql -U careergini -d careergini \
+  docker compose -p careergini -f docker-compose.prod.yml exec -T postgres psql -U careergini -d careergini \
     -f /docker-entrypoint-initdb.d/02-enhancements.sql 2>/dev/null || warn "Migrations may already be applied"
   success "Database migrations complete"
 fi
 
 # 5. Start application services
 log "Starting application services..."
-docker compose -f docker-compose.prod.yml up -d ai-service profile-service application-service
+docker compose -p careergini -f docker-compose.prod.yml up -d ai-service profile-service application-service
 sleep 10
 
 # 6. Start API Gateway
 log "Starting API Gateway..."
-docker compose -f docker-compose.prod.yml up -d api-gateway
+docker compose -p careergini -f docker-compose.prod.yml up -d api-gateway
 sleep 5
 
 # 7. Start Frontend
 log "Starting Frontend..."
-docker compose -f docker-compose.prod.yml up -d frontend
+docker compose -p careergini -f docker-compose.prod.yml up -d frontend
 
 # 8. Health checks
 log "Running health checks..."
@@ -97,7 +97,7 @@ ALL_HEALTHY=true
 for service in "${SERVICES[@]}"; do
   name="${service%%:*}"
   port="${service##*:}"
-  if docker compose -f docker-compose.prod.yml ps "$name" | grep -q "Up"; then
+  if docker compose -p careergini -f docker-compose.prod.yml ps "$name" | grep -q "Up"; then
     success "$name is running"
   else
     warn "$name may not be healthy"
@@ -116,10 +116,10 @@ if [ "$ALL_HEALTHY" = true ]; then
   echo "  API Docs:     http://localhost:8000/docs"
 else
   warn "Deployment complete with warnings. Check logs:"
-  echo "  docker compose -f docker-compose.prod.yml logs --tail=50"
+  echo "  docker compose -p careergini -f docker-compose.prod.yml logs --tail=50"
 fi
 
 # 9. Show container status
 echo ""
 log "Container status:"
-docker compose -f docker-compose.prod.yml ps
+docker compose -p careergini -f docker-compose.prod.yml ps

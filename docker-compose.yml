@@ -5,7 +5,7 @@ services:
   ollama:
     image: ollama/ollama:latest
     ports:
-      - "11434:11434"
+      - "11435:11434"
     volumes:
       - ollama_models:/root/.ollama
     environment:
@@ -28,7 +28,7 @@ services:
   postgres:
     image: postgres:15
     ports:
-      - "5432:5432"
+      - "5433:5432"
     environment:
       - POSTGRES_DB=careergini
       - POSTGRES_USER=careergini
@@ -47,7 +47,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "6380:6379"
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
@@ -62,7 +62,7 @@ services:
   chromadb:
     image: ghcr.io/chroma-core/chroma:latest
     ports:
-      - "8001:8000"
+      - "8004:8000"
     volumes:
       - chroma_data:/chroma/chroma
     environment:
@@ -78,7 +78,7 @@ services:
       context: ./profile-service
       dockerfile: ../docker/profile-service.Dockerfile
     ports:
-      - "3001:3001"
+      - "3006:3001"
     environment:
       - DATABASE_URL=postgresql://careergini:changeme@postgres:5432/careergini
       - REDIS_URL=redis://redis:6379
@@ -87,7 +87,7 @@ services:
       - GITHUB_TOKEN=${GITHUB_TOKEN}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - FRONTEND_URL=https://www.careergini.com
+      - FRONTEND_URL=http://51.89.225.112.nip.io:5175
     volumes:
       - ./profile-service:/app
       - /app/node_modules
@@ -106,7 +106,7 @@ services:
       context: ./job-service
       dockerfile: ../docker/job-service.Dockerfile
     ports:
-      - "3002:3002"
+      - "3007:3002"
     environment:
       - DATABASE_URL=postgresql://careergini:changeme@postgres:5432/careergini
       - REDIS_URL=redis://redis:6379
@@ -123,7 +123,7 @@ services:
       context: ./learning-service
       dockerfile: ../docker/learning-service.Dockerfile
     ports:
-      - "3003:3003"
+      - "3008:3003"
     environment:
       - DATABASE_URL=postgresql://careergini:changeme@postgres:5432/careergini
       - REDIS_URL=redis://redis:6379
@@ -135,19 +135,6 @@ services:
       - postgres
     restart: unless-stopped
 
-  # Nginx Reverse Proxy (Port 80/443)
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - /etc/letsencrypt:/etc/letsencrypt:ro
-    depends_on:
-      - haystack-frontend
-      - haystack-api-gateway
-    restart: unless-stopped
 
   # --- HAYSTACK EXPERIMENTAL SERVICES ---
 
@@ -156,9 +143,9 @@ services:
       context: ./haystack-frontend
       dockerfile: ../docker/haystack-frontend.Dockerfile
     ports:
-      - "5174:5173"
+      - "5175:5173"
     environment:
-      - VITE_API_URL=http://localhost:3004
+      - VITE_API_URL=http://localhost:3005
     volumes:
       - ./haystack-frontend:/app
     depends_on:
@@ -170,7 +157,7 @@ services:
       context: ./haystack-api-gateway
       dockerfile: ../docker/haystack-api-gateway.Dockerfile
     ports:
-      - "3004:3000"
+      - "3005:3000"
     environment:
       - NODE_ENV=development
       - DATABASE_URL=postgresql://careergini:changeme@postgres:5432/careergini
@@ -193,7 +180,7 @@ services:
       context: ./haystack-service
       dockerfile: ../docker/haystack-service.Dockerfile
     ports:
-      - "8002:8000"
+      - "8003:8000"
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434
       - OLLAMA_NUM_THREADS=6
@@ -201,6 +188,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - CHROMA_HOST=chromadb
       - CHROMA_PORT=8000
+      - PROFILE_SERVICE_URL=http://profile-service:3001
     volumes:
       - ./haystack-service:/app
     depends_on:

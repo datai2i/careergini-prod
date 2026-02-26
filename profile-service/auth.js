@@ -56,6 +56,18 @@ async function findOrCreateUser(profile, provider, accessToken, refreshToken) {
             );
         }
 
+        // Update Login Analytics
+        await client.query(
+            'UPDATE users SET last_login_at = NOW(), login_count = login_count + 1 WHERE id = $1',
+            [userId]
+        );
+
+        // Explicitly log login activity
+        await client.query(
+            'INSERT INTO user_activity (user_id, activity_type, activity_data) VALUES ($1, $2, $3)',
+            [userId, 'user_login', JSON.stringify({ provider, client_ip: 'system' })]
+        );
+
         await client.query('COMMIT');
 
         // Fetch full user object

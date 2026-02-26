@@ -15,6 +15,7 @@ import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { ToastContainer } from './components/ui/ToastContainer';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import { PlanProtectedRoute } from './components/auth/PlanProtectedRoute';
 import { RootRedirect } from './components/RootRedirect';
 // Enhancement pages
 import { SkillGapPage } from './pages/SkillGapPage';
@@ -23,6 +24,7 @@ import { CareerRoadmapPage } from './pages/CareerRoadmapPage';
 import { AdvisorPage } from './pages/AdvisorPage';
 import { ResumeBuilderPage } from './pages/ResumeBuilderPage';
 import { AnalyticsDashboardPage } from './pages/AnalyticsDashboardPage';
+import { AdminDashboardPage } from './pages/AdminDashboardPage';
 
 function App() {
   return (
@@ -39,6 +41,11 @@ function App() {
 
           <Route path="/" element={<MainLayout />}>
             <Route index element={<RootRedirect />} />
+            <Route path="admin" element={
+              <ProtectedRoute>
+                <AdminDashboardPage />
+              </ProtectedRoute>
+            } />
             <Route path="home" element={
               <ProtectedRoute>
                 <HomePage />
@@ -46,7 +53,9 @@ function App() {
             } />
             <Route path="gini-chat" element={
               <ProtectedRoute>
-                <ChatPage />
+                <PlanProtectedRoute feature="hasUnlimitedChat">
+                  <ChatPage />
+                </PlanProtectedRoute>
               </ProtectedRoute>
             } />
             <Route path="profile" element={
@@ -61,12 +70,16 @@ function App() {
             } />
             <Route path="jobs" element={
               <ProtectedRoute>
-                <JobsPage />
+                <PlanProtectedRoute feature="hasJobSearch">
+                  <JobsPage />
+                </PlanProtectedRoute>
               </ProtectedRoute>
             } />
             <Route path="learning" element={
               <ProtectedRoute>
-                <LearningPage />
+                <PlanProtectedRoute feature="hasLearningHub">
+                  <LearningPage />
+                </PlanProtectedRoute>
               </ProtectedRoute>
             } />
             <Route path="settings" element={
@@ -82,27 +95,37 @@ function App() {
             {/* Enhancement Routes */}
             <Route path="skill-gaps" element={
               <ProtectedRoute>
-                <SkillGapPage />
+                <PlanProtectedRoute feature="hasSkillGaps">
+                  <SkillGapPage />
+                </PlanProtectedRoute>
               </ProtectedRoute>
             } />
             <Route path="interview-practice" element={
               <ProtectedRoute>
-                <InterviewPracticePage />
+                <PlanProtectedRoute feature="hasInterviewPrep">
+                  <InterviewPracticePage />
+                </PlanProtectedRoute>
               </ProtectedRoute>
             } />
             <Route path="career-roadmap" element={
               <ProtectedRoute>
-                <CareerRoadmapPage />
+                <PlanProtectedRoute feature="hasCareerRoadmap">
+                  <CareerRoadmapPage />
+                </PlanProtectedRoute>
               </ProtectedRoute>
             } />
             <Route path="advisor" element={
               <ProtectedRoute>
-                <AdvisorPage />
+                <PlanProtectedRoute feature="hasAdvisor">
+                  <AdvisorPage />
+                </PlanProtectedRoute>
               </ProtectedRoute>
             } />
             <Route path="analytics" element={
               <ProtectedRoute>
-                <AnalyticsDashboardPage />
+                <PlanProtectedRoute feature="hasAnalytics">
+                  <AnalyticsDashboardPage />
+                </PlanProtectedRoute>
               </ProtectedRoute>
             } />
             <Route path="applications" element={

@@ -39,6 +39,49 @@ os.makedirs("uploads", exist_ok=True)
 # Mount uploads directory
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
+# Internal Logging Helpers (Calls profile-service)
+async def _log_activity(user_id: str, activity_type: str, activity_data: Dict[str, Any] = None):
+    """Log user activity to the central profile database"""
+    profile_service_url = os.getenv("PROFILE_SERVICE_URL", "http://profile-service:3001")
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            payload = {
+                "user_id": user_id,
+                "activity_type": activity_type,
+                "activity_data": activity_data or {}
+            }
+            await client.post(f"{profile_service_url}/internal/log-activity", json=payload)
+    except Exception as e:
+        logger.warning(f"Failed to log activity '{activity_type}': {e}")
+
+async def _log_chat(user_id: str, session_id: str, message: str, response: str, agent_name: str = "Gini"):
+    """Audit Gini chat interaction to the central database"""
+    profile_service_url = os.getenv("PROFILE_SERVICE_URL", "http://profile-service:3001")
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            payload = {
+                "user_id": user_id,
+                "session_id": session_id,
+                "message": message,
+                "response": response,
+                "agent_name": agent_name
+            }
+            await client.post(f"{profile_service_url}/internal/log-chat", json=payload)
+    except Exception as e:
+        logger.warning(f"Failed to log chat interaction: {e}")
+
+async def _get_user_plan(user_id: str) -> Dict[str, Any]:
+    """Fetch user plan and usage stats from profile-service"""
+    profile_service_url = os.getenv("PROFILE_SERVICE_URL", "http://profile-service:3001")
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(f"{profile_service_url}/internal/user-plan/{user_id}")
+            if resp.status_code == 200:
+                return resp.json()
+    except Exception as e:
+        logger.error(f"Error fetching user plan: {e}")
+    return {"plan": "free", "role": "user", "resume_count": 0}
+
 # Initialize workflow and cache
 workflow = build_careergini_workflow()
 redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
@@ -556,10 +599,30 @@ async def load_resume_session(user_id: str, session_id: str):
         logger.error(f"Error loading session: {e}")
         raise HTTPException(status_code=500, detail="Error loading session")
 
+def _clean(v) -> str:
+    """Sanitize resume fields by removing placeholders."""
+    return str(v or "").replace("Not specified", "").replace("(Not specified)", "").strip()
+
 @app.post("/resume/generate")
 async def generate_resume_pdf(request: ResumeTailorRequest):
     """Generate professional PDF resume based on tailored content"""
     try:
+        # Check Plan Limits
+        user_info = await _get_user_plan(request.user_id)
+        plan = user_info.get("plan", "free").lower()
+        role = user_info.get("role", "user")
+        count = int(user_info.get("resume_count", 0))
+
+        # Define limits
+        limits = {"free": 1, "basic": 10, "premium": 100}
+        max_builds = limits.get(plan, 1)
+
+        if role != "admin" and count >= max_builds:
+            raise HTTPException(
+                status_code=403, 
+                detail=f"Plan limit reached ({count}/{max_builds}). Please upgrade your plan to build more resumes."
+            )
+
         # Use provided content or generate it
         if not request.persona:
             persona_path = f"uploads/{request.user_id}/persona.json"
@@ -660,6 +723,15 @@ async def generate_resume_pdf(request: ResumeTailorRequest):
              response_data["cover_letter_url"] = f"/api/uploads/{request.user_id}/cover_letter.pdf"
              response_data["cover_letter_docx_url"] = f"/api/uploads/{request.user_id}/cover_letter.docx"
              
+        # Log the activity
+        await _log_activity(request.user_id, "resume_generated", {
+            "template": request.template,
+            "has_cover_letter": has_cl,
+            "page_count": request.page_count,
+            "pdf_path": output_resume_path,
+            "docx_path": output_resume_docx_path
+        })
+
         return response_data
         
     except Exception as e:
@@ -869,6 +941,8 @@ async def chat_stream(request: ChatRequest):
             # Cache the complete response per user
             if response_text:
                 cache.set("chat", f"{request.user_id}:{request.message}", json.dumps(response_data))
+                # Audit chat interaction
+                await _log_chat(request.user_id, request.session_id, request.message, response_text, active_agent)
                 yield f"data: {json.dumps({'type': 'done', 'data': response_data})}\n\n"
             else:
                 yield f"data: {json.dumps({'type': 'error', 'error': 'No response generated'})}\n\n"

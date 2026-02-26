@@ -66,7 +66,7 @@ services:
   # ─────────────────────────────────────────
   ai-service:
     build:
-      context: ./ai-service
+      context: ./haystack-service
       dockerfile: Dockerfile
     container_name: careergini-ai
     restart: unless-stopped
@@ -101,7 +101,7 @@ services:
   profile-service:
     build:
       context: ./profile-service
-      dockerfile: Dockerfile
+      dockerfile: ../docker/profile-service.Dockerfile
     container_name: careergini-profile
     volumes:
       - ./profile-service:/app
@@ -166,7 +166,7 @@ services:
   # ─────────────────────────────────────────
   api-gateway:
     build:
-      context: ./api-gateway
+      context: ./haystack-api-gateway
       dockerfile: Dockerfile
     container_name: careergini-gateway
     restart: unless-stopped
@@ -195,7 +195,7 @@ services:
   # ─────────────────────────────────────────
   frontend:
     build:
-      context: ./frontend
+      context: ./haystack-frontend
       dockerfile: Dockerfile
       args:
         - VITE_API_URL=${VITE_API_URL:-http://localhost:3000}
@@ -207,6 +207,7 @@ services:
     depends_on:
       - api-gateway
     volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
     networks:
