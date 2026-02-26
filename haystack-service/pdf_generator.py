@@ -147,6 +147,12 @@ def build_styles(template: str, page_count: int) -> dict:
         sec_bg  = colors.HexColor("#1E1B4B")
         sec_bar = None
         align   = TA_CENTER
+    elif template == "reference":
+        accent  = colors.HexColor("#000000")
+        sub     = colors.HexColor("#333333")
+        sec_bg  = None
+        sec_bar = colors.HexColor("#000000")
+        align   = TA_LEFT
     else:  # minimalist
         accent  = colors.HexColor("#111111")
         sub     = colors.HexColor("#888888")
@@ -195,6 +201,7 @@ def build_styles(template: str, page_count: int) -> dict:
         alignment=TA_JUSTIFY, spaceAfter=4)
 
     S["body_left"] = _ps("body_left", parent=S["body"], alignment=TA_LEFT)
+    S["body_bold"] = _ps("body_bold", parent=S["body"], fontName=BFB, alignment=TA_LEFT)
 
     S["role"] = _ps("role",
         fontName=BFB, fontSize=role_sz, leading=role_lead,
@@ -353,6 +360,17 @@ def generate_pdf(
         persona["experience_highlights"] = trimmed
         if persona.get("top_skills"):
             persona["top_skills"] = persona["top_skills"][:8]
+        if persona.get("projects"):
+            persona["projects"] = persona["projects"][:2]
+    else:
+        # Explicitly ensure we don't trim if not compact (pass full length)
+        # But for 2-pages we explicitly use the full `tailored_bullets` instead of just `key_achievement`
+        exps = persona.get("experience_highlights", [])
+        full_detail = []
+        for exp in exps:
+            exp = dict(exp)
+            full_detail.append(exp)
+        persona["experience_highlights"] = full_detail
 
     S = build_styles(template, page_count)
 
@@ -463,8 +481,15 @@ def generate_pdf(
                 right.extend(_section_header("Work Experience", S))
                 for exp in persona["experience_highlights"]:
                     right.append(KeepTogether(_exp_block(exp, S)))
-
-            # Assemble (no NextPageTemplate → avoids blank page)
+            
+            if persona.get("projects"):
+                right.extend(_section_header("Projects", S))
+                for proj in persona["projects"]:
+                    name = proj.get("name", "")
+                    desc = proj.get("description", "")
+                    if name: right.append(Paragraph(f"<b>{name}</b>", S["body_bold"]))
+                    if desc: right.append(Paragraph(desc, S["body"]))
+                    right.append(Spacer(1, S["_sp_exp"]))
             story.extend(left)
             story.append(FrameBreak())
             story.extend(right)
@@ -515,88 +540,113 @@ def generate_pdf(
             else:
                 story.append(Spacer(1, 8))
 
-            # ── Summary ───────────────────────────────────────────────
-            if persona.get("summary"):
-                story.extend(_section_header("Professional Summary", S))
-                story.append(Paragraph(persona["summary"], S["body"]))
-                story.append(Spacer(1, 4))
-
-            # ── Skills ─────────────────────────────────────────────────
-            if persona.get("top_skills"):
-                story.extend(_section_header("Skills", S))
-                skills = persona["top_skills"]
-
-                if is_minimalist:
-                    story.append(Paragraph(" · ".join(skills), S["body_left"]))
-
-                elif is_creative and not compact:
-                    # Pill-style tag table
-                    BF = _font("regular")
-                    chip_s = _ps("chip",
-                        fontName=BF, fontSize=S["_body_sz"] - 0.5,
-                        leading=S["_body_sz"] + 5,
-                        textColor=colors.HexColor("#5B21B6"),
-                        borderColor=colors.HexColor("#5B21B6"),
-                        borderWidth=0.75, borderPadding=(2, 7, 2, 7))
-                    cols = 4
-                    rows, row = [], []
-                    for i, sk in enumerate(skills):
-                        row.append(Paragraph(sk, chip_s))
-                        if len(row) == cols or i == len(skills) - 1:
-                            while len(row) < cols:
-                                row.append(Paragraph("", S["body"]))
-                            rows.append(row)
-                            row = []
-                    if rows:
-                        gt = Table(rows, colWidths=["25%"] * cols)
-                        gt.setStyle(TableStyle([
-                            ("ALIGN",         (0,0), (-1,-1), "LEFT"),
-                            ("VALIGN",        (0,0), (-1,-1), "MIDDLE"),
-                            ("BOTTOMPADDING", (0,0), (-1,-1), 5),
-                            ("TOPPADDING",    (0,0), (-1,-1), 3),
-                            ("ROWBACKGROUNDS", (0,0), (-1,-1),
-                             [colors.white, colors.HexColor("#FAF5FF")]),
-                        ]))
-                        story.append(gt)
-                else:
-                    story.append(Paragraph(", ".join(skills), S["body_left"]))
-
-                story.append(Spacer(1, 4))
-
-            # ── Experience ─────────────────────────────────────────────
-            if persona.get("experience_highlights"):
-                story.extend(_section_header("Work Experience", S))
-                for exp in persona["experience_highlights"]:
-                    story.append(
-                        KeepTogether(_exp_block(exp, S, creative=is_creative))
-                    )
-
-            # ── Education ──────────────────────────────────────────────
-            if persona.get("education"):
-                story.extend(_section_header("Education", S))
-                for edu in persona["education"]:
-                    d = str(edu.get("degree", "")).replace("Not specified", "").strip()
-                    sc = str(edu.get("school", "")).replace("Not specified", "").strip()
-                    yr = str(edu.get("year", "")).replace("Not specified", "").strip()
-                    
-                    parts = []
-                    if d: parts.append(f"<b>{d}</b>")
-                    if sc: parts.append(sc)
-                    txt = ", ".join(parts)
-                    if yr: txt += f"  ({yr})"
-                    
-                    # Clean up empty parens just in case
-                    txt = txt.replace("()", "").strip()
-                    
-                    if txt:
-                        story.append(Paragraph(txt, S["body_left"]))
+            # ── Content Order Block ────────────────────────────────────────────────
+            # We construct a pipeline array of callables to enforce strict layout ordering
+            # For the 'reference' template, this is strictly: 
+            #   Objective (Summary) -> Education -> Projects -> Experience -> Skills -> Certifications
+            # For others, it remains the standard layout.
+            
+            def render_summary():
+                if persona.get("summary"):
+                    story.extend(_section_header("Professional Summary", S))
+                    story.append(Paragraph(persona["summary"], S["body"]))
+                    story.append(Spacer(1, 4))
+            
+            def render_education():
+                if persona.get("education"):
+                    story.extend(_section_header("Education", S))
+                    for edu in persona["education"]:
+                        d = str(edu.get("degree", "")).replace("Not specified", "").strip()
+                        sc = str(edu.get("school", "")).replace("Not specified", "").strip()
+                        yr = str(edu.get("year", "")).replace("Not specified", "").strip()
+                        
+                        parts = []
+                        if d: parts.append(f"<b>{d}</b>")
+                        if sc: parts.append(sc)
+                        txt = ", ".join(parts)
+                        if yr: txt += f"  ({yr})"
+                        
+                        txt = txt.replace("()", "").strip()
+                        
+                        if txt:
+                            story.append(Paragraph(txt, S["body_left"]))
+                            story.append(Spacer(1, 4))
+            
+            def render_projects():
+                if persona.get("projects"):
+                    story.extend(_section_header("Projects", S))
+                    for proj in persona["projects"]:
+                        name = proj.get("name", "")
+                        desc = proj.get("description", "")
+                        
+                        if name:
+                            story.append(Paragraph(f"<b>{name}</b>", S["body_bold"]))
+                        if desc:
+                            story.append(Paragraph(desc, S["body_left"]))
                         story.append(Spacer(1, 4))
-
-            # ── Certifications ─────────────────────────────────────────
-            if persona.get("certifications"):
-                story.extend(_section_header("Certifications", S))
-                for c in persona["certifications"]:
-                    story.append(Paragraph(f"• {c}", S["bullet"]))
+            
+            def render_experience():
+                if persona.get("experience_highlights"):
+                    story.extend(_section_header("Work Experience", S))
+                    for exp in persona["experience_highlights"]:
+                        story.append(
+                            KeepTogether(_exp_block(exp, S, creative=is_creative))
+                        )
+            
+            def render_skills():
+                if persona.get("top_skills"):
+                    story.extend(_section_header("Skills", S))
+                    skills = persona["top_skills"]
+    
+                    if is_minimalist or template == "reference":
+                        story.append(Paragraph(" · ".join(skills), S["body_left"]))
+    
+                    elif is_creative and not compact:
+                        BF = _font("regular")
+                        chip_s = _ps("chip",
+                            fontName=BF, fontSize=S["_body_sz"] - 0.5,
+                            leading=S["_body_sz"] + 5,
+                            textColor=colors.HexColor("#5B21B6"),
+                            borderColor=colors.HexColor("#5B21B6"),
+                            borderWidth=0.75, borderPadding=(2, 7, 2, 7))
+                        cols = 4
+                        rows, row = [], []
+                        for i, sk in enumerate(skills):
+                            row.append(Paragraph(sk, chip_s))
+                            if len(row) == cols or i == len(skills) - 1:
+                                while len(row) < cols:
+                                    row.append(Paragraph("", S["body"]))
+                                rows.append(row)
+                                row = []
+                        if rows:
+                            gt = Table(rows, colWidths=["25%"] * cols)
+                            gt.setStyle(TableStyle([
+                                ("ALIGN",         (0,0), (-1,-1), "LEFT"),
+                                ("VALIGN",        (0,0), (-1,-1), "MIDDLE"),
+                                ("BOTTOMPADDING", (0,0), (-1,-1), 5),
+                                ("TOPPADDING",    (0,0), (-1,-1), 3),
+                                ("ROWBACKGROUNDS", (0,0), (-1,-1),
+                                 [colors.white, colors.HexColor("#FAF5FF")]),
+                            ]))
+                            story.append(gt)
+                    else:
+                        story.append(Paragraph(", ".join(skills), S["body_left"]))
+    
+                    story.append(Spacer(1, 4))
+            
+            def render_certifications():
+                if persona.get("certifications"):
+                    story.extend(_section_header("Certifications", S))
+                    for c in persona["certifications"]:
+                        story.append(Paragraph(f"• {c}", S["bullet"]))
+            
+            # Sequence enforcement
+            render_summary()
+            render_education()
+            render_projects()
+            render_experience()
+            render_skills()
+            render_certifications()
 
         # ── Build ────────────────────────────────────────────────────
         doc.build(story)

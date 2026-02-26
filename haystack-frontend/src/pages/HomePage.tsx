@@ -79,7 +79,7 @@ export const HomePage: React.FC = () => {
     ];
 
     return (
-        <div className="max-w-7xl mx-auto space-y-6">
+        <div className="max-w-7xl mx-auto w-full space-y-6 animate-fadeIn">
             {/* Hero Section */}
             <div className="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-4 text-white shadow-md">
                 <Sparkles size={20} className="text-yellow-300" />

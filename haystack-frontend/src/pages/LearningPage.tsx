@@ -145,7 +145,7 @@ export const LearningPage: React.FC = () => {
     const recommendedCourses = courses.filter(c => !completedCourseIds.has(c.id));
 
     return (
-        <div className="max-w-6xl mx-auto space-y-6">
+        <div className="max-w-7xl mx-auto w-full space-y-6 animate-fadeIn">
             <div>
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Learning Hub</h1>
                 <p className="text-gray-600 dark:text-gray-400">Discover free courses and tutorials to advance your career</p>

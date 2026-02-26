@@ -191,7 +191,7 @@ export const ProfilePage: React.FC = () => {
     }
 
     return (
-        <div className="max-w-4xl mx-auto space-y-6">
+        <div className="max-w-7xl mx-auto w-full space-y-6 animate-fadeIn">
             <ProcessingOverlay
                 isOpen={uploading}
                 message="Updating your profile and analyzing resume..."

@@ -43,10 +43,13 @@ class PersonaManager:
                 "summary": "",
                 "email": "",
                 "phone": "",
-                "location": ""
+                "location": "",
+                "linkedin": "",
+                "portfolio_url": ""
             },
             "skills": [],
             "experience": [],
+            "projects": [],
             "education": [],
             "goals": [],
             "job_preferences": {
@@ -94,6 +97,14 @@ class PersonaManager:
              if phone: self.profile["identity"]["phone"] = phone
              
              location = resume_data.get("location")
+             if location: self.profile["identity"]["location"] = location
+
+             linkedin = resume_data.get("linkedin")
+             if linkedin: self.profile["identity"]["linkedin"] = linkedin
+
+             portfolio_url = resume_data.get("portfolio_url")
+             if portfolio_url: self.profile["identity"]["portfolio_url"] = portfolio_url
+
              summary = resume_data.get("summary")
              if summary: self.profile["identity"]["summary"] = summary
 
@@ -113,6 +124,11 @@ class PersonaManager:
              education = resume_data.get("education")
              if education:
                  self.profile["education"] = education
+
+             # Replace Projects
+             projects = resume_data.get("projects")
+             if projects:
+                 self.profile["projects"] = projects
 
              self._add_source("resume")
              self.save()

@@ -74,6 +74,7 @@ class TailorResumeComponent:
             "summary":    str(persona.get("summary", ""))[:400],
             "skills":     (persona.get("top_skills") or [])[:20],
             "experience": experiences,
+            "projects":   (persona.get("projects") or [])[:5],
             "education":  (persona.get("education") or [])[:3],
         }
         slim_jd = str(job_description)[:700]
@@ -81,11 +82,15 @@ class TailorResumeComponent:
         prompt = f"""You are a professional resume writer. Tailor this candidate's resume for the job below.
 
 STRICT RULES:
-- DO NOT invent any job titles, companies, or dates that are not in the candidate data.
-- DO NOT add fake achievements. Only rewrite and improve existing ones with stronger action verbs.
+- DO NOT invent any job titles, companies, projects, or dates that are not in the candidate data.
+- DO NOT add fake achievements. Only rewrite and improve existing ones with stronger action verbs and quantifiable metrics where possible.
+- Act as a senior executive resume writer. Use Harvard Business School standard formatting. Keep sentences punchy and impactful.
 - Generate 3-4 impactful bullet points per role based ONLY on the provided highlights.
-- Produce a 3-sentence professional summary aligned with the JD.
-- Include ALL skills that genuinely match the JD from the candidate's list (add closely related industry tools only if clearly implied by their actual role).
+- Produce a 3-sentence professional summary (Objective) aligned with the JD.
+- Output order MUST strictly respect the reference layout: Objective (Summary) -> Education -> Projects -> Experience -> Skills.
+- Include ALL skills that genuinely match the JD from the candidate's list.
+- Return the candidate's Education details exactly as provided, OR slightly reformat them for professionalism, but DO NOT drop them.
+- If the candidate has Projects, include them and tailor their descriptions similarly to the experience.
 - Output ONLY valid JSON. No preamble or explanation.
 
 Candidate:
@@ -95,7 +100,7 @@ Job Description (excerpt):
 {slim_jd}
 
 Required JSON:
-{{"tailored_summary":"3-sentence professional summary","tailored_skills":["skill1","skill2","skill3"],"tailored_experience":[{{"role":"Exact role from data","company":"Exact company from data","duration":"Exact dates from data","tailored_bullets":["Strong action bullet 1","Strong action bullet 2","Strong action bullet 3"]}}],"match_analysis":"1-2 sentences on candidate fit"}}"""
+{{"tailored_summary":"3-sentence professional summary","tailored_skills":["skill1","skill2","skill3"],"tailored_experience":[{{"role":"Exact role from data","company":"Exact company from data","duration":"Exact dates from data","tailored_bullets":["Strong action bullet 1","Strong action bullet 2","Strong action bullet 3"]}}],"tailored_projects":[{{"name":"Project Name","description":"Tailored Description"}}],"education":[{{"degree":"Degree","school":"School","year":"Year"}}],"match_analysis":"1-2 sentences on candidate fit"}}"""
 
         try:
             response = self.generator.run(prompt=prompt)
@@ -108,6 +113,8 @@ Required JSON:
                 "tailored_summary":    persona.get("summary", ""),
                 "tailored_skills":     persona.get("top_skills", []),
                 "tailored_experience": [_fmt_exp(e) for e in (persona.get("experience_highlights") or [])],
+                "tailored_projects":   persona.get("projects", []),
+                "education":           persona.get("education", []),
                 "match_analysis":      "Tailor step encountered an error; original data preserved."
             }}
 
@@ -194,9 +201,12 @@ Required JSON structure (extract real info only):
   "email": "email",
   "phone": "phone",
   "location": "city, country",
+  "linkedin": "linkedin URL if present",
+  "portfolio_url": "portfolio/github URL if present",
   "summary": "2-3 sentence bio",
   "top_skills": ["Skill 1", "Skill 2"],
   "experience_highlights": [{{"role":"Title","company":"Company","duration":"Dates","key_achievement":"One bullet"}}],
+  "projects": [{{"name":"Project Name","description":"Brief description of what was built and tools used"}}],
   "education": [{{"degree":"Degree","school":"School","year":"Year"}}],
   "career_level": "Entry/Mid/Senior/Exec",
   "suggested_roles": ["Role 1", "Role 2"]
@@ -215,6 +225,7 @@ Required JSON structure (extract real info only):
                 "summary":               "Resume uploaded. Please review and edit the details below.",
                 "top_skills":            [],
                 "experience_highlights": [],
+                "projects":              [],
                 "education":             [],
                 "certifications":        [],
                 "career_level":          "Unknown",

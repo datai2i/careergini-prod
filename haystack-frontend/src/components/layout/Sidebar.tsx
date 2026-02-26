@@ -62,14 +62,9 @@ export const Sidebar: React.FC = () => {
 
     return (
         <aside className="hidden md:flex flex-col w-72 bg-white dark:bg-dark-card border-r border-gray-200 dark:border-dark-border">
-            <div className="p-8">
-                <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-blue-500/20">
-                        C
-                    </div>
-                    <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
-                        CareerGini
-                    </h1>
+            <div className="p-6 pb-2 border-b border-gray-100 dark:border-dark-border/50">
+                <div className="flex items-center justify-center">
+                    <img src="/logo.png" alt="CareerGini Logo" className="h-14 md:h-16 w-auto mix-blend-multiply dark:mix-blend-normal drop-shadow-sm" />
                 </div>
             </div>
 

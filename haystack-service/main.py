@@ -450,6 +450,27 @@ async def tailor_resume_endpoint(request: ResumeTailorRequest):
         
         result = await agent.tailor_resume(persona, request.job_description)
         
+        # Calculate ATS Score on the tailored result
+        # To score, we need a flat text representation of the tailored persona
+        flat_text = f"{persona.get('full_name', '')}\\n"
+        flat_text += f"{result.get('tailored_summary', '')}\\n"
+        flat_text += ", ".join(result.get('tailored_skills', [])) + "\\n"
+        for exp in result.get('tailored_experience', []):
+            flat_text += f"{exp.get('role', '')} {exp.get('company', '')}\\n"
+            ach = exp.get("key_achievement") or exp.get("tailored_bullets") or []
+            if isinstance(ach, list):
+                flat_text += "\\n".join(ach) + "\\n"
+            else:
+                flat_text += str(ach) + "\\n"
+        
+        try:
+            from resume_ats_scorer import score_resume
+            ats_analysis = score_resume(flat_text, request.job_description)
+            result["ats_score"] = ats_analysis.get("overall_score", 0)
+        except Exception as e:
+            logger.error(f"Error calculating ATS score: {e}")
+            result["ats_score"] = 0
+        
         # Auto-save session for history
         try:
             from datetime import datetime, timezone

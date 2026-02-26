@@ -18,6 +18,7 @@ export const DraftResumeModal: React.FC<DraftResumeModalProps> = ({ isOpen, onCl
     const [skills, setSkills] = useState('');
 
     const [experience, setExperience] = useState([{ role: '', company: '', duration: '', highlights: '' }]);
+    const [projects, setProjects] = useState([{ name: '', description: '' }]);
     const [education, setEducation] = useState([{ degree: '', school: '', year: '' }]);
 
     if (!isOpen) return null;
@@ -34,6 +35,20 @@ export const DraftResumeModal: React.FC<DraftResumeModalProps> = ({ isOpen, onCl
         const newExp = [...experience];
         newExp[index] = { ...newExp[index], [field]: value };
         setExperience(newExp);
+    };
+
+    const handleAddProject = () => {
+        setProjects([...projects, { name: '', description: '' }]);
+    };
+
+    const handleRemoveProject = (index: number) => {
+        setProjects(projects.filter((_, i) => i !== index));
+    };
+
+    const handleProjChange = (index: number, field: string, value: string) => {
+        const newProj = [...projects];
+        newProj[index] = { ...newProj[index], [field]: value };
+        setProjects(newProj);
     };
 
     const handleAddEducation = () => {
@@ -65,6 +80,11 @@ export const DraftResumeModal: React.FC<DraftResumeModalProps> = ({ isOpen, onCl
                 key_achievement: e.highlights
             }));
 
+            const formattedProj = projects.filter(p => p.name).map(p => ({
+                name: p.name,
+                description: p.description
+            }));
+
             const formattedEdu = education.filter(e => e.degree && e.school);
 
             const payload = {
@@ -73,6 +93,7 @@ export const DraftResumeModal: React.FC<DraftResumeModalProps> = ({ isOpen, onCl
                 summary: summary,
                 top_skills: topSkills,
                 experience_highlights: formattedExp,
+                projects: formattedProj,
                 education: formattedEdu
             };
 
@@ -109,9 +130,9 @@ export const DraftResumeModal: React.FC<DraftResumeModalProps> = ({ isOpen, onCl
                 <div className="px-6 pt-4 pb-2">
                     <div className="flex items-center justify-between relative">
                         <div className="absolute left-0 top-1/2 w-full h-0.5 bg-gray-200 dark:bg-gray-700 -z-10 -translate-y-1/2"></div>
-                        <div className="absolute left-0 top-1/2 h-0.5 bg-blue-500 -z-10 -translate-y-1/2 transition-all duration-300" style={{ width: `${((step - 1) / 2) * 100}%` }}></div>
+                        <div className="absolute left-0 top-1/2 h-0.5 bg-blue-500 -z-10 -translate-y-1/2 transition-all duration-300" style={{ width: `${((step - 1) / 3) * 100}%` }}></div>
 
-                        {[1, 2, 3].map((num) => (
+                        {[1, 2, 3, 4].map((num) => (
                             <div key={num} onClick={() => setStep(num)} className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm cursor-pointer transition-colors ${step >= num ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
                                 {step > num ? <CheckCircle2 size={16} /> : num}
                             </div>
@@ -120,6 +141,7 @@ export const DraftResumeModal: React.FC<DraftResumeModalProps> = ({ isOpen, onCl
                     <div className="flex justify-between mt-2 text-xs font-medium text-gray-500 dark:text-gray-400 px-1">
                         <span>Basic Info</span>
                         <span>Experience</span>
+                        <span>Projects</span>
                         <span>Education</span>
                     </div>
                 </div>
@@ -189,6 +211,32 @@ export const DraftResumeModal: React.FC<DraftResumeModalProps> = ({ isOpen, onCl
 
                     {step === 3 && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                            {projects.map((proj, index) => (
+                                <div key={index} className="p-4 border border-gray-200 dark:border-gray-700 rounded-xl relative bg-gray-50/50 dark:bg-dark-bg/50">
+                                    {projects.length > 1 && (
+                                        <button onClick={() => handleRemoveProject(index)} className="absolute top-3 right-3 text-gray-400 hover:text-red-500 transition-colors">
+                                            <Trash2 size={16} />
+                                        </button>
+                                    )}
+                                    <div className="mb-4 pr-6">
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Project Name</label>
+                                        <input type="text" value={proj.name} onChange={e => handleProjChange(index, 'name', e.target.value)} placeholder="E-Commerce API" className="w-full px-3 py-1.5 text-sm bg-white dark:bg-dark-card border border-gray-300 dark:border-dark-border rounded-lg focus:border-blue-500 dark:text-white" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Description & Tools</label>
+                                        <textarea value={proj.description} onChange={e => handleProjChange(index, 'description', e.target.value)} rows={3} placeholder="Built a highly scalable matching engine using Node and Redis..." className="w-full px-3 py-1.5 text-sm bg-white dark:bg-dark-card border border-gray-300 dark:border-dark-border rounded-lg focus:border-blue-500 dark:text-white resize-none"></textarea>
+                                    </div>
+                                </div>
+                            ))}
+
+                            <button onClick={handleAddProject} className="flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 border border-dashed border-blue-300 dark:border-blue-800 rounded-lg w-full justify-center py-3 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
+                                <Plus size={16} /> Add Another Project
+                            </button>
+                        </div>
+                    )}
+
+                    {step === 4 && (
+                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                             {education.map((edu, index) => (
                                 <div key={index} className="p-4 border border-gray-200 dark:border-gray-700 rounded-xl relative bg-gray-50/50 dark:bg-dark-bg/50">
                                     {education.length > 1 && (
@@ -231,11 +279,11 @@ export const DraftResumeModal: React.FC<DraftResumeModalProps> = ({ isOpen, onCl
                     </button>
 
                     <button
-                        onClick={() => step < 3 ? setStep(step + 1) : handleSubmit()}
+                        onClick={() => step < 4 ? setStep(step + 1) : handleSubmit()}
                         disabled={submitting || (step === 1 && (!fullName || !title))}
                         className={`px-6 py-2 rounded-lg text-sm font-bold shadow-sm flex items-center gap-2 transition-all ${submitting || (step === 1 && (!fullName || !title)) ? 'bg-blue-400 cursor-not-allowed text-white' : 'bg-blue-600 hover:bg-blue-700 hover:shadow shadow-blue-500/20 text-white'}`}
                     >
-                        {submitting ? 'Saving Draft...' : (step < 3 ? 'Continue' : 'Save & Publish')}
+                        {submitting ? 'Saving Draft...' : (step < 4 ? 'Continue' : 'Save & Publish')}
                     </button>
                 </div>
             </div>
