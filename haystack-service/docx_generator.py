@@ -149,8 +149,17 @@ def _add_body(doc, text, palette, compact, italic=False, bold=False, indent_pt=0
 
 
 def _add_bullet(doc, text, palette, compact):
-    p = doc.add_paragraph(style="List Bullet")
-    run = p.add_run(text)
+    """
+    Creates a manual bullet paragraph. 
+    Avoids using 'List Bullet' style which can be missing in default templates.
+    """
+    p = doc.add_paragraph()
+    # Manual indentation for bullet look
+    pf = p.paragraph_format
+    pf.left_indent = Pt(18 if compact else 24)
+    pf.first_line_indent = Pt(-12 if compact else -18)
+    
+    run = p.add_run(f"•  {text}")
     run.font.size = Pt(9 if compact else 10.5)
     _set_run_color(run, palette["body"])
     _set_para_margins(p, bottom_pt=2)
@@ -390,6 +399,7 @@ def generate_resume_docx(
     if "tailored_experience" in persona: persona["experience_highlights"]  = persona["tailored_experience"]
 
     try:
+        logger.info(f"Starting DOCX generation: {template}, {page_count}p")
         doc = _setup_doc(template, page_count)
         if template == "executive":
             _render_executive_docx(doc, persona, palette, compact)
@@ -397,11 +407,12 @@ def generate_resume_docx(
             _render_fresher_docx(doc, persona, palette, compact)
         else:
             _render_professional_docx(doc, persona, palette, compact)
+        
         doc.save(output_path)
-        logger.info(f"DOCX built → {output_path}  [{template}, {page_count}p]")
+        logger.info(f"DOCX successfully built and saved → {output_path}")
         return True
     except Exception as e:
-        logger.error(f"DOCX generation failed: {e}")
+        logger.error(f"FATAL: DOCX generation failed for {output_path}. Error: {e}", exc_info=True)
         return False
 
 
@@ -419,6 +430,7 @@ def generate_cover_letter_docx(
 
     try:
         doc = _setup_doc(template, page_count=2)
+        logger.info(f"Starting Cover Letter DOCX generation: {template}")
 
         _add_name(doc, _clean(persona.get("full_name")), palette, compact)
         _add_contact(doc, persona, palette, compact)
