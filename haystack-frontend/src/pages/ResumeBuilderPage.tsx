@@ -66,7 +66,9 @@ export const ResumeBuilderPage: React.FC = () => {
     const [profilePicBase64, setProfilePicBase64] = useState<string | null>(null);
     const [generatingPDF, setGeneratingPDF] = useState(false);
     const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+    const [docxUrl, setDocxUrl] = useState<string | null>(null);
     const [coverLetterUrl, setCoverLetterUrl] = useState<string | null>(null);
+    const [coverLetterDocxUrl, setCoverLetterDocxUrl] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [pageCount, setPageCount] = useState<number>(2);
     const [sessions, setSessions] = useState<Array<{ session_id: string; timestamp: string; job_title_snippet: string }>>([]);
@@ -1230,9 +1232,9 @@ export const ResumeBuilderPage: React.FC = () => {
                                         className={`bg-black text-white px-8 py-3 rounded-xl font-bold flex items-center shadow-lg hover:bg-gray-800 transition-all ${generatingPDF ? 'opacity-70 cursor-not-allowed' : ''}`}
                                     >
                                         {generatingPDF ? (
-                                            <><RefreshCw className="w-5 h-5 mr-2 animate-spin" /> Generating PDF...</>
+                                            <><RefreshCw className="w-5 h-5 mr-2 animate-spin" /> Generating Resume...</>
                                         ) : (
-                                            <><Download className="w-5 h-5 mr-2" /> Finish & Generate PDF</>
+                                            <><Download className="w-5 h-5 mr-2" /> Finish & Generate Resume</>
                                         )}
                                     </button>
                                 </div>
