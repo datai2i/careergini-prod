@@ -64,6 +64,11 @@ class DraftResumeRequest(BaseModel):
     professional_title: str
     summary: str
     top_skills: List[str]
+    email: Optional[str] = ""
+    phone: Optional[str] = ""
+    location: Optional[str] = ""
+    linkedin: Optional[str] = ""
+    portfolio_url: Optional[str] = ""
     experience_highlights: List[Dict[str, str]]
     education: List[Dict[str, str]]
 
@@ -233,6 +238,11 @@ async def draft_resume(request: DraftResumeRequest):
             "summary": request.summary,
             "top_skills": request.top_skills,
             "skills": request.top_skills, # duplicate for broader compat
+            "email": request.email,
+            "phone": request.phone,
+            "location": request.location,
+            "linkedin": request.linkedin,
+            "portfolio_url": request.portfolio_url,
             "experience_highlights": request.experience_highlights,
             "experience": request.experience_highlights, 
             "education": request.education,
@@ -260,7 +270,7 @@ async def draft_resume(request: DraftResumeRequest):
                         "full_name": request.full_name,
                         "headline": request.professional_title,
                         "summary": request.summary,
-                        "location": "",
+                        "location": request.location,
                         "skills": request.top_skills,
                         "experience": request.experience_highlights,
                         "education": request.education,
