@@ -1,16 +1,20 @@
 """
 Professional PDF Generator for CareerGini
-Embeds Liberation Sans TTF fonts for high-quality, richly-sized PDFs.
+Two premium templates:
+  • professional  — Clean navy single-column. ATS-optimised. Industry-standard.
+  • executive     — Charcoal + platinum-gold. Leadership-impact layout with competency grid.
+
+Supports 1-page (compact) and 2-page (full-detail) for both templates.
+Section ORDER is identical between sizes; only density changes.
 """
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import (
-    SimpleDocTemplate, BaseDocTemplate, Paragraph, Spacer, Table, TableStyle,
-    HRFlowable, PageBreak, Image, KeepTogether,
-    PageTemplate, Frame, NextPageTemplate, FrameBreak,
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
+    HRFlowable, KeepTogether, Image,
 )
 from reportlab.lib.styles import ParagraphStyle
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY, TA_RIGHT
 from reportlab.lib.units import inch
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
@@ -18,13 +22,14 @@ from typing import Dict, Any, List, Optional
 import base64, io, logging, os
 
 logger = logging.getLogger(__name__)
-PAGE_W, PAGE_H = letter          # 612 × 792 pt
+PAGE_W, PAGE_H = letter  # 612 × 792 pt
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Font registration (Liberation Sans — metrically identical to Arial)
+# Font registration
 # ─────────────────────────────────────────────────────────────────────────────
 _FONT_DIR = "/usr/share/fonts/truetype/liberation"
 _FONTS_REGISTERED = False
+
 
 def _ensure_fonts():
     global _FONTS_REGISTERED
@@ -35,7 +40,6 @@ def _ensure_fonts():
         pdfmetrics.registerFont(TTFont("LiberationSans-Bold",    os.path.join(_FONT_DIR, "LiberationSans-Bold.ttf")))
         pdfmetrics.registerFont(TTFont("LiberationSans-Italic",  os.path.join(_FONT_DIR, "LiberationSans-Italic.ttf")))
         pdfmetrics.registerFont(TTFont("LiberationSans-BoldItalic", os.path.join(_FONT_DIR, "LiberationSans-BoldItalic.ttf")))
-        pdfmetrics.registerFont(TTFont("LiberationMono",         os.path.join(_FONT_DIR, "LiberationMono-Regular.ttf")))
         from reportlab.pdfbase.pdfmetrics import registerFontFamily
         registerFontFamily(
             "LiberationSans",
@@ -45,33 +49,22 @@ def _ensure_fonts():
             boldItalic="LiberationSans-BoldItalic",
         )
         _FONTS_REGISTERED = True
-        logger.info("Liberation Sans TTF fonts registered successfully.")
+        logger.info("Liberation Sans TTF fonts registered.")
     except Exception as e:
         logger.warning(f"TTF font registration failed ({e}), falling back to Helvetica.")
+
+
+def _font(variant: str = "regular") -> str:
+    if _FONTS_REGISTERED:
+        return {"regular": "LiberationSans", "bold": "LiberationSans-Bold",
+                "italic": "LiberationSans-Italic", "bolditalic": "LiberationSans-BoldItalic"}.get(variant, "LiberationSans")
+    return {"regular": "Helvetica", "bold": "Helvetica-Bold",
+            "italic": "Helvetica-Oblique", "bolditalic": "Helvetica-BoldOblique"}.get(variant, "Helvetica")
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
-
-def _font(variant: str = "regular") -> str:
-    """Return the font name for the given variant, with graceful fallback."""
-    if _FONTS_REGISTERED:
-        m = {
-            "regular":    "LiberationSans",
-            "bold":       "LiberationSans-Bold",
-            "italic":     "LiberationSans-Italic",
-            "bolditalic": "LiberationSans-BoldItalic",
-        }
-        return m.get(variant, "LiberationSans")
-    # fallback
-    m = {
-        "regular":    "Helvetica",
-        "bold":       "Helvetica-Bold",
-        "italic":     "Helvetica-Oblique",
-        "bolditalic": "Helvetica-BoldOblique",
-    }
-    return m.get(variant, "Helvetica")
-
 
 def parse_base64_image(b64: str, w: float = 1.1 * inch, h: float = 1.1 * inch):
     try:
@@ -89,7 +82,7 @@ def parse_base64_image(b64: str, w: float = 1.1 * inch, h: float = 1.1 * inch):
 
 
 def _bullets(exp: dict) -> List[str]:
-    raw = exp.get("key_achievement") or exp.get("tailored_bullets") or []
+    raw = exp.get("tailored_bullets") or exp.get("key_achievement") or []
     if isinstance(raw, list):
         return [str(b).strip() for b in raw if str(b).strip()]
     return [b.strip() for b in str(raw).replace(";", "\n").split("\n") if b.strip()]
@@ -99,106 +92,81 @@ def _ps(name: str, **kw) -> ParagraphStyle:
     return ParagraphStyle(name=name, **kw)
 
 
+def _clean(v) -> str:
+    return str(v or "").replace("Not specified", "").replace("(Not specified)", "").strip()
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Style factory
 # ─────────────────────────────────────────────────────────────────────────────
 
 def build_styles(template: str, page_count: int) -> dict:
-    """Build all paragraph styles for the given template and page count."""
+    """Return all ParagraphStyles + palette metadata for the given template/page."""
     compact = (page_count == 1)
-
-    # ── Size scale ───────────────────────────────────────────────────
-    name_sz  = 24 if compact else 32
-    ttl_sz   = 12 if compact else 15
-    con_sz   = 9  if compact else 10
-    sec_sz   = 10 if compact else 12
-    body_sz  = 9.5 if compact else 11
-    role_sz  = 10 if compact else 12
-    co_sz    = 9  if compact else 10.5
-    bl_sz    = 9.5 if compact else 11
-
-    name_lead = round(name_sz * 1.15)
-    body_lead = round(body_sz * 1.5)
-    bl_lead   = round(bl_sz * 1.5)
-    role_lead = round(role_sz * 1.4)
-    co_lead   = round(co_sz * 1.4)
-    sec_lead  = round(sec_sz * 1.4)
-    ttl_lead  = round(ttl_sz * 1.4)
-
-    sp_after_exp  = 6  if compact else 10
-    sp_before_sec = 10 if compact else 18
-
-    # ── Template palette ─────────────────────────────────────────────
-    if template == "classic":
-        accent  = colors.HexColor("#1B2A4A")
-        sub     = colors.HexColor("#4A4A4A")
-        sec_bg  = None
-        sec_bar = colors.HexColor("#1B2A4A")
-        align   = TA_CENTER
-    elif template == "modern":
-        accent  = colors.HexColor("#1D3557")
-        sub     = colors.HexColor("#457B9D")
-        sec_bg  = None
-        sec_bar = colors.HexColor("#457B9D")
-        align   = TA_LEFT
-    elif template == "creative":
-        accent  = colors.HexColor("#5B21B6")
-        sub     = colors.HexColor("#DC2626")
-        sec_bg  = colors.HexColor("#1E1B4B")
-        sec_bar = None
-        align   = TA_CENTER
-    elif template == "reference":
-        accent  = colors.HexColor("#000000")
-        sub     = colors.HexColor("#333333")
-        sec_bg  = None
-        sec_bar = colors.HexColor("#000000")
-        align   = TA_LEFT
-    else:  # minimalist
-        accent  = colors.HexColor("#111111")
-        sub     = colors.HexColor("#888888")
-        sec_bg  = None
-        sec_bar = colors.HexColor("#BBBBBB")
-        align   = TA_LEFT
-
     BF  = _font("regular")
     BFB = _font("bold")
     BFI = _font("italic")
 
-    S = {}
+    # ── Size scale (shared) ──────────────────────────────────────────────────
+    name_sz  = 22 if compact else 30
+    ttl_sz   = 11 if compact else 13
+    con_sz   = 8.5 if compact else 9.5
+    sec_sz   = 9.5 if compact else 11
+    body_sz  = 9   if compact else 10.5
+    role_sz  = 9.5 if compact else 11
+    co_sz    = 8.5 if compact else 10
+    bl_sz    = 9   if compact else 10.5
+
+    name_lead = round(name_sz * 1.15)
+    body_lead = round(body_sz * 1.55)
+    bl_lead   = round(bl_sz  * 1.55)
+    role_lead = round(role_sz * 1.4)
+    co_lead   = round(co_sz  * 1.4)
+    sec_lead  = round(sec_sz  * 1.4)
+    ttl_lead  = round(ttl_sz  * 1.4)
+
+    sp_after_exp  = 5 if compact else 9
+    sp_before_sec = 8 if compact else 16
+
+    # ── Template palettes ────────────────────────────────────────────────────
+    if template == "executive":
+        # Charcoal / platinum-gold — authoritative, premium
+        accent   = colors.HexColor("#1C1C1C")   # near-black name + role
+        sub      = colors.HexColor("#4A5568")   # muted slate section labels
+        sec_bar  = colors.HexColor("#B8985E")   # platinum-gold section rules
+        link_col = colors.HexColor("#2563EB")
+        name_align = TA_LEFT
+        header_rule_thickness = 2.0
+    else:
+        # Professional — clean navy — ATS-safe, universally readable
+        accent   = colors.HexColor("#1A3557")   # navy
+        sub      = colors.HexColor("#5A6677")   # cool gray subtitles
+        sec_bar  = colors.HexColor("#1A3557")   # navy underlines
+        link_col = colors.HexColor("#2563EB")
+        name_align = TA_LEFT
+        header_rule_thickness = 1.5
+
+    S: Dict[str, Any] = {}
 
     S["name"] = _ps("name",
         fontName=BFB, fontSize=name_sz, leading=name_lead,
-        textColor=accent, alignment=align, spaceAfter=4)
+        textColor=accent, alignment=name_align, spaceAfter=2)
 
     S["title"] = _ps("title",
         fontName=BFI, fontSize=ttl_sz, leading=ttl_lead,
-        textColor=sub, alignment=align, spaceAfter=3)
+        textColor=sub, alignment=TA_LEFT, spaceAfter=2)
 
     S["contact"] = _ps("contact",
         fontName=BF, fontSize=con_sz, leading=con_sz + 4,
-        textColor=colors.HexColor("#666666"), alignment=align, spaceAfter=4)
+        textColor=colors.HexColor("#666666"), alignment=TA_LEFT, spaceAfter=3)
 
-    sec_kw = dict(
+    S["section"] = _ps("section",
         fontName=BFB, fontSize=sec_sz, leading=sec_lead,
-        spaceBefore=sp_before_sec, spaceAfter=4,
-    )
-    if sec_bg:
-        sec_kw.update(textColor=colors.white, backColor=sec_bg,
-                      borderPadding=(3, 8, 3, 8))
-    else:
-        sec_kw["textColor"] = accent
-    S["section"] = _ps("section", **sec_kw)
-    S["_sec_bar"]  = sec_bar
-    S["_sec_bg"]   = sec_bg
-    S["_accent"]   = accent
-    S["_compact"]  = compact
-    S["_body_sz"]  = body_sz
-    S["_sp_exp"]   = sp_after_exp
+        textColor=accent, spaceBefore=sp_before_sec, spaceAfter=2)
 
     S["body"] = _ps("body",
         fontName=BF, fontSize=body_sz, leading=body_lead,
-        textColor=colors.HexColor("#2D2D2D"),
-        alignment=TA_JUSTIFY, spaceAfter=4)
+        textColor=colors.HexColor("#2D2D2D"), alignment=TA_JUSTIFY, spaceAfter=3)
 
     S["body_left"] = _ps("body_left", parent=S["body"], alignment=TA_LEFT)
     S["body_bold"] = _ps("body_bold", parent=S["body"], fontName=BFB, alignment=TA_LEFT)
@@ -209,79 +177,313 @@ def build_styles(template: str, page_count: int) -> dict:
 
     S["company"] = _ps("company",
         fontName=BFI, fontSize=co_sz, leading=co_lead,
-        spaceAfter=3, textColor=colors.HexColor("#666666"))
+        spaceAfter=2, textColor=colors.HexColor("#666666"))
 
     S["bullet"] = _ps("bullet",
         fontName=BF, fontSize=bl_sz, leading=bl_lead,
-        leftIndent=16, firstLineIndent=0,
-        spaceAfter=2, textColor=colors.HexColor("#2D2D2D"))
+        leftIndent=14, spaceAfter=2,
+        textColor=colors.HexColor("#2D2D2D"))
 
-    S["sidebar"] = _ps("sidebar",
-        fontName=BF, fontSize=max(8.5, body_sz - 1), leading=body_lead - 1,
-        textColor=colors.HexColor("#444444"), spaceAfter=2)
+    S["competency"] = _ps("competency",
+        fontName=BF, fontSize=max(8.5, body_sz - 0.5), leading=body_lead,
+        textColor=colors.HexColor("#333333"), spaceAfter=1)
 
-    S["sidebar_bold"] = _ps("sidebar_bold",
-        fontName=BFB, fontSize=max(9, sec_sz - 1), leading=body_lead,
-        textColor=accent, spaceBefore=6, spaceAfter=1)
-
-    S["sidebar_section"] = _ps("sidebar_section",
-        fontName=BFB, fontSize=max(9, sec_sz - 1), leading=body_lead,
-        textColor=accent, spaceBefore=10, spaceAfter=4)
+    # Metadata used by renderers
+    S["_accent"]           = accent
+    S["_sub"]              = sub
+    S["_sec_bar"]          = sec_bar
+    S["_link_col"]         = link_col
+    S["_compact"]          = compact
+    S["_body_sz"]          = body_sz
+    S["_sp_exp"]           = sp_after_exp
+    S["_hr_thickness"]     = header_rule_thickness
+    S["_template"]         = template
 
     return S
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Flowable helpers
+# Shared flowable helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _section_header(label: str, S: dict) -> List:
     items = [Paragraph(label.upper(), S["section"])]
-    if S["_sec_bar"] and not S["_sec_bg"]:
-        items.append(HRFlowable(
-            width="100%",
-            thickness=1.5 if not S["_compact"] else 1.0,
-            color=S["_sec_bar"],
-            spaceAfter=4,
-        ))
+    items.append(HRFlowable(
+        width="100%",
+        thickness=S["_hr_thickness"],
+        color=S["_sec_bar"],
+        spaceAfter=4,
+    ))
     return items
 
 
-def _exp_block(exp: dict, S: dict, creative: bool = False) -> List:
-    role     = str(exp.get("role", "")).replace("Not specified", "").replace("(Not specified)", "").strip()
-    company  = str(exp.get("company", "")).replace("Not specified", "").replace("(Not specified)", "").strip()
-    duration = str(exp.get("duration", "")).replace("Not specified", "").replace("(Not specified)", "").strip()
-    blist    = _bullets(exp)
+def _contact_line(persona: dict, S: dict) -> List:
+    """Build a contact info line with clickable hyperlinks."""
+    parts = []
+    for key in ("email", "phone", "location", "linkedin", "portfolio_url"):
+        v = _clean(persona.get(key))
+        if not v:
+            continue
+        if key in ("linkedin", "portfolio_url"):
+            url = v if str(v).startswith("http") else "https://" + str(v)
+            parts.append(f'<link href="{url}"><font color="#2563EB">{v}</font></link>')
+        else:
+            parts.append(v)
+    if parts:
+        return [Paragraph("  ·  ".join(parts), S["contact"])]
+    return []
 
-    role_txt = f'<font color="#5B21B6">{role}</font>' if creative else role
+
+def _exp_block(exp: dict, S: dict, max_bullets: Optional[int] = None) -> List:
+    role     = _clean(exp.get("role"))
+    company  = _clean(exp.get("company"))
+    duration = _clean(exp.get("duration"))
+    blist    = _bullets(exp)
+    if max_bullets:
+        blist = blist[:max_bullets]
+
     items = []
     if role:
-        items.append(Paragraph(role_txt, S["role"]))
-    
-    comp_dur = []
-    if company: comp_dur.append(company)
-    if duration: comp_dur.append(duration)
+        items.append(Paragraph(role, S["role"]))
+    comp_dur = [x for x in [company, duration] if x]
     if comp_dur:
-        items.append(Paragraph("  \u00b7  ".join(comp_dur), S["company"]))
-    elif not role and blist:
-        # Fallback spacing if no header at all
-        items.append(Spacer(1, 4))
+        items.append(Paragraph("  ·  ".join(comp_dur), S["company"]))
     for b in blist:
-        items.append(Paragraph(f"\u2022\u00a0{b}", S["bullet"]))
+        items.append(Paragraph(f"•\u00a0{b}", S["bullet"]))
     items.append(Spacer(1, S["_sp_exp"]))
     return items
 
 
+def _education_block(persona: dict, S: dict) -> List:
+    items = []
+    for edu in (persona.get("education") or []):
+        d  = _clean(edu.get("degree"))
+        sc = _clean(edu.get("school"))
+        yr = _clean(edu.get("year"))
+        parts = []
+        if d:  parts.append(f"<b>{d}</b>")
+        if sc: parts.append(sc)
+        txt = ", ".join(parts)
+        if yr: txt += f"  ({yr})"
+        if txt.strip():
+            items.append(Paragraph(txt, S["body_left"]))
+            items.append(Spacer(1, 3))
+    return items
+
+
+def _skills_inline(skills: List[str], S: dict) -> List:
+    """Comma-separated inline — ATS-safe."""
+    return [Paragraph(", ".join(skills), S["body_left"]), Spacer(1, 3)]
+
+
+def _competency_grid(skills: List[str], S: dict, cols: int = 3) -> List:
+    """3-column grid for Executive template — visual weight without losing ATS."""
+    rows, row = [], []
+    for i, sk in enumerate(skills):
+        row.append(Paragraph(f"▸  {sk}", S["competency"]))
+        if len(row) == cols or i == len(skills) - 1:
+            while len(row) < cols:
+                row.append(Paragraph("", S["competency"]))
+            rows.append(row)
+            row = []
+    if not rows:
+        return []
+    tbl = Table(rows, colWidths=["33.33%"] * cols)
+    tbl.setStyle(TableStyle([
+        ("ALIGN",         (0, 0), (-1, -1), "LEFT"),
+        ("VALIGN",        (0, 0), (-1, -1), "TOP"),
+        ("TOPPADDING",    (0, 0), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 2),
+    ]))
+    return [tbl, Spacer(1, 4)]
+
+
 # ─────────────────────────────────────────────────────────────────────────────
-# Main API
+# Template-specific renderers
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _render_professional(story: List, persona: dict, S: dict, compact: bool):
+    """
+    Professionally Crafted — clean single-column navy layout.
+
+    Section order (same for 1 & 2 page):
+      Header → Professional Summary → Skills → Work Experience →
+      Education → Projects* → Certifications*
+    (* 2-page only)
+    """
+    max_bullets = 2 if compact else None
+    max_skills  = 8 if compact else None
+    skills = (persona.get("top_skills") or [])[:max_skills] if max_skills else (persona.get("top_skills") or [])
+
+    # ── Header ───────────────────────────────────────────────────────────────
+    story.append(Paragraph(_clean(persona.get("full_name")), S["name"]))
+    story.append(Paragraph(_clean(persona.get("professional_title")), S["title"]))
+    story.extend(_contact_line(persona, S))
+    story.append(Spacer(1, 4))
+    story.append(HRFlowable(width="100%", thickness=S["_hr_thickness"],
+                            color=S["_accent"], spaceAfter=4))
+
+    # ── Summary ──────────────────────────────────────────────────────────────
+    summary = _clean(persona.get("summary"))
+    if summary:
+        story.extend(_section_header("Professional Summary", S))
+        # For compact: first 2 sentences max
+        if compact:
+            sentences = [s.strip() for s in summary.replace("!",".|").replace("?",".|").split(".") if s.strip()]
+            summary = ". ".join(sentences[:3]) + ("." if sentences else "")
+        story.append(Paragraph(summary, S["body"]))
+        story.append(Spacer(1, 2))
+
+    # ── Skills ───────────────────────────────────────────────────────────────
+    if skills:
+        story.extend(_section_header("Core Skills", S))
+        story.extend(_skills_inline(skills, S))
+
+    # ── Work Experience ─────────────────────────────────────────────────────
+    exps = persona.get("experience_highlights") or []
+    if exps:
+        story.extend(_section_header("Work Experience", S))
+        for exp in exps:
+            story.append(KeepTogether(_exp_block(exp, S, max_bullets=max_bullets)))
+
+    # ── Education ────────────────────────────────────────────────────────────
+    if persona.get("education"):
+        story.extend(_section_header("Education", S))
+        story.extend(_education_block(persona, S))
+
+    # ── Projects (2-page only) ───────────────────────────────────────────────
+    if not compact and persona.get("projects"):
+        story.extend(_section_header("Projects", S))
+        for proj in (persona.get("projects") or []):
+            name = _clean(proj.get("name"))
+            desc = _clean(proj.get("description"))
+            if name: story.append(Paragraph(f"<b>{name}</b>", S["body_bold"]))
+            if desc: story.append(Paragraph(desc, S["body_left"]))
+            story.append(Spacer(1, 4))
+
+    # ── Certifications (2-page only) ─────────────────────────────────────────
+    if not compact and persona.get("certifications"):
+        story.extend(_section_header("Certifications", S))
+        for c in (persona.get("certifications") or []):
+            story.append(Paragraph(f"•\u00a0{_clean(c)}", S["bullet"]))
+
+
+def _render_executive(story: List, persona: dict, S: dict, compact: bool):
+    """
+    Executive Level — charcoal + platinum-gold, leadership-impact layout.
+
+    Section order (same for 1 & 2 page):
+      Header → Executive Profile → Core Competencies (grid) →
+      Career Timeline → Education → Achievements/Projects* → Certifications*
+    (* 2-page only)
+    """
+    max_bullets     = 3 if compact else None
+    max_competencies = 9 if compact else 12
+    skills = (persona.get("top_skills") or [])[:max_competencies]
+
+    # ── Header — name left, contact right ────────────────────────────────────
+    name      = _clean(persona.get("full_name"))
+    title_txt = _clean(persona.get("professional_title"))
+
+    # Build contact string
+    contact_parts = []
+    for key in ("email", "phone", "location", "linkedin", "portfolio_url"):
+        v = _clean(persona.get(key))
+        if not v:
+            continue
+        if key in ("linkedin", "portfolio_url"):
+            url = v if str(v).startswith("http") else "https://" + str(v)
+            contact_parts.append(f'<link href="{url}"><font color="#2563EB">{v}</font></link>')
+        else:
+            contact_parts.append(v)
+
+    S_contact_right = _ps("contact_right",
+        fontName=_font("regular"), fontSize=S["_body_sz"] - 1,
+        leading=S["_body_sz"] + 3,
+        textColor=colors.HexColor("#555555"), alignment=TA_RIGHT, spaceAfter=2)
+
+    if contact_parts:
+        hdr_tbl = Table(
+            [[Paragraph(name, S["name"]), Paragraph("<br/>".join(contact_parts), S_contact_right)]],
+            colWidths=["60%", "40%"],
+        )
+        hdr_tbl.setStyle(TableStyle([
+            ("ALIGN",   (0, 0), (0, 0), "LEFT"),
+            ("ALIGN",   (1, 0), (1, 0), "RIGHT"),
+            ("VALIGN",  (0, 0), (-1, -1), "BOTTOM"),
+            ("LEFTPADDING",  (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING",   (0, 0), (-1, -1), 0),
+            ("BOTTOMPADDING",(0, 0), (-1, -1), 0),
+        ]))
+        story.append(hdr_tbl)
+    else:
+        story.append(Paragraph(name, S["name"]))
+
+    if title_txt:
+        story.append(Paragraph(title_txt, S["title"]))
+
+    story.append(Spacer(1, 5))
+    # Double rule: thick gold over thin charcoal — signature executive look
+    story.append(HRFlowable(width="100%", thickness=2.5, color=S["_sec_bar"], spaceAfter=1))
+    story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#CCCCCC"), spaceAfter=6))
+
+    # ── Executive Profile (summary) ──────────────────────────────────────────
+    summary = _clean(persona.get("summary"))
+    if summary:
+        story.extend(_section_header("Executive Profile", S))
+        if compact:
+            # Condense to 3 sentences
+            sentences = [s.strip() for s in summary.replace("!", ".|").replace("?", ".|").split(".") if s.strip()]
+            summary = ". ".join(sentences[:3]) + ("." if sentences else "")
+        story.append(Paragraph(summary, S["body"]))
+        story.append(Spacer(1, 2))
+
+    # ── Core Competencies ────────────────────────────────────────────────────
+    if skills:
+        story.extend(_section_header("Core Competencies", S))
+        story.extend(_competency_grid(skills, S, cols=3))
+
+    # ── Career Timeline ──────────────────────────────────────────────────────
+    exps = persona.get("experience_highlights") or []
+    if exps:
+        story.extend(_section_header("Career Timeline", S))
+        for exp in exps:
+            story.append(KeepTogether(_exp_block(exp, S, max_bullets=max_bullets)))
+
+    # ── Education ────────────────────────────────────────────────────────────
+    if persona.get("education"):
+        story.extend(_section_header("Education", S))
+        story.extend(_education_block(persona, S))
+
+    # ── Achievements / Projects (2-page only) ────────────────────────────────
+    if not compact and persona.get("projects"):
+        story.extend(_section_header("Key Achievements & Projects", S))
+        for proj in (persona.get("projects") or []):
+            name = _clean(proj.get("name"))
+            desc = _clean(proj.get("description"))
+            if name: story.append(Paragraph(f"<b>{name}</b>", S["body_bold"]))
+            if desc: story.append(Paragraph(desc, S["body_left"]))
+            story.append(Spacer(1, 4))
+
+    # ── Certifications (2-page only) ─────────────────────────────────────────
+    if not compact and persona.get("certifications"):
+        story.extend(_section_header("Certifications & Credentials", S))
+        for c in (persona.get("certifications") or []):
+            story.append(Paragraph(f"•\u00a0{_clean(c)}", S["bullet"]))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Cover letter
 # ─────────────────────────────────────────────────────────────────────────────
 
 def generate_cover_letter_pdf(
     output_path: str,
     persona: Dict[str, Any],
-    template: str = "classic",
+    template: str = "professional",
 ) -> bool:
-    """Generate a separate Cover Letter PDF."""
+    """Generate a clean cover letter PDF using the chosen template palette."""
     _ensure_fonts()
     ml = mr = 0.60 * inch
     mt = mb = 0.55 * inch
@@ -294,372 +496,107 @@ def generate_cover_letter_pdf(
     )
 
     story: List = []
-
-    name = persona.get("full_name", "")
-    contacts = [p for p in [persona.get("email"), persona.get("phone"), persona.get("location")] if p]
-    story.append(Paragraph(name, S["name"]))
-    if contacts:
-        story.append(Paragraph(" | ".join(contacts), S["contact"]))
-    
+    story.append(Paragraph(_clean(persona.get("full_name")), S["name"]))
+    story.extend(_contact_line(persona, S))
     story.append(Spacer(1, 16))
-    story.append(HRFlowable(width="100%", thickness=1.5, color=S["_accent"], spaceAfter=20))
+    story.append(HRFlowable(width="100%", thickness=S["_hr_thickness"],
+                            color=S["_accent"], spaceAfter=20))
 
     cl = str(persona.get("cover_letter", "")).replace("\n", "<br/>")
     story.append(Paragraph(cl, S["body_left"]))
 
     try:
         doc.build(story)
-        logger.info(f"Cover Letter PDF built → {output_path}")
+        logger.info(f"Cover Letter PDF → {output_path}")
         return True
     except Exception as e:
         logger.error(f"Cover Letter generation failed: {e}")
         return False
-        
-        
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Main API
+# ─────────────────────────────────────────────────────────────────────────────
+
 def generate_pdf(
     output_path: str,
     persona: Dict[str, Any],
-    template: str = "classic",
+    template: str = "professional",
     profile_pic: Optional[str] = None,
     page_count: int = 2,
 ) -> bool:
     """
-    Generate a professional resume PDF with embedded TTF fonts.
+    Generate a professional resume PDF.
 
-    page_count=1  Compact / single-page:
-        • Smaller fonts (24→32pt name, 9.5→11pt body)
-        • Tighter margins (0.40 in)
-        • Max 2 bullets per role, top 8 skills
+    template    'professional' | 'executive'
+                (legacy values 'classic'/'modern'/'creative'/'minimalist'
+                 are silently remapped to 'professional')
 
-    page_count=2  Full detail / two-page:
-        • Larger fonts, generous spacing
-        • Standard margins (0.60 in)
-        • All bullets and skills included
+    page_count  1 = compact single-page  (smaller fonts, fewer bullets)
+                2 = full-detail two-page (generous spacing, all content)
+
+    Section ORDER is identical between 1-page and 2-page variants for both
+    templates — only compactness/density differs.
     """
     _ensure_fonts()
+
+    # Remap legacy template names
+    if template not in ("professional", "executive"):
+        template = "professional"
+
     compact = (page_count == 1)
 
-    # ── Margins ──────────────────────────────────────────────────────
+    # ── Margins ──────────────────────────────────────────────────────────────
     if compact:
-        ml = mr = 0.40 * inch
-        mt = mb = 0.40 * inch
+        ml = mr = 0.42 * inch
+        mt = mb = 0.42 * inch
     else:
         ml = mr = 0.60 * inch
         mt = mb = 0.55 * inch
 
-    # ── Trim for compact ─────────────────────────────────────────────
+    # ── Normalise persona copy ────────────────────────────────────────────────
     persona = dict(persona)
+
+    # Flatten tailored fields if present (from AI tailoring response)
+    if "tailored_summary" in persona:
+        persona["summary"] = persona["tailored_summary"]
+    if "tailored_skills" in persona:
+        persona["top_skills"] = persona["tailored_skills"]
+    if "tailored_experience" in persona:
+        persona["experience_highlights"] = persona["tailored_experience"]
+
+    # For compact: enforce bullet limits at data layer too (belt-and-suspenders)
     if compact:
-        exps = persona.get("experience_highlights", [])
+        exps = persona.get("experience_highlights") or []
         trimmed = []
         for exp in exps:
             exp = dict(exp)
-            exp["key_achievement"] = _bullets(exp)[:2]
-            exp.pop("tailored_bullets", None)
+            bullets = _bullets(exp)[:2]
+            exp["tailored_bullets"] = bullets
+            exp.pop("key_achievement", None)
             trimmed.append(exp)
         persona["experience_highlights"] = trimmed
         if persona.get("top_skills"):
             persona["top_skills"] = persona["top_skills"][:8]
         if persona.get("projects"):
-            persona["projects"] = persona["projects"][:2]
-    else:
-        # Explicitly ensure we don't trim if not compact (pass full length)
-        # But for 2-pages we explicitly use the full `tailored_bullets` instead of just `key_achievement`
-        exps = persona.get("experience_highlights", [])
-        full_detail = []
-        for exp in exps:
-            exp = dict(exp)
-            full_detail.append(exp)
-        persona["experience_highlights"] = full_detail
+            persona["projects"] = persona["projects"][:1]
 
     S = build_styles(template, page_count)
 
     try:
         story: List = []
 
-        # ── Doc setup ────────────────────────────────────────────────
-        if template == "modern":
-            doc = BaseDocTemplate(
-                output_path, pagesize=letter,
-                leftMargin=ml, rightMargin=mr,
-                topMargin=mt, bottomMargin=mb,
-            )
-            usable_w  = PAGE_W - ml - mr
-            sidebar_w = 2.1 * inch if compact else 2.4 * inch
-            main_w    = usable_w - sidebar_w - 14
-            divider_x = ml + sidebar_w + 7
+        doc = SimpleDocTemplate(
+            output_path, pagesize=letter,
+            leftMargin=ml, rightMargin=mr,
+            topMargin=mt, bottomMargin=mb,
+        )
 
-            def _bg(canvas, doc):
-                canvas.saveState()
-                # Sidebar background
-                canvas.setFillColor(colors.HexColor("#EEF3FA"))
-                canvas.rect(0, 0, divider_x, PAGE_H, fill=1, stroke=0)
-                # Vertical rule
-                canvas.setStrokeColor(colors.HexColor("#AAC0D9"))
-                canvas.setLineWidth(1)
-                canvas.line(divider_x, mb, divider_x, PAGE_H - mt)
-                canvas.restoreState()
-
-            full_f = Frame(ml, mb, usable_w, PAGE_H - mt - mb, id="full")
-            left_f = Frame(ml, mb, sidebar_w, PAGE_H - mt - mb,
-                           id="left", rightPadding=10, topPadding=8)
-            right_f = Frame(divider_x + 10, mb, main_w, PAGE_H - mt - mb,
-                            id="right", leftPadding=10, topPadding=8)
-            right_cont = Frame(divider_x + 10, mb, main_w, PAGE_H - mt - mb,
-                               id="right_cont", leftPadding=10, topPadding=8)
-
-            doc.addPageTemplates([
-                PageTemplate(id="Cover", frames=[full_f]),
-                PageTemplate(id="First", frames=[left_f, right_f], onPage=_bg),
-                PageTemplate(id="Later", frames=[right_cont], onPage=_bg),
-            ])
+        if template == "executive":
+            _render_executive(story, persona, S, compact)
         else:
-            doc = SimpleDocTemplate(
-                output_path, pagesize=letter,
-                leftMargin=ml, rightMargin=mr,
-                topMargin=mt, bottomMargin=mb,
-            )
+            _render_professional(story, persona, S, compact)
 
-        # ─────────────────────────────────────────────────────────────
-        # MODERN — two-column sidebar
-        # ─────────────────────────────────────────────────────────────
-        if template == "modern":
-            left:  List = []
-            right: List = []
-
-            # Photo
-            if profile_pic:
-                img = parse_base64_image(
-                    profile_pic,
-                    w=1.1 * inch if compact else 1.4 * inch,
-                    h=1.1 * inch if compact else 1.4 * inch,
-                )
-                if img:
-                    left.append(img)
-                    left.append(Spacer(1, 8))
-
-            left.append(Paragraph(persona.get("full_name", ""), S["name"]))
-            left.append(Paragraph(persona.get("professional_title", ""), S["title"]))
-            left.append(Spacer(1, 8))
-
-            for key in ("email", "phone", "location", "linkedin", "portfolio_url"):
-                v = persona.get(key)
-                if v:
-                    if key in ("linkedin", "portfolio_url"):
-                        url = v if str(v).startswith("http") else "https://" + str(v)
-                        text = f'<link href="{url}"><font color="#3b82f6">{v}</font></link>'
-                    else:
-                        text = str(v)
-                    left.append(Paragraph(text, S["sidebar"]))
-
-            if persona.get("top_skills"):
-                left.extend(_section_header("Skills", S))
-                for sk in persona["top_skills"]:
-                    left.append(Paragraph(f"• {sk}", S["sidebar"]))
-
-            if persona.get("education"):
-                left.extend(_section_header("Education", S))
-                for edu in persona["education"]:
-                    d = str(edu.get('degree','')).replace("Not specified", "").strip()
-                    sc = str(edu.get('school','')).replace("Not specified", "").strip()
-                    yr = str(edu.get('year','')).replace("Not specified", "").strip()
-                    if d:
-                        left.append(Paragraph(f"<b>{d}</b>", S["sidebar_bold"]))
-                    if sc:
-                        left.append(Paragraph(sc, S["sidebar"]))
-                    if yr:
-                        left.append(Paragraph(yr, S["sidebar"]))
-                    left.append(Spacer(1, 4))
-
-            if persona.get("certifications"):
-                left.extend(_section_header("Certifications", S))
-                for c in persona["certifications"]:
-                    left.append(Paragraph(f"• {c}", S["sidebar"]))
-
-            # Right column
-            if persona.get("summary"):
-                right.extend(_section_header("Professional Summary", S))
-                right.append(Paragraph(persona["summary"], S["body"]))
-                right.append(Spacer(1, S["_sp_exp"]))
-
-            if persona.get("experience_highlights"):
-                right.extend(_section_header("Work Experience", S))
-                for exp in persona["experience_highlights"]:
-                    right.append(KeepTogether(_exp_block(exp, S)))
-            
-            if persona.get("projects"):
-                right.extend(_section_header("Projects", S))
-                for proj in persona["projects"]:
-                    name = proj.get("name", "")
-                    desc = proj.get("description", "")
-                    if name: right.append(Paragraph(f"<b>{name}</b>", S["body_bold"]))
-                    if desc: right.append(Paragraph(desc, S["body"]))
-                    right.append(Spacer(1, S["_sp_exp"]))
-            story.extend(left)
-            story.append(FrameBreak())
-            story.extend(right)
-
-        # ─────────────────────────────────────────────────────────────
-        # CLASSIC / CREATIVE / MINIMALIST — single column
-        # ─────────────────────────────────────────────────────────────
-        else:
-            is_creative   = template == "creative"
-            is_minimalist = template == "minimalist"
-
-            # ── Header ───────────────────────────────────────────────
-            name_p = Paragraph(persona.get("full_name", ""), S["name"])
-            ttl_p  = Paragraph(persona.get("professional_title", ""), S["title"])
-            contacts = []
-            for key in ("email", "phone", "location", "linkedin", "portfolio_url"):
-                v = persona.get(key)
-                if v:
-                    if key in ("linkedin", "portfolio_url"):
-                        url = v if str(v).startswith("http") else "https://" + str(v)
-                        contacts.append(f'<link href="{url}"><font color="#3b82f6">{v}</font></link>')
-                    else:
-                        contacts.append(str(v))
-            con_p = Paragraph(" | ".join(contacts), S["contact"])
-
-            if profile_pic:
-                img = parse_base64_image(profile_pic,
-                    w=1.1 * inch if compact else 1.4 * inch,
-                    h=1.1 * inch if compact else 1.4 * inch)
-                if img:
-                    tbl = Table([[img, [name_p, ttl_p, con_p]]],
-                                colWidths=[1.3 * inch if compact else 1.6 * inch, "*"])
-                    tbl.setStyle(TableStyle([
-                        ("ALIGN",  (0,0), (-1,-1), "LEFT"),
-                        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
-                        ("LEFTPADDING", (1,0), (1,0), 10),
-                        ("RIGHTPADDING", (0,0), (0,0), 0),
-                    ]))
-                    story.append(tbl)
-                else:
-                    story.extend([name_p, ttl_p, con_p])
-            else:
-                story.extend([name_p, ttl_p, con_p])
-
-            # Header rule
-            if is_creative:
-                story.append(Spacer(1, 4))
-                story.append(HRFlowable(width="100%", thickness=2.5,
-                                        color=S["_accent"], spaceAfter=6))
-            elif not is_minimalist:
-                story.append(Spacer(1, 4))
-                story.append(HRFlowable(width="100%", thickness=1.5,
-                                        color=S["_accent"], spaceAfter=6))
-            else:
-                story.append(Spacer(1, 8))
-
-            # ── Content Order Block ────────────────────────────────────────────────
-            # We construct a pipeline array of callables to enforce strict layout ordering
-            # For the 'reference' template, this is strictly: 
-            #   Objective (Summary) -> Education -> Projects -> Experience -> Skills -> Certifications
-            # For others, it remains the standard layout.
-            
-            def render_summary():
-                if persona.get("summary"):
-                    story.extend(_section_header("Professional Summary", S))
-                    story.append(Paragraph(persona["summary"], S["body"]))
-                    story.append(Spacer(1, 4))
-            
-            def render_education():
-                if persona.get("education"):
-                    story.extend(_section_header("Education", S))
-                    for edu in persona["education"]:
-                        d = str(edu.get("degree", "")).replace("Not specified", "").strip()
-                        sc = str(edu.get("school", "")).replace("Not specified", "").strip()
-                        yr = str(edu.get("year", "")).replace("Not specified", "").strip()
-                        
-                        parts = []
-                        if d: parts.append(f"<b>{d}</b>")
-                        if sc: parts.append(sc)
-                        txt = ", ".join(parts)
-                        if yr: txt += f"  ({yr})"
-                        
-                        txt = txt.replace("()", "").strip()
-                        
-                        if txt:
-                            story.append(Paragraph(txt, S["body_left"]))
-                            story.append(Spacer(1, 4))
-            
-            def render_projects():
-                if persona.get("projects"):
-                    story.extend(_section_header("Projects", S))
-                    for proj in persona["projects"]:
-                        name = proj.get("name", "")
-                        desc = proj.get("description", "")
-                        
-                        if name:
-                            story.append(Paragraph(f"<b>{name}</b>", S["body_bold"]))
-                        if desc:
-                            story.append(Paragraph(desc, S["body_left"]))
-                        story.append(Spacer(1, 4))
-            
-            def render_experience():
-                if persona.get("experience_highlights"):
-                    story.extend(_section_header("Work Experience", S))
-                    for exp in persona["experience_highlights"]:
-                        story.append(
-                            KeepTogether(_exp_block(exp, S, creative=is_creative))
-                        )
-            
-            def render_skills():
-                if persona.get("top_skills"):
-                    story.extend(_section_header("Skills", S))
-                    skills = persona["top_skills"]
-    
-                    if is_minimalist or template == "reference":
-                        story.append(Paragraph(" · ".join(skills), S["body_left"]))
-    
-                    elif is_creative and not compact:
-                        BF = _font("regular")
-                        chip_s = _ps("chip",
-                            fontName=BF, fontSize=S["_body_sz"] - 0.5,
-                            leading=S["_body_sz"] + 5,
-                            textColor=colors.HexColor("#5B21B6"),
-                            borderColor=colors.HexColor("#5B21B6"),
-                            borderWidth=0.75, borderPadding=(2, 7, 2, 7))
-                        cols = 4
-                        rows, row = [], []
-                        for i, sk in enumerate(skills):
-                            row.append(Paragraph(sk, chip_s))
-                            if len(row) == cols or i == len(skills) - 1:
-                                while len(row) < cols:
-                                    row.append(Paragraph("", S["body"]))
-                                rows.append(row)
-                                row = []
-                        if rows:
-                            gt = Table(rows, colWidths=["25%"] * cols)
-                            gt.setStyle(TableStyle([
-                                ("ALIGN",         (0,0), (-1,-1), "LEFT"),
-                                ("VALIGN",        (0,0), (-1,-1), "MIDDLE"),
-                                ("BOTTOMPADDING", (0,0), (-1,-1), 5),
-                                ("TOPPADDING",    (0,0), (-1,-1), 3),
-                                ("ROWBACKGROUNDS", (0,0), (-1,-1),
-                                 [colors.white, colors.HexColor("#FAF5FF")]),
-                            ]))
-                            story.append(gt)
-                    else:
-                        story.append(Paragraph(", ".join(skills), S["body_left"]))
-    
-                    story.append(Spacer(1, 4))
-            
-            def render_certifications():
-                if persona.get("certifications"):
-                    story.extend(_section_header("Certifications", S))
-                    for c in persona["certifications"]:
-                        story.append(Paragraph(f"• {c}", S["bullet"]))
-            
-            # Sequence enforcement
-            render_summary()
-            render_education()
-            render_projects()
-            render_experience()
-            render_skills()
-            render_certifications()
-
-        # ── Build ────────────────────────────────────────────────────
         doc.build(story)
         logger.info(f"PDF built → {output_path}  [{template}, {page_count}p, compact={compact}]")
         return True
