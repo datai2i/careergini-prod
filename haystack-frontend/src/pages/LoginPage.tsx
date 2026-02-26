@@ -79,8 +79,12 @@ export const LoginPage: React.FC = () => {
             {/* --- Sticky Navbar --- */}
             <nav className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 py-3 shadow-sm' : 'bg-transparent py-5'}`}>
                 <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-                    <div className="flex items-center">
-                        <img src="/logo.png" alt="CareerGini Logo" className="h-12 md:h-16 w-auto mix-blend-multiply dark:mix-blend-normal" />
+                    <div className="flex items-center gap-3">
+                        <img src="/logo.png" alt="CareerGini Logo" className="h-12 md:h-14 w-auto mix-blend-multiply dark:mix-blend-normal" />
+                        <span className="hidden sm:flex items-center gap-2 border-l border-gray-200 dark:border-gray-700 pl-3">
+                            <span className="text-xs text-gray-400 dark:text-gray-500 font-medium">by</span>
+                            <img src="/datai2i-logo.png" alt="DATAi2i" className="h-5 w-auto opacity-70 hover:opacity-100 transition-opacity mix-blend-multiply dark:mix-blend-normal" />
+                        </span>
                     </div>
 
                     <div>
@@ -437,23 +441,39 @@ export const LoginPage: React.FC = () => {
                     ))}
                 </div>
             </div>
-            <footer className="py-12 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-slate-900">
-                <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6">
-                    <div className="flex items-center gap-2 opacity-80">
+            <footer className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-slate-900">
+                {/* Top footer row: product nav */}
+                <div className="max-w-7xl mx-auto px-6 py-10 flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div className="flex items-center gap-2">
                         <Sparkles className="w-5 h-5 text-blue-500" />
-                        <span className="font-bold text-lg">CareerGini</span>
+                        <span className="font-bold text-lg text-gray-900 dark:text-white">CareerGini</span>
+                        <span className="text-gray-400 dark:text-gray-600 text-xs ml-1">by DATAi2i</span>
                     </div>
 
-                    <p className="text-gray-500 dark:text-gray-400 text-sm">
-                        © {new Date().getFullYear()} CareerGini. All rights reserved.
-                    </p>
+                    <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-gray-500 dark:text-gray-400">
+                        <a href="#pricing" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Pricing</a>
+                        <a href="#" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Terms of Service</a>
+                        <a href="#" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Privacy Policy</a>
+                        <a href="#" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Contact</a>
+                    </div>
 
                     <div className="text-sm text-gray-500 dark:text-gray-400">
-                        <p>
-                            By continuing, you agree to our{' '}
-                            <a href="#" className="font-medium text-blue-600 dark:text-blue-400 hover:underline">Terms of Service</a>
-                            {' '}and{' '}
-                            <a href="#" className="font-medium text-blue-600 dark:text-blue-400 hover:underline">Privacy Policy</a>.
+                        By signing in, you agree to our{' '}
+                        <a href="#" className="font-medium text-blue-600 dark:text-blue-400 hover:underline">Terms</a>
+                        {' & '}
+                        <a href="#" className="font-medium text-blue-600 dark:text-blue-400 hover:underline">Privacy Policy</a>.
+                    </div>
+                </div>
+
+                {/* Bottom footer row: DATAi2i brand + copyright */}
+                <div className="border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-slate-950">
+                    <div className="max-w-7xl mx-auto px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                            <img src="/datai2i-logo.png" alt="DATAi2i Private Limited" className="h-7 w-auto mix-blend-multiply dark:mix-blend-normal opacity-80" />
+                            <span className="text-xs text-gray-400 dark:text-gray-500 font-medium">DATAi2i Private Limited</span>
+                        </div>
+                        <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
+                            © {new Date().getFullYear()} DATAi2i Private Limited. All rights reserved. CareerGini is a product of DATAi2i Private Limited.
                         </p>
                     </div>
                 </div>
