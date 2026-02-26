@@ -17,6 +17,13 @@ export const DraftResumeModal: React.FC<DraftResumeModalProps> = ({ isOpen, onCl
     const [summary, setSummary] = useState('');
     const [skills, setSkills] = useState('');
 
+    // Contact Info
+    const [email, setEmail] = useState('');
+    const [phone, setPhone] = useState('');
+    const [location, setLocation] = useState('');
+    const [linkedin, setLinkedin] = useState('');
+    const [portfolioUrl, setPortfolioUrl] = useState('');
+
     const [experience, setExperience] = useState([{ role: '', company: '', duration: '', highlights: '' }]);
     const [projects, setProjects] = useState([{ name: '', description: '' }]);
     const [education, setEducation] = useState([{ degree: '', school: '', year: '' }]);
@@ -92,6 +99,11 @@ export const DraftResumeModal: React.FC<DraftResumeModalProps> = ({ isOpen, onCl
                 professional_title: title,
                 summary: summary,
                 top_skills: topSkills,
+                email: email,
+                phone: phone,
+                location: location,
+                linkedin: linkedin,
+                portfolio_url: portfolioUrl,
                 experience_highlights: formattedExp,
                 projects: formattedProj,
                 education: formattedEdu
@@ -158,6 +170,32 @@ export const DraftResumeModal: React.FC<DraftResumeModalProps> = ({ isOpen, onCl
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Professional Title</label>
                                     <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Senior Software Engineer" className="w-full px-4 py-2 bg-gray-50 dark:bg-dark-bg border border-gray-300 dark:border-dark-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:text-white" />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-500 mb-1">Email <span className="font-normal text-gray-400 font-serif italic">(Optional)</span></label>
+                                    <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jane@example.com" className="w-full px-3 py-1.5 text-sm bg-gray-50 dark:bg-dark-bg border border-gray-300 dark:border-dark-border rounded focus:border-blue-500 dark:text-white" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-500 mb-1">Phone <span className="font-normal text-gray-400 font-serif italic">(Optional)</span></label>
+                                    <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="(555) 123-4567" className="w-full px-3 py-1.5 text-sm bg-gray-50 dark:bg-dark-bg border border-gray-300 dark:border-dark-border rounded focus:border-blue-500 dark:text-white" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-500 mb-1">Location <span className="font-normal text-gray-400 font-serif italic">(Optional)</span></label>
+                                    <input type="text" value={location} onChange={e => setLocation(e.target.value)} placeholder="New York, NY" className="w-full px-3 py-1.5 text-sm bg-gray-50 dark:bg-dark-bg border border-gray-300 dark:border-dark-border rounded focus:border-blue-500 dark:text-white" />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-500 mb-1">LinkedIn URL <span className="font-normal text-gray-400 font-serif italic">(Optional)</span></label>
+                                    <input type="url" value={linkedin} onChange={e => setLinkedin(e.target.value)} placeholder="linkedin.com/in/janedoe" className="w-full px-3 py-1.5 text-sm bg-gray-50 dark:bg-dark-bg border border-gray-300 dark:border-dark-border rounded focus:border-blue-500 dark:text-white" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-500 mb-1">Portfolio/GitHub URL <span className="font-normal text-gray-400 font-serif italic">(Optional)</span></label>
+                                    <input type="url" value={portfolioUrl} onChange={e => setPortfolioUrl(e.target.value)} placeholder="github.com/janedoe" className="w-full px-3 py-1.5 text-sm bg-gray-50 dark:bg-dark-bg border border-gray-300 dark:border-dark-border rounded focus:border-blue-500 dark:text-white" />
                                 </div>
                             </div>
 
