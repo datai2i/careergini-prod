@@ -560,6 +560,10 @@ async def load_resume_session(user_id: str, session_id: str):
 async def generate_resume_pdf(request: ResumeTailorRequest):
     """Generate professional PDF resume based on tailored content"""
     try:
+        from integrations.ollama_client import get_ollama_client
+        ollama = get_ollama_client()
+        agent = ResumeAdvisorAgent(ollama.get_generator("fast"))
+        
         # Use provided content or generate it
         if not request.persona:
             persona_path = f"uploads/{request.user_id}/persona.json"
