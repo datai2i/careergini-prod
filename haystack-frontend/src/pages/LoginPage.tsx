@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Sparkles, ArrowRight, BrainCircuit, Target, MessageSquare, Star, ShieldCheck, Zap, Check, X, Globe, BookOpen, Compass, ChevronDown, ChevronUp } from 'lucide-react';
+import { Sparkles, ArrowRight, BrainCircuit, Target, MessageSquare, Star, ShieldCheck, Zap, Check, X, Globe, BookOpen, Compass, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 export const LoginPage: React.FC = () => {
-    // The backend authentication URL 
     const AUTH_URL = `/api/profile/auth`;
+    const { isAuthenticated, loading } = useAuth();
     const [scrolled, setScrolled] = useState(false);
     const [openFaq, setOpenFaq] = useState<number | null>(null);
 
@@ -14,6 +15,22 @@ export const LoginPage: React.FC = () => {
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
+
+    // If auth is still loading AND we have a token, show a blank loading screen
+    // so the full login page never flashes for already-authenticated users
+    if (loading && localStorage.getItem('auth_token')) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-slate-50">
+                <div className="flex flex-col items-center gap-4">
+                    <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
+                    <p className="text-sm text-gray-500 font-medium">Signing you in...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // Already authenticated — RootRedirect will navigate away, show nothing
+    if (isAuthenticated) return null;
 
     const handleLogin = (provider: string) => {
         window.location.href = `${AUTH_URL}/${provider}?source=haystack`;

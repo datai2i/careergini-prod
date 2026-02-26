@@ -74,18 +74,17 @@ export const ResumeBuilderPage: React.FC = () => {
     const [targetIndustry, setTargetIndustry] = useState<string>('');
     const [focusArea, setFocusArea] = useState<string>('');
 
-    // Load existing persona on mount
+    // Load existing persona on mount — keyed on user.id only to avoid re-fetching
+    // when AuthContext re-renders and creates a new `user` object reference
     useEffect(() => {
-        // Ask for notification permission as soon as the user enters the builder
         requestNotificationPermission();
 
-        if (user) {
+        if (user?.id) {
             fetch(`/api/resume/persona/${user.id}`)
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 'success') {
                         setPersona(data.persona);
-                        // Note: don't auto-skip to step 2; keep step 1 so they can see history too
                     }
                 })
                 .catch(err => console.error(err));
@@ -96,7 +95,8 @@ export const ResumeBuilderPage: React.FC = () => {
                 .then(data => { if (data.sessions) setSessions(data.sessions); })
                 .catch(err => console.error('Sessions load error:', err));
         }
-    }, [user]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user?.id]);
 
     const loadSession = async (sessionId: string) => {
         setLoadingSession(true);
