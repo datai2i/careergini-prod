@@ -560,10 +560,6 @@ async def load_resume_session(user_id: str, session_id: str):
 async def generate_resume_pdf(request: ResumeTailorRequest):
     """Generate professional PDF resume based on tailored content"""
     try:
-        from integrations.ollama_client import get_ollama_client
-        ollama = get_ollama_client()
-        agent = ResumeAdvisorAgent(ollama.get_generator("fast"))
-        
         # Use provided content or generate it
         if not request.persona:
             persona_path = f"uploads/{request.user_id}/persona.json"
@@ -603,16 +599,6 @@ async def generate_resume_pdf(request: ResumeTailorRequest):
         from pdf_generator import generate_pdf, generate_cover_letter_pdf
         from docx_generator import generate_resume_docx, generate_cover_letter_docx
         
-        # ── STAGE 2: Finalize text for specific template + page count ──────────
-        # This re-polishes the user-edited/JD-tailored text to fit the exact format
-        logger.info(f"Stage 2: Finalizing content for {request.template} - {request.page_count}p")
-        request.persona = await agent.finalize_resume(
-            persona=request.persona,
-            template=request.template or "professional",
-            page_count=request.page_count or 2,
-            job_description=request.job_description or ""
-        )
-
         output_dir = f"uploads/{request.user_id}"
         os.makedirs(output_dir, exist_ok=True)
         
