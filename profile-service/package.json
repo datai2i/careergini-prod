@@ -9,6 +9,7 @@
         "test": "echo \"Error: no test specified\" && exit 1"
     },
     "dependencies": {
+        "@paypal/paypal-server-sdk": "^2.2.0",
         "bcryptjs": "^3.0.3",
         "cookie-parser": "^1.4.7",
         "cors": "^2.8.5",
@@ -21,7 +22,9 @@
         "passport-google-oauth20": "^2.0.0",
         "passport-linkedin-oauth2": "^2.0.0",
         "pg": "^8.11.3",
-        "redis": "^4.6.10"
+        "razorpay": "^2.9.6",
+        "redis": "^4.6.10",
+        "stripe": "^20.4.0"
     },
     "devDependencies": {
         "nodemon": "^3.0.1"

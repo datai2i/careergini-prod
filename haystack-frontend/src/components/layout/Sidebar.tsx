@@ -30,13 +30,16 @@ export const Sidebar: React.FC = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
-    const starterItems = [
+    const freeItems = [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/home', accessKey: 'hasDashboard' },
+    ];
+
+    const starterItems = [
         { id: 'resume', label: 'Resume Builder', icon: FileText, path: '/resume-builder', accessKey: 'resumeBuilds' },
     ];
 
     const premiumItems = [
-        { id: 'chat', label: 'Gini Guide', icon: MessageSquare, path: '/gini-chat', accessKey: 'hasUnlimitedChat' },
+        { id: 'chat', label: 'Gini Chat', icon: MessageSquare, path: '/gini-chat', accessKey: 'hasUnlimitedChat' },
         { id: 'jobs', label: 'Job Search', icon: Briefcase, path: '/jobs', accessKey: 'hasJobSearch' },
         { id: 'learning', label: 'Learning Hub', icon: GraduationCap, path: '/learning', accessKey: 'hasLearningHub' },
     ];
@@ -113,12 +116,19 @@ export const Sidebar: React.FC = () => {
         <aside className="hidden md:flex flex-col w-72 bg-white dark:bg-dark-card border-r border-gray-200 dark:border-dark-border">
             <div className="p-6 pb-2 border-b border-gray-100 dark:border-dark-border/50">
                 <div className="flex items-center justify-center">
-                    <img src="/logo.png" alt="CareerGini Logo" className="h-14 md:h-16 w-auto mix-blend-multiply dark:mix-blend-normal drop-shadow-sm" />
+                    <button onClick={() => navigate('/home')} className="focus:outline-none" title="Go to Dashboard">
+                        <img src="/logo.png" alt="CareerGini Logo" className="h-14 md:h-16 w-auto mix-blend-multiply dark:mix-blend-normal drop-shadow-sm hover:opacity-80 transition-opacity" />
+                    </button>
                 </div>
             </div>
 
             <nav className="flex-1 px-4 space-y-1 overflow-y-auto py-4">
-                <div className="px-4 py-2 text-xs font-semibold text-blue-400 uppercase tracking-wider">
+                <div className="px-4 py-2 text-xs font-semibold text-emerald-400 uppercase tracking-wider">
+                    Free
+                </div>
+                {freeItems.map(item => <NavItem key={item.path} item={item} />)}
+
+                <div className="px-4 pt-4 py-2 text-xs font-semibold text-blue-400 uppercase tracking-wider">
                     Starter
                 </div>
                 {starterItems.map(item => <NavItem key={item.path} item={item} />)}

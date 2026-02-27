@@ -51,10 +51,12 @@ export const GiniGuide: React.FC = () => {
                     if (data.status === 'success' && data.guide) {
                         setGuide(data.guide);
 
-                        // 2. Fetch Job Recommendations based on Top Skills & Title
+                        // 2. Fetch Job Recommendations based on Top Skills & Title & Location
                         const jobQuery = data.guide.target_role || data.guide.top_skills[0] || 'Software';
-                        const jobSkills = data.guide.top_skills.join(',');
-                        fetch(`/api/jobs?query=${encodeURIComponent(jobQuery)}&skills=${encodeURIComponent(jobSkills)}`, {
+                        const jobSkills = user.skills ? user.skills.join(',') : data.guide.top_skills.join(',');
+                        const location = user.location || '';
+
+                        fetch(`/api/jobs/recommendations?title=${encodeURIComponent(jobQuery)}&skills=${encodeURIComponent(jobSkills)}&location=${encodeURIComponent(location)}`, {
                             headers: { 'Authorization': `Bearer ${token}` }
                         })
                             .then(res => res.json())
@@ -64,17 +66,20 @@ export const GiniGuide: React.FC = () => {
                             })
                             .catch(err => console.error("Job fetch error:", err));
 
-                        // 3. Fetch Learning Recommendations based on Missing Skills
-                        const missingSkillQuery = data.guide.missing_skills[0] || 'Communication';
-                        fetch(`/api/learning/courses?topic=${encodeURIComponent(missingSkillQuery)}`, {
-                            headers: { 'Authorization': `Bearer ${token}` }
-                        })
-                            .then(res => res.json())
-                            .then(courseData => {
-                                const courseList = Array.isArray(courseData) ? courseData : (courseData.courses || []);
-                                setCourses(courseList.slice(0, 3));
+                        // 3. Fetch Learning Recommendations based on All Missing Skills
+                        const missingSkillsString = data.guide.missing_skills.join(',');
+
+                        if (missingSkillsString) {
+                            fetch(`/api/learning/recommendations?skills=${encodeURIComponent(missingSkillsString)}`, {
+                                headers: { 'Authorization': `Bearer ${token}` }
                             })
-                            .catch(err => console.error("Course fetch error:", err));
+                                .then(res => res.json())
+                                .then(courseData => {
+                                    const courseList = Array.isArray(courseData) ? courseData : (courseData.courses || []);
+                                    setCourses(courseList.slice(0, 3));
+                                })
+                                .catch(err => console.error("Course fetch error:", err));
+                        }
                     }
                 }
             } catch (err) {

@@ -13,6 +13,7 @@ interface ProcessingOverlayProps {
     isOpen: boolean;
     message?: string;
     headline?: string;
+    skills?: string[];
 }
 
 const FALLBACK_NEWS: NewsItem[] = [
@@ -43,28 +44,27 @@ const FALLBACK_NEWS: NewsItem[] = [
     }
 ];
 
-export const ProcessingOverlay: React.FC<ProcessingOverlayProps> = ({ isOpen, message, headline }) => {
+export const ProcessingOverlay: React.FC<ProcessingOverlayProps> = ({ isOpen, message, headline, skills }) => {
     const [news, setNews] = useState<NewsItem[]>([]);
-    const [loading, setLoading] = useState(false);
     const [currentIndex, setCurrentIndex] = useState(0);
 
     useEffect(() => {
         if (isOpen) {
             fetchNews();
             const interval = setInterval(() => {
-                setCurrentIndex(prev => (prev + 1) % (news.length || FALLBACK_NEWS.length));
+                const totalNews = (news && news.length > 0) ? news.length : FALLBACK_NEWS.length;
+                setCurrentIndex(prev => (prev + 1) % totalNews);
             }, 8000);
             return () => clearInterval(interval);
         }
-    }, [isOpen, news.length]);
+    }, [isOpen, news.length, skills]);
 
     const fetchNews = async () => {
-        setLoading(true);
         try {
-            // NewsData.io - Free Tier (Publicly accessible news)
-            // Using a generic query for AI tools and skills, refined by headline if available
-            const query = headline
-                ? `latest AI tools trends skills professional "${headline}"`
+            // Personalize query based on headline and skills
+            const skillQuery = skills && skills.length > 0 ? skills.slice(0, 3).join(' ') : '';
+            const query = (headline || skillQuery)
+                ? `latest AI tools trends skills ${headline || ''} ${skillQuery}`
                 : 'latest generative AI tools career professional skills trends';
 
             // We'll use a public API key for demonstration or proxy it through our backend if needed.
@@ -90,8 +90,6 @@ export const ProcessingOverlay: React.FC<ProcessingOverlayProps> = ({ isOpen, me
         } catch (error) {
             console.error('News fetch error:', error);
             setNews(FALLBACK_NEWS);
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -135,9 +133,9 @@ export const ProcessingOverlay: React.FC<ProcessingOverlayProps> = ({ isOpen, me
                         <div className="flex items-center gap-2 text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-4">
                             <TrendingUp size={14} />
                             <span>Latest Insights</span>
-                            {headline && (
+                            {(headline || (skills && skills.length > 0)) && (
                                 <span className="flex items-center gap-1 bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 rounded ml-2">
-                                    tailored for {headline}
+                                    tailored for your profile
                                 </span>
                             )}
                         </div>

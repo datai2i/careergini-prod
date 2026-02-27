@@ -27,40 +27,40 @@ export const PLAN_CONFIGS: Record<PlanTier, PlanLimits> = {
         hasIndustryTailoring: false,
         hasAdvisor: false,
         hasAnalytics: false,
-        hasApplications: false, // Moved to Ultra Premium
+        hasApplications: false,
         hasDashboard: true,
         hasSkillGaps: false,
         hasInterviewPrep: false
     },
-    basic: {
-        resumeBuilds: 10,
+    basic: { // UI label: Starter
+        resumeBuilds: 5,
         hasCoverLetter: true,
-        hasCareerRoadmap: false, // Moved to Ultra Premium
-        hasJobSearch: true, // Moved to Premium
-        hasLearningHub: true, // Moved to Premium
-        hasUnlimitedChat: true, // Gini Guide - Moved to Premium
+        hasCareerRoadmap: false,
+        hasJobSearch: false,
+        hasLearningHub: false,
+        hasUnlimitedChat: false,
         hasIndustryTailoring: true,
-        hasAdvisor: false, // Moved to Ultra Premium
-        hasAnalytics: false, // Moved to Ultra Premium
-        hasApplications: false, // Moved to Ultra Premium
+        hasAdvisor: false,
+        hasAnalytics: false,
+        hasApplications: false,
         hasDashboard: true,
-        hasSkillGaps: false, // Moved to Ultra Premium
-        hasInterviewPrep: false // Moved to Ultra Premium
+        hasSkillGaps: false,
+        hasInterviewPrep: false
     },
-    premium: {
-        resumeBuilds: 100,
+    premium: { // UI label: Premium
+        resumeBuilds: 20,
         hasCoverLetter: true,
-        hasCareerRoadmap: true,
+        hasCareerRoadmap: false,
         hasJobSearch: true,
         hasLearningHub: true,
         hasUnlimitedChat: true,
         hasIndustryTailoring: true,
-        hasAdvisor: true,
-        hasAnalytics: true,
-        hasApplications: true,
+        hasAdvisor: false,
+        hasAnalytics: false,
+        hasApplications: false,
         hasDashboard: true,
-        hasSkillGaps: true,
-        hasInterviewPrep: true
+        hasSkillGaps: false,
+        hasInterviewPrep: false
     }
 };
 

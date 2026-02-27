@@ -400,6 +400,26 @@ app.post('/admin/users/:id/update', verifyAdmin, async (req, res) => {
 });
 
 /**
+ * POST /admin/users/:id/reset-usage
+ * Archive existing resume generation logs to reset the user's build quota to 0.
+ */
+app.post('/admin/users/:id/reset-usage', verifyAdmin, async (req, res) => {
+    const userId = req.params.id;
+    try {
+        const query = `
+            UPDATE user_activity 
+            SET activity_type = 'resume_generated_archived'
+            WHERE user_id = $1 AND activity_type = 'resume_generated'
+        `;
+        const result = await db.query(query, [userId]);
+        res.json({ success: true, archived_count: result.rowCount });
+    } catch (err) {
+        console.error("Reset usage error:", err);
+        res.status(500).json({ error: 'Failed to reset usage' });
+    }
+});
+
+/**
  * GET /admin/logs/chats
  * Audit Gini Chat history
  */
@@ -419,6 +439,193 @@ app.get('/admin/logs/chats', verifyAdmin, async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
-    console.log(`Profile Service running on port ${PORT}`);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PAYMENTS MODULE
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Lazy-init payment libraries
+const getPayPalClient = () => {
+    const { Client, Environment, OrdersController } = require('@paypal/paypal-server-sdk');
+    const client = new Client({
+        clientCredentialsAuthCredentials: {
+            oAuthClientId: process.env.PAYPAL_CLIENT_ID || 'SANDBOX_CLIENT_ID',
+            oAuthClientSecret: process.env.PAYPAL_CLIENT_SECRET || 'SANDBOX_CLIENT_SECRET',
+        },
+        environment: process.env.NODE_ENV === 'production' && process.env.PAYPAL_CLIENT_ID
+            ? Environment.Production : Environment.Sandbox,
+    });
+    return { ordersController: new OrdersController(client) };
+};
+
+const getRazorpay = () => {
+    const Razorpay = require('razorpay');
+    return new Razorpay({
+        key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder',
+        key_secret: process.env.RAZORPAY_KEY_SECRET || 'placeholder_secret',
+    });
+};
+
+const getStripe = () => require('stripe')(
+    process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder'
+);
+
+const PLAN_PRICES = {
+    starter: { USD: 5.00, EUR: 4.50, INR: 420 },
+    premium: { USD: 25.00, EUR: 23.00, INR: 2099 },
+};
+
+const PLAN_DB_MAP = { starter: 'basic', premium: 'premium' };
+
+async function upgradeUserPlan(userId, planKey, gateway, orderId, amount, currency) {
+    const dbPlan = PLAN_DB_MAP[planKey] || planKey;
+    await db.query(
+        'UPDATE users SET plan = $1, resume_count = 0, updated_at = NOW() WHERE id = $2',
+        [dbPlan, userId]
+    );
+    await db.query(
+        `INSERT INTO payments (user_id, gateway, order_id, amount, currency, plan, status)
+         VALUES ($1, $2, $3, $4, $5, $6, 'completed')`,
+        [userId, gateway, orderId, amount, currency, dbPlan]
+    );
+    console.log(`[payments] User ${userId} upgraded to ${dbPlan} via ${gateway}.`);
+}
+
+// Routes
+app.post('/payments/paypal/create-order', verifyToken, async (req, res) => {
+    try {
+        const { plan, currency = 'USD' } = req.body;
+        const price = PLAN_PRICES[plan]?.[currency];
+        if (!price) return res.status(400).json({ error: 'Invalid plan or currency' });
+
+        const { ordersController } = getPayPalClient();
+        const frontendUrl = process.env.FRONTEND_URL || 'https://www.careergini.com';
+        const { body: order } = await ordersController.createOrder({
+            body: {
+                intent: 'CAPTURE',
+                purchaseUnits: [{
+                    amount: { currencyCode: currency, value: price.toFixed(2) },
+                    description: `CareerGini ${plan} Plan`,
+                }],
+                applicationContext: {
+                    returnUrl: `${frontendUrl}/auth/callback?payment=success&plan=${plan}`,
+                    cancelUrl: `${frontendUrl}/payment?plan=${plan}&cancelled=1`,
+                },
+            },
+        });
+        const approval = order.links?.find(l => l.rel === 'approve');
+        res.json({ orderId: order.id, approvalUrl: approval?.href });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
+
+app.post('/payments/paypal/capture-order', verifyToken, async (req, res) => {
+    try {
+        const { orderId, plan, currency = 'USD' } = req.body;
+        const { ordersController } = getPayPalClient();
+        const { body: capture } = await ordersController.captureOrder({ id: orderId });
+        if (capture.status === 'COMPLETED') {
+            const price = PLAN_PRICES[plan]?.[currency] || 0;
+            await upgradeUserPlan(req.user.id, plan, 'paypal', orderId, price, currency);
+            res.json({ success: true, plan: PLAN_DB_MAP[plan] || plan });
+        } else {
+            res.status(400).json({ error: 'Payment not completed' });
+        }
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/payments/razorpay/create-order', verifyToken, async (req, res) => {
+    try {
+        const { plan } = req.body;
+        const amountPaise = Math.round((PLAN_PRICES[plan]?.INR || 420) * 100);
+        const rzp = getRazorpay();
+        const order = await rzp.orders.create({ amount: amountPaise, currency: 'INR', receipt: `cg_${plan}_${Date.now()}` });
+        res.json({ orderId: order.id, amount: order.amount, keyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/payments/razorpay/verify', verifyToken, async (req, res) => {
+    try {
+        const { razorpay_order_id, razorpay_payment_id, razorpay_signature, plan } = req.body;
+        const crypto = require('crypto');
+        const hmac = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || 'placeholder_secret');
+        hmac.update(`${razorpay_order_id}|${razorpay_payment_id}`);
+        if (hmac.digest('hex') !== razorpay_signature) return res.status(400).json({ error: 'Invalid signature' });
+
+        const price = PLAN_PRICES[plan]?.INR || 420;
+        await upgradeUserPlan(req.user.id, plan, 'razorpay', razorpay_payment_id, price, 'INR');
+        res.json({ success: true, plan: PLAN_DB_MAP[plan] || plan });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/payments/stripe/create-session', verifyToken, async (req, res) => {
+    try {
+        const { plan, currency = 'usd' } = req.body;
+        const stripe = getStripe();
+        const unitAmount = Math.round((PLAN_PRICES[plan]?.[currency.toUpperCase()] || 5) * 100);
+        const frontendUrl = process.env.FRONTEND_URL || 'https://www.careergini.com';
+        const session = await stripe.checkout.sessions.create({
+            payment_method_types: ['card'],
+            line_items: [{
+                price_data: { currency: currency.toLowerCase(), product_data: { name: `CareerGini ${plan} Plan` }, unit_amount: unitAmount },
+                quantity: 1,
+            }],
+            mode: 'payment',
+            success_url: `${frontendUrl}/payment?status=success&plan=${plan}`,
+            cancel_url: `${frontendUrl}/payment?plan=${plan}&cancelled=1`,
+            metadata: { user_id: req.user.id, plan },
+        });
+        res.json({ checkoutUrl: session.url });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/admin/payments', verifyAdmin, async (req, res) => {
+    try {
+        const result = await db.query(`
+            SELECT p.*, u.email as user_email, u.full_name as user_name
+            FROM payments p
+            JOIN users u ON p.user_id = u.id
+            ORDER BY p.created_at DESC
+        `);
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch payments' });
+    }
+});
+
+async function startServer() {
+    try {
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS payments (
+                id SERIAL PRIMARY KEY,
+                user_id UUID NOT NULL REFERENCES users(id),
+                gateway VARCHAR(50) NOT NULL,
+                order_id VARCHAR(255),
+                amount DECIMAL(10,2) NOT NULL,
+                currency VARCHAR(10) NOT NULL,
+                plan VARCHAR(50) NOT NULL,
+                status VARCHAR(50) DEFAULT 'completed',
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        `);
+        console.log('[startup] Payments table ensured.');
+    } catch (e) {
+        console.error('[startup] DB migration failed:', e);
+    }
+
+    app.listen(PORT, () => {
+        console.log(`Profile Service running on port ${PORT}`);
+    });
+}
+
+startServer();
+

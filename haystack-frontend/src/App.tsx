@@ -25,6 +25,7 @@ import { AdvisorPage } from './pages/AdvisorPage';
 import { ResumeBuilderPage } from './pages/ResumeBuilderPage';
 import { AnalyticsDashboardPage } from './pages/AnalyticsDashboardPage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
+import PaymentPage from './pages/PaymentPage';
 
 function App() {
   return (
@@ -131,6 +132,16 @@ function App() {
             <Route path="applications" element={
               <ProtectedRoute>
                 <PlaceholderPage title="Application Tracker" />
+              </ProtectedRoute>
+            } />
+            <Route path="payment" element={
+              <ProtectedRoute>
+                <PaymentPage />
+              </ProtectedRoute>
+            } />
+            <Route path="upgrade" element={
+              <ProtectedRoute>
+                <PaymentPage />
               </ProtectedRoute>
             } />
             <Route path="*" element={<PlaceholderPage title="404 Not Found" />} />

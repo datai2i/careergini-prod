@@ -162,6 +162,54 @@ services:
       - careergini-network
 
   # ─────────────────────────────────────────
+  # Job Service (Node.js)
+  # ─────────────────────────────────────────
+  job-service:
+    build:
+      context: ./job-service
+      dockerfile: ../docker/job-service.Dockerfile
+    container_name: careergini-jobs
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-careergini_redis}@redis:6379/2
+      - PORT=3002
+      - RAPIDAPI_KEY=${RAPIDAPI_KEY}
+    ports:
+      - "3004:3002"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - careergini-network
+
+  # ─────────────────────────────────────────
+  # Learning Service (Node.js)
+  # ─────────────────────────────────────────
+  learning-service:
+    build:
+      context: ./learning-service
+      dockerfile: ../docker/learning-service.Dockerfile
+    container_name: careergini-learning
+    restart: unless-stopped
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=careergini
+      - DB_USER=careergini
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-careergini_redis}@redis:6379/3
+      - PORT=3002
+    ports:
+      - "3005:3002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - careergini-network
+
+  # ─────────────────────────────────────────
   # API Gateway (Node.js)
   # ─────────────────────────────────────────
   api-gateway:
@@ -174,6 +222,8 @@ services:
       - PROFILE_SERVICE_URL=http://careergini-profile:3001
       - AI_SERVICE_URL=http://ai-service:8000
       - APPLICATION_SERVICE_URL=http://application-service:3002
+      - JOB_SERVICE_URL=http://job-service:3002
+      - LEARNING_SERVICE_URL=http://learning-service:3002
       - JWT_SECRET=${JWT_SECRET}
       - PORT=3000
     ports:
@@ -182,6 +232,8 @@ services:
       - profile-service
       - ai-service
       - application-service
+      - job-service
+      - learning-service
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s

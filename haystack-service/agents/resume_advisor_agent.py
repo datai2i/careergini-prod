@@ -332,13 +332,24 @@ Required JSON structure (extract real info only):
         try:
             response = self.generator.run(prompt=prompt)
             content  = response["replies"][0]
-            return _parse_json(content)
+            result = _parse_json(content)
+            # Ensure contact fields exist to prevent UI errors
+            result.setdefault("email", "")
+            result.setdefault("phone", "")
+            result.setdefault("linkedin", "")
+            result.setdefault("portfolio_url", "")
+            return result
         except Exception as e:
             logger.error(f"Persona extraction failed: {e}")
             return {
                 "full_name":             "Candidate",
                 "professional_title":    "Professional",
                 "years_experience":      0,
+                "email":                 "",
+                "phone":                 "",
+                "location":              "",
+                "linkedin":              "",
+                "portfolio_url":         "",
                 "summary":               "Resume uploaded. Please review and edit the details below.",
                 "top_skills":            [],
                 "experience_highlights": [],

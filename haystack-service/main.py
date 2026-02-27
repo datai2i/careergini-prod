@@ -403,6 +403,24 @@ async def generate_gini_guide(user_id: str):
         skills = pm.profile.get("skills", [])
         experience = pm.profile.get("experience", [])
         
+        is_default_profile = (
+            identity.get("full_name", "") in ("", "Candidate", "User") and
+            identity.get("professional_title", "") in ("", "Professional") and
+            not skills and 
+            not experience
+        )
+
+        if is_default_profile:
+            return {
+                "status": "success",
+                "guide": {
+                    "summary": "Welcome to CareerGini! To receive hyper-personalized career guidance from Gini, please upload your resume or complete your profile.",
+                    "top_skills": [],
+                    "missing_skills": [],
+                    "target_role": "Upload Resume to Unlock Guidance"
+                }
+            }
+        
         exp_text = ""
         for i, exp in enumerate(experience[:3]):
             exp_text += f"- {exp.get('role', 'Professional')} at {exp.get('company', 'Company')} ({exp.get('duration', '')})\n"
@@ -614,7 +632,7 @@ async def generate_resume_pdf(request: ResumeTailorRequest):
         count = int(user_info.get("resume_count", 0))
 
         # Define limits
-        limits = {"free": 1, "basic": 10, "premium": 100}
+        limits = {"free": 1, "basic": 5, "premium": 20}
         max_builds = limits.get(plan, 1)
 
         if role != "admin" and count >= max_builds:
@@ -734,8 +752,11 @@ async def generate_resume_pdf(request: ResumeTailorRequest):
 
         return response_data
         
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error generating PDF: {e}")
+        import traceback
+        logger.error(f"Error generating PDF: {e}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
     text = request.get("text", "")
     if not text:

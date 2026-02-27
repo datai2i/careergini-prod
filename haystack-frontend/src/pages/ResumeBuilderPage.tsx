@@ -5,6 +5,7 @@ import { notifyStep, requestNotificationPermission } from '../utils/notify';
 import { ProcessingOverlay } from '../components/common/ProcessingOverlay';
 import { useToast } from '../context/ToastContext';
 import { DraftResumeModal } from '../components/DraftResumeModal';
+import { UpgradePromptModal } from '../components/common/UpgradePromptModal';
 
 interface ResumePersona {
     full_name: string;
@@ -70,6 +71,7 @@ export const ResumeBuilderPage: React.FC = () => {
     const [coverLetterUrl, setCoverLetterUrl] = useState<string | null>(null);
     const [coverLetterDocxUrl, setCoverLetterDocxUrl] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
     const [pageCount, setPageCount] = useState<number>(2);
     const [sessions, setSessions] = useState<Array<{ session_id: string; timestamp: string; job_title_snippet: string }>>([]);
     const [loadingSession, setLoadingSession] = useState(false);
@@ -307,6 +309,9 @@ export const ResumeBuilderPage: React.FC = () => {
                 // Refresh sessions list after successful tailoring
                 fetch(`/api/resume/sessions/${user?.id || 'default'}`)
                     .then(r => r.json()).then(d => { if (d.sessions) setSessions(d.sessions); });
+            } else if (response.status === 403) {
+                // Plan limit hit — show upgrade modal instead of error
+                setShowUpgradeModal(true);
             } else {
                 setError(data.detail || 'Tailoring failed');
             }
@@ -343,8 +348,25 @@ export const ResumeBuilderPage: React.FC = () => {
                 setCoverLetterUrl(pdfData.cover_letter_url || null);
                 setCoverLetterDocxUrl(pdfData.cover_letter_docx_url || null);
                 setStep(5);
+                await refreshUser(); // Update build count and plan info
+
+                // Show upgrade prompt if milestone reached
+                const currentPlan = user?.plan || 'free';
+                const count = (user?.resume_count || 0) + 1; // +1 since we just generated one
+
+                if (
+                    (currentPlan === 'free' && count >= 1) ||
+                    (currentPlan === 'basic' && count >= 5) ||
+                    (currentPlan === 'premium' && count >= 20)
+                ) {
+                    setTimeout(() => setShowUpgradeModal(true), 1500);
+                }
+
                 notifyStep('🎉 PDF Ready!', 'Your professional resume and cover letter have been generated. Click to download!');
                 showToast('Files ready to download! 🎉', 'success');
+            } else if (pdfResponse.status === 403) {
+                // Plan limit hit — show upgrade modal, NOT a raw error
+                setShowUpgradeModal(true);
             } else {
                 setError(pdfData.detail || "Failed to generate PDF");
             }
@@ -939,7 +961,7 @@ export const ResumeBuilderPage: React.FC = () => {
                                         {/* Example JDs */}
                                         <div className="mt-2 text-right">
                                             <div className="flex flex-wrap justify-end gap-1.5">
-                                                {getDynamicRoles(persona).map((role, i) => (
+                                                {(getDynamicRoles(persona) as string[]).map((role: string, i: number) => (
                                                     <button
                                                         key={i}
                                                         onClick={() => setJobDescription(generateMockJD(role, persona))}
@@ -1323,13 +1345,24 @@ export const ResumeBuilderPage: React.FC = () => {
             </div>
 
             {(uploading || tailoring || generatingPDF) && (
-                <ProcessingOverlay isOpen={true} headline={persona?.professional_title} />
+                <ProcessingOverlay
+                    isOpen={true}
+                    headline={persona?.professional_title}
+                    skills={persona?.top_skills}
+                />
             )}
 
             <DraftResumeModal
                 isOpen={isDraftModalOpen}
                 onClose={() => setIsDraftModalOpen(false)}
                 onSave={handleDraftSave}
+            />
+            {/* Upgrade Prompt Modal */}
+            <UpgradePromptModal
+                isOpen={showUpgradeModal}
+                onClose={() => setShowUpgradeModal(false)}
+                currentPlan={user?.plan || 'free'}
+                buildCount={(user?.resume_count || 0)}
             />
         </div>
     );
