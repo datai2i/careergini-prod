@@ -11,6 +11,7 @@ export interface PlanLimits {
     hasAdvisor: boolean;
     hasAnalytics: boolean;
     hasApplications: boolean;
+    hasDashboard: boolean;
     hasSkillGaps: boolean;
     hasInterviewPrep: boolean;
 }
@@ -26,23 +27,25 @@ export const PLAN_CONFIGS: Record<PlanTier, PlanLimits> = {
         hasIndustryTailoring: false,
         hasAdvisor: false,
         hasAnalytics: false,
-        hasApplications: true, // Baseline dashboard
+        hasApplications: false, // Moved to Ultra Premium
+        hasDashboard: true,
         hasSkillGaps: false,
         hasInterviewPrep: false
     },
     basic: {
         resumeBuilds: 10,
         hasCoverLetter: true,
-        hasCareerRoadmap: true,
-        hasJobSearch: false,
-        hasLearningHub: false,
-        hasUnlimitedChat: false,
+        hasCareerRoadmap: false, // Moved to Ultra Premium
+        hasJobSearch: true, // Moved to Premium
+        hasLearningHub: true, // Moved to Premium
+        hasUnlimitedChat: true, // Gini Guide - Moved to Premium
         hasIndustryTailoring: true,
-        hasAdvisor: true,
-        hasAnalytics: false,
-        hasApplications: true,
-        hasSkillGaps: false,
-        hasInterviewPrep: false
+        hasAdvisor: false, // Moved to Ultra Premium
+        hasAnalytics: false, // Moved to Ultra Premium
+        hasApplications: false, // Moved to Ultra Premium
+        hasDashboard: true,
+        hasSkillGaps: false, // Moved to Ultra Premium
+        hasInterviewPrep: false // Moved to Ultra Premium
     },
     premium: {
         resumeBuilds: 100,
@@ -55,6 +58,7 @@ export const PLAN_CONFIGS: Record<PlanTier, PlanLimits> = {
         hasAdvisor: true,
         hasAnalytics: true,
         hasApplications: true,
+        hasDashboard: true,
         hasSkillGaps: true,
         hasInterviewPrep: true
     }

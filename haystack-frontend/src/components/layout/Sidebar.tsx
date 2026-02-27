@@ -16,7 +16,8 @@ import {
     ChevronUp,
     ChevronDown,
     Shield,
-    Compass
+    Compass,
+    Lock
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../../context/AuthContext';
@@ -29,25 +30,25 @@ export const Sidebar: React.FC = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
-    const mainItems = [
-        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/home' },
-        { id: 'resume', label: 'Resume Builder', icon: FileText, path: '/resume-builder' },
-        { id: 'jobs', label: 'Job Search', icon: Briefcase, path: '/jobs', hidden: !canAccess('hasJobSearch') },
-        { id: 'learning', label: 'Learning Hub', icon: GraduationCap, path: '/learning', hidden: !canAccess('hasLearningHub') },
+    const starterItems = [
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/home', accessKey: 'hasDashboard' },
+        { id: 'resume', label: 'Resume Builder', icon: FileText, path: '/resume-builder', accessKey: 'resumeBuilds' },
     ];
 
-    const aiToolItems = [
-        { id: 'chat', label: 'GINI Chat', icon: MessageSquare, path: '/gini-chat', hidden: !canAccess('hasUnlimitedChat') },
-        { id: 'skill-gaps', label: 'Skill Gaps', icon: Target, path: '/skill-gaps', hidden: !canAccess('hasSkillGaps') },
-        { id: 'interview-prep', label: 'Interview Prep', icon: Mic, path: '/interview-practice', hidden: !canAccess('hasInterviewPrep') },
-        { id: 'roadmap', label: 'Career Roadmap', icon: Compass, path: '/career-roadmap', hidden: !canAccess('hasCareerRoadmap') },
-        { id: 'advisor', label: 'Advisor', icon: Zap, path: '/advisor', hidden: !canAccess('hasAdvisor') },
-        { id: 'analytics', label: 'Analytics', icon: BarChart3, path: '/analytics', hidden: !canAccess('hasAnalytics') },
-        { id: 'applications', label: 'Applications', icon: LayoutDashboard, path: '/applications', hidden: !canAccess('hasApplications') },
+    const premiumItems = [
+        { id: 'chat', label: 'Gini Guide', icon: MessageSquare, path: '/gini-chat', accessKey: 'hasUnlimitedChat' },
+        { id: 'jobs', label: 'Job Search', icon: Briefcase, path: '/jobs', accessKey: 'hasJobSearch' },
+        { id: 'learning', label: 'Learning Hub', icon: GraduationCap, path: '/learning', accessKey: 'hasLearningHub' },
     ];
 
-    const filteredMainItems = mainItems.filter(i => !i.hidden);
-    const filteredAiItems = aiToolItems.filter(i => !i.hidden);
+    const ultraPremiumItems = [
+        { id: 'roadmap', label: 'Career Roadmap', icon: Compass, path: '/career-roadmap', accessKey: 'hasCareerRoadmap' },
+        { id: 'interview-prep', label: 'Interview Prep', icon: Mic, path: '/interview-practice', accessKey: 'hasInterviewPrep' },
+        { id: 'skill-gaps', label: 'Skill Gaps', icon: Target, path: '/skill-gaps', accessKey: 'hasSkillGaps' },
+        { id: 'advisor', label: 'Advisor', icon: Zap, path: '/advisor', accessKey: 'hasAdvisor' },
+        { id: 'analytics', label: 'Analytics', icon: BarChart3, path: '/analytics', accessKey: 'hasAnalytics' },
+        { id: 'applications', label: 'Applications', icon: LayoutDashboard, path: '/applications', accessKey: 'hasApplications' },
+    ];
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -59,28 +60,54 @@ export const Sidebar: React.FC = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const NavItem = ({ item, colorClass = "blue" }: { item: any, colorClass?: string }) => (
-        <NavLink
-            to={item.path}
-            className={({ isActive }) =>
-                clsx(
-                    "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
-                    isActive
-                        ? colorClass === "purple"
-                            ? "bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 font-medium shadow-sm"
-                            : "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium shadow-sm"
-                        : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-dark-border/50 hover:text-gray-900 dark:hover:text-gray-200"
-                )
-            }
-        >
-            {({ isActive }) => (
-                <>
-                    <item.icon size={20} className={clsx("transition-transform group-hover:scale-110", isActive && (colorClass === "purple" ? "text-purple-600 dark:text-purple-400" : "text-blue-600 dark:text-blue-400"))} />
+    const NavItem = ({ item, colorClass = "blue" }: { item: any, colorClass?: string }) => {
+        const hasAccess = canAccess(item.accessKey);
+
+        const content = (
+            <div className={clsx(
+                "flex items-center justify-between w-full px-4 py-3 rounded-xl transition-all duration-200 group",
+                !hasAccess && "opacity-50 grayscale cursor-not-allowed",
+                hasAccess && "hover:bg-gray-50 dark:hover:bg-dark-border/50 hover:text-gray-900 dark:hover:text-gray-200"
+            )}>
+                <div className="flex items-center gap-3">
+                    <item.icon size={20} className={clsx("transition-transform group-hover:scale-110", hasAccess && (colorClass === "purple" ? "text-purple-600 dark:text-purple-400" : "text-blue-600 dark:text-blue-400"))} />
                     <span>{item.label}</span>
-                </>
-            )}
-        </NavLink>
-    );
+                </div>
+                {!hasAccess && <Lock size={14} className="text-gray-400" />}
+            </div>
+        );
+
+        if (!hasAccess) {
+            return (
+                <div className="relative group/lock cursor-not-allowed" title="Upgrade your plan to access this feature">
+                    {content}
+                </div>
+            );
+        }
+
+        return (
+            <NavLink
+                to={item.path}
+                className={({ isActive }) =>
+                    clsx(
+                        "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
+                        isActive
+                            ? colorClass === "purple"
+                                ? "bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 font-medium shadow-sm"
+                                : "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium shadow-sm"
+                            : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-dark-border/50 hover:text-gray-900 dark:hover:text-gray-200"
+                    )
+                }
+            >
+                {({ isActive }) => (
+                    <>
+                        <item.icon size={20} className={clsx("transition-transform group-hover:scale-110", isActive && (colorClass === "purple" ? "text-purple-600 dark:text-purple-400" : "text-blue-600 dark:text-blue-400"))} />
+                        <span>{item.label}</span>
+                    </>
+                )}
+            </NavLink>
+        );
+    };
 
     return (
         <aside className="hidden md:flex flex-col w-72 bg-white dark:bg-dark-card border-r border-gray-200 dark:border-dark-border">
@@ -91,19 +118,20 @@ export const Sidebar: React.FC = () => {
             </div>
 
             <nav className="flex-1 px-4 space-y-1 overflow-y-auto py-4">
-                <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                    Menu
+                <div className="px-4 py-2 text-xs font-semibold text-blue-400 uppercase tracking-wider">
+                    Starter
                 </div>
-                {filteredMainItems.map(item => <NavItem key={item.path} item={item} />)}
+                {starterItems.map(item => <NavItem key={item.path} item={item} />)}
 
-                {filteredAiItems.length > 0 && (
-                    <>
-                        <div className="px-4 pt-4 pb-2 text-xs font-semibold text-purple-400 uppercase tracking-wider">
-                            AI Tools
-                        </div>
-                        {filteredAiItems.map(item => <NavItem key={item.path} item={item} colorClass="purple" />)}
-                    </>
-                )}
+                <div className="px-4 pt-4 pb-2 text-xs font-semibold text-purple-400 uppercase tracking-wider">
+                    Premium
+                </div>
+                {premiumItems.map(item => <NavItem key={item.path} item={item} colorClass="purple" />)}
+
+                <div className="px-4 pt-4 pb-2 text-xs font-semibold text-amber-500 uppercase tracking-wider">
+                    Ultra Premium
+                </div>
+                {ultraPremiumItems.map(item => <NavItem key={item.path} item={item} colorClass="purple" />)}
 
                 {user?.role === 'admin' && (
                     <>
