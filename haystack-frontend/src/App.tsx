@@ -24,6 +24,7 @@ import { CareerRoadmapPage } from './pages/CareerRoadmapPage';
 import { AdvisorPage } from './pages/AdvisorPage';
 import { ResumeBuilderPage } from './pages/ResumeBuilderPage';
 import { AnalyticsDashboardPage } from './pages/AnalyticsDashboardPage';
+import { MyResumesPage } from './pages/MyResumesPage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import PaymentPage from './pages/PaymentPage';
 
@@ -91,6 +92,11 @@ function App() {
             <Route path="resume-builder" element={
               <ProtectedRoute>
                 <ResumeBuilderPage />
+              </ProtectedRoute>
+            } />
+            <Route path="my-resumes" element={
+              <ProtectedRoute>
+                <MyResumesPage />
               </ProtectedRoute>
             } />
             {/* Enhancement Routes */}

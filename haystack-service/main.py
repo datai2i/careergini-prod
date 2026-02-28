@@ -30,8 +30,17 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="CareerGini AI Service", version="1.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Ensure uploads directory exists
 os.makedirs("uploads", exist_ok=True)
@@ -705,13 +714,37 @@ async def generate_resume_pdf(request: ResumeTailorRequest):
         from pdf_generator import generate_pdf, generate_cover_letter_pdf
         from docx_generator import generate_resume_docx, generate_cover_letter_docx
         
+        import datetime
+        import re
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        def safe_fn(text):
+            if not text: return "resume"
+            clean = re.sub(r'[^A-Za-z0-9]', '_', str(text)).strip('_')
+            return re.sub(r'_+', '_', clean)[:30]
+            
+        user_name = safe_fn(request.persona.get("full_name") or request.persona.get("name") or "User")
+        
+        exp = request.persona.get("experience_highlights", [])
+        exp_y = request.persona.get("total_experience")
+        if exp_y:
+            exp_str = safe_fn(str(exp_y) + "_Yrs_Exp")
+        elif exp and len(exp) > 0 and exp[0].get("duration"):
+            exp_str = safe_fn(exp[0].get("duration"))
+        else:
+            exp_str = "Exp"
+            
+        res_type = safe_fn(request.template or "tailored")
+        
+        filename_prefix = f"{user_name}_{exp_str}_{res_type}"
+        
         output_dir = f"uploads/{request.user_id}"
         os.makedirs(output_dir, exist_ok=True)
         
-        output_resume_path      = f"{output_dir}/tailored_resume.pdf"
-        output_resume_docx_path = f"{output_dir}/tailored_resume.docx"
-        output_cl_path          = f"{output_dir}/cover_letter.pdf"
-        output_cl_docx_path     = f"{output_dir}/cover_letter.docx"
+        output_resume_path      = f"{output_dir}/{filename_prefix}_{timestamp}.pdf"
+        output_resume_docx_path = f"{output_dir}/{filename_prefix}_{timestamp}.docx"
+        output_cl_path          = f"{output_dir}/cover_letter_{timestamp}.pdf"
+        output_cl_docx_path     = f"{output_dir}/cover_letter_{timestamp}.docx"
 
         has_cl = False
         if "cover_letter" in request.persona and str(request.persona["cover_letter"]).strip():
@@ -730,16 +763,35 @@ async def generate_resume_pdf(request: ResumeTailorRequest):
         
         response_data = {
              "status": "success",
-             "pdf_url": f"/api/uploads/{request.user_id}/tailored_resume.pdf",
-             "docx_url": f"/api/uploads/{request.user_id}/tailored_resume.docx",
+             "pdf_url": f"/api/uploads/{request.user_id}/{filename_prefix}_{timestamp}.pdf",
+             "docx_url": f"/api/uploads/{request.user_id}/{filename_prefix}_{timestamp}.docx",
              "message": "Resume generated successfully"
         }
         
         if has_cl:
              # Also generate DOCX cover letter
              await run_in_threadpool(generate_cover_letter_docx, output_cl_docx_path, request.persona, request.template)
-             response_data["cover_letter_url"] = f"/api/uploads/{request.user_id}/cover_letter.pdf"
-             response_data["cover_letter_docx_url"] = f"/api/uploads/{request.user_id}/cover_letter.docx"
+             response_data["cover_letter_url"] = f"/api/uploads/{request.user_id}/cover_letter_{timestamp}.pdf"
+             response_data["cover_letter_docx_url"] = f"/api/uploads/{request.user_id}/cover_letter_{timestamp}.docx"
+             
+        # Cleanup old resumes (keep last 20)
+        import glob
+        all_pdfs = sorted(glob.glob(f"{output_dir}/*.pdf"))
+        pdf_resumes = [p for p in all_pdfs if "cover_letter" not in p]
+        
+        if len(pdf_resumes) > 20:
+             for old_pdf in pdf_resumes[:-20]:
+                  try: os.remove(old_pdf)
+                  except: pass
+                  try: os.remove(old_pdf.replace('.pdf', '.docx'))
+                  except: pass
+        pdf_cls = sorted(glob.glob(f"{output_dir}/cover_letter_*.pdf"))
+        if len(pdf_cls) > 20:
+             for old_cl in pdf_cls[:-20]:
+                  try: os.remove(old_cl)
+                  except: pass
+                  try: os.remove(old_cl.replace('.pdf', '.docx'))
+                  except: pass
              
         # Log the activity
         await _log_activity(request.user_id, "resume_generated", {
@@ -758,6 +810,44 @@ async def generate_resume_pdf(request: ResumeTailorRequest):
         import traceback
         logger.error(f"Error generating PDF: {e}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/resume/history/{user_id}")
+async def get_resume_history(user_id: str):
+    import os, glob, datetime
+    output_dir = f"uploads/{user_id}"
+    if not os.path.exists(output_dir):
+        return {"resumes": []}
+        
+    all_pdfs = sorted(glob.glob(f"{output_dir}/*.pdf"), reverse=True)
+    pdf_resumes = [p for p in all_pdfs if "cover_letter" not in p]
+    history = []
+    
+    for pdf_path in pdf_resumes:
+        filename = os.path.basename(pdf_path)
+        # Extract timestamp from filename
+        parts = filename.replace('.pdf', '').split('_')
+        ts_str = ""
+        if len(parts) >= 2:
+            ts_str = f"{parts[-2]}_{parts[-1]}"
+            try:
+                dt = datetime.datetime.strptime(ts_str, "%Y%m%d_%H%M%S")
+                formatted_date = dt.strftime("%B %d, %Y at %I:%M %p")
+            except:
+                formatted_date = "Unknown date"
+        else:
+            formatted_date = "Unknown date"
+            
+        display_title = filename.replace('.pdf', '').replace(f"_{ts_str}", '').replace('_', ' ') if ts_str else filename.replace('.pdf', '')
+            
+        history.append({
+            "id": filename,
+            "title": display_title,
+            "date": formatted_date,
+            "pdf_url": f"/api/uploads/{user_id}/{filename}",
+            "docx_url": f"/api/uploads/{user_id}/{filename.replace('.pdf', '.docx')}",
+        })
+        
+    return {"resumes": history[:20]}
     text = request.get("text", "")
     if not text:
         raise HTTPException(status_code=400, detail="No text provided")

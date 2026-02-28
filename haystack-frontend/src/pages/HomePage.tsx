@@ -70,23 +70,31 @@ export const HomePage: React.FC = () => {
                 <div className="bg-white dark:bg-dark-card rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-dark-border">
                     <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Workspace Tools</h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {quickActions.map((action, index) => (
-                            <button
-                                key={index}
-                                onClick={() => navigate(action.path)}
-                                className="group bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 shadow-sm border border-transparent hover:border-blue-200 transition-all duration-200 text-left flex items-start sm:items-center gap-3"
-                            >
-                                <div className={`w-10 h-10 shrink-0 rounded-lg bg-gradient-to-br ${action.color} flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform`}>
-                                    <action.icon size={18} />
-                                </div>
-                                <div className="flex-1">
-                                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-0.5 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                                        {action.title}
-                                    </h3>
-                                    <p className="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-1">{action.description}</p>
-                                </div>
-                            </button>
-                        ))}
+                        {quickActions.map((action, index) => {
+                            const isLocked = plan === 'free' && action.title !== 'Resume Builder';
+                            return (
+                                <button
+                                    key={index}
+                                    onClick={() => !isLocked && navigate(action.path)}
+                                    className={`group bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 shadow-sm border border-transparent ${isLocked ? 'opacity-60 cursor-not-allowed grayscale' : 'hover:border-blue-200'} transition-all duration-200 text-left flex items-start sm:items-center gap-3 relative`}
+                                >
+                                    {isLocked && (
+                                        <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-gray-200 rounded text-[9px] font-bold text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                                            LOCKED
+                                        </div>
+                                    )}
+                                    <div className={`w-10 h-10 shrink-0 rounded-lg bg-gradient-to-br ${action.color} flex items-center justify-center text-white shadow-sm transition-transform ${isLocked ? '' : 'group-hover:scale-105'}`}>
+                                        <action.icon size={18} />
+                                    </div>
+                                    <div className="flex-1">
+                                        <h3 className={`text-sm font-semibold text-gray-900 dark:text-white mb-0.5 transition-colors ${isLocked ? '' : 'group-hover:text-blue-600 dark:group-hover:text-blue-400'}`}>
+                                            {action.title}
+                                        </h3>
+                                        <p className="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-1">{action.description}</p>
+                                    </div>
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
 
@@ -148,8 +156,8 @@ export const HomePage: React.FC = () => {
                                     key={up.key}
                                     onClick={() => navigate(`/payment?plan=${up.key}`)}
                                     className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-white text-sm font-bold hover:-translate-y-0.5 hover:shadow-lg transition-all ${up.key === 'premium'
-                                            ? 'bg-gradient-to-r from-purple-600 to-indigo-600'
-                                            : 'bg-gradient-to-r from-blue-500 to-blue-600'
+                                        ? 'bg-gradient-to-r from-purple-600 to-indigo-600'
+                                        : 'bg-gradient-to-r from-blue-500 to-blue-600'
                                         }`}
                                 >
                                     <span>Upgrade to {up.label} — {up.price} one-time</span>

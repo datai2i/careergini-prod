@@ -1,6 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 /* Dark mode disabled — light mode only */
+@custom-variant dark (&:is(.never-dark));
 
 @theme {
   --color-primary-50: #eff6ff;

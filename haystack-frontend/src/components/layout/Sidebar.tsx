@@ -32,6 +32,7 @@ export const Sidebar: React.FC = () => {
 
     const freeItems = [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/home', accessKey: 'hasDashboard' },
+        { id: 'history', label: 'My Resumes', icon: FileText, path: '/my-resumes', accessKey: 'hasDashboard' },
     ];
 
     const starterItems = [

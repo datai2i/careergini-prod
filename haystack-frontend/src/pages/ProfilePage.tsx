@@ -90,8 +90,8 @@ export const ProfilePage: React.FC = () => {
                     summary: profile.bio,
                     location: profile.location,
                     skills: profile.skills,
-                    experience: [],
-                    education: []
+                    experience: profile.experience,
+                    education: profile.education
                 })
             });
             setEditing(false);

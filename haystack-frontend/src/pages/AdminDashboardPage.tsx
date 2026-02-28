@@ -62,6 +62,9 @@ export const AdminDashboardPage: React.FC = () => {
     const { showToast } = useToast();
     const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'chats' | 'payments'>('overview');
     const [stats, setStats] = useState<Stats | null>(null);
+    const [adminResumes, setAdminResumes] = useState<any[]>([]);
+    const [viewingUserId, setViewingUserId] = useState<string | null>(null);
+    const [loadingResumes, setLoadingResumes] = useState(false);
     const [users, setUsers] = useState<AdminUser[]>([]);
     const [chats, setChats] = useState<ChatLog[]>([]);
     const [payments, setPayments] = useState<PaymentTransaction[]>([]);
@@ -144,6 +147,31 @@ export const AdminDashboardPage: React.FC = () => {
         } catch (e) {
             showToast('Update error', 'error');
         }
+    };
+
+    const fetchUserResumes = async (userId: string) => {
+        setViewingUserId(userId);
+        setLoadingResumes(true);
+        try {
+            const resp = await fetch(`/api/resume/history/${userId}`, {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+            });
+            if (resp.ok) {
+                const data = await resp.json();
+                setAdminResumes(data.resumes || []);
+            } else {
+                showToast('Failed to fetch resumes', 'error');
+            }
+        } catch (e) {
+            console.error(e);
+            showToast('Error fetching resumes', 'error');
+        } finally {
+            setLoadingResumes(false);
+        }
+    };
+
+    const getDownloadUrl = (path: string) => {
+        return path;
     };
 
     const refreshData = async () => {
@@ -356,12 +384,12 @@ export const AdminDashboardPage: React.FC = () => {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-col gap-1">
-                                                    <span className="text-xs font-medium text-slate-700 flex items-center gap-1">
-                                                        <FileText className="w-3 h-3 text-amber-500" /> {u.resume_count} Resumes
-                                                    </span>
+                                                    <button onClick={() => fetchUserResumes(u.id)} className="text-xs font-medium text-slate-700 flex items-center gap-1 hover:text-blue-600 transition-colors cursor-pointer text-left">
+                                                        <FileText className="w-3 h-3 text-amber-500" /> {u.resume_count} Resumes (View)
+                                                    </button>
                                                     {u.latest_resume_path && (
                                                         <a
-                                                            href={`/api/uploads/${u.id}/tailored_resume.pdf`}
+                                                            href={getDownloadUrl(`/api/uploads/${u.id}/tailored_resume.pdf`)}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="text-[10px] text-blue-600 hover:underline flex items-center gap-1"
@@ -540,6 +568,92 @@ export const AdminDashboardPage: React.FC = () => {
                 )}
 
             </div>
+
+            {/* Resume History Modal */}
+            {viewingUserId && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between p-6 border-b border-slate-100">
+                            <div>
+                                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                                    <FileText className="w-5 h-5 text-blue-600" />
+                                    User Resume History
+                                </h2>
+                                <p className="text-sm text-slate-500 mt-1">Viewing generated resumes for {users.find(u => u.id === viewingUserId)?.email}</p>
+                            </div>
+                            <button onClick={() => setViewingUserId(null)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="p-6 overflow-y-auto flex-1 bg-slate-50/50">
+                            {loadingResumes ? (
+                                <div className="flex justify-center py-12"><RefreshCw className="w-8 h-8 text-blue-600 animate-spin" /></div>
+                            ) : adminResumes.length === 0 ? (
+                                <div className="text-center py-12 text-slate-500">No resumes found for this user.</div>
+                            ) : (
+                                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                                    <div className="overflow-x-auto max-h-[60vh]">
+                                        <table className="w-full text-left text-sm text-slate-500">
+                                            <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-700 font-semibold sticky top-0 z-10">
+                                                <tr>
+                                                    <th scope="col" className="px-6 py-4">Resume Name</th>
+                                                    <th scope="col" className="px-6 py-4">Date Generated</th>
+                                                    <th scope="col" className="px-6 py-4 text-center">PDF</th>
+                                                    <th scope="col" className="px-6 py-4 text-center">DOCX</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                                {adminResumes.map((resume: any, idx: number) => (
+                                                    <tr key={idx} className="hover:bg-blue-50/30 transition-colors">
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                                                                    <FileText size={16} />
+                                                                </div>
+                                                                <span className="text-slate-900 font-medium">
+                                                                    {resume.title || 'Tailored Resume'}
+                                                                </span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            <div className="flex items-center gap-1.5 text-slate-500">
+                                                                <Calendar size={14} />
+                                                                {resume.date}
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                                                            <a
+                                                                href={getDownloadUrl(resume.pdf_url)}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="inline-flex items-center justify-center gap-1.5 p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-colors border border-red-100 shrink-0"
+                                                                title="Download PDF"
+                                                            >
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="M12 18v-6"></path><path d="M9 15l3 3 3-3"></path></svg>
+                                                            </a>
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                                                            <a
+                                                                href={getDownloadUrl(resume.docx_url)}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="inline-flex items-center justify-center gap-1.5 p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors border border-blue-100 shrink-0"
+                                                                title="Download DOCX"
+                                                            >
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="M12 18v-6"></path><path d="M9 15l3 3 3-3"></path></svg>
+                                                            </a>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

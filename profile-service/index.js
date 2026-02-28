@@ -124,7 +124,7 @@ app.get('/me', verifyToken, async (req, res) => {
         const client = await db.pool.connect();
         try {
             // Get user info
-            const userRes = await client.query('SELECT id, email, full_name, avatar_url, role, plan FROM users WHERE id = $1', [req.user.id]);
+            const userRes = await client.query("SELECT id, email, full_name, avatar_url, role, plan, (SELECT COUNT(*) FROM user_activity WHERE user_id = u.id AND activity_type = 'resume_generated') as resume_count FROM users u WHERE u.id = $1", [req.user.id]);
             const user = userRes.rows[0];
             console.log(`[me] Serving user data for ${req.user.id}: name="${user?.full_name}"`);
 
