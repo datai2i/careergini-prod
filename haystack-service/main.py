@@ -559,6 +559,15 @@ async def tailor_resume_endpoint(request: ResumeTailorRequest):
             logger.error(f"Error calculating ATS score: {e}")
             result["ats_score"] = 0
         
+        # Guarantee gap_analysis is always present (LLM may omit it)
+        if not result.get("gap_analysis"):
+            try:
+                from agents.resume_advisor_agent import _compute_gap_analysis
+                result["gap_analysis"] = _compute_gap_analysis(persona, request.job_description)
+            except Exception as ge:
+                logger.warning(f"gap_analysis fallback failed: {ge}")
+                result["gap_analysis"] = []
+        
         # Auto-save session for history
         try:
             from datetime import datetime, timezone
@@ -581,6 +590,14 @@ async def tailor_resume_endpoint(request: ResumeTailorRequest):
         except Exception as se:
             logger.warning(f"Could not save session: {se}")
         
+        # Build final response, always including gap_analysis
+        try:
+            from agents.resume_advisor_agent import _compute_gap_analysis
+            gap_analysis = result.get("gap_analysis") or _compute_gap_analysis(persona, request.job_description)
+        except Exception:
+            gap_analysis = result.get("gap_analysis") or []
+        
+        result["gap_analysis"] = gap_analysis
         return {"status": "success", "tailored_content": result}
         
     except HTTPException:
@@ -846,8 +863,10 @@ async def get_resume_history(user_id: str):
             "pdf_url": f"/api/uploads/{user_id}/{filename}",
             "docx_url": f"/api/uploads/{user_id}/{filename.replace('.pdf', '.docx')}",
         })
-        
     return {"resumes": history[:20]}
+
+@app.post("/resume/parse")
+async def parse_resume_text(request: dict):
     text = request.get("text", "")
     if not text:
         raise HTTPException(status_code=400, detail="No text provided")

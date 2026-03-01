@@ -39,11 +39,70 @@ def _fmt_exp(exp: dict) -> dict:
     if isinstance(ach, list):
         ach = " | ".join(ach)
     return {
-        "role":     exp.get("role", ""),
-        "company":  exp.get("company", ""),
-        "duration": exp.get("duration", ""),
-        "highlights": str(ach)[:300],
+        "role":    exp.get("role") or exp.get("title", ""),
+        "company": exp.get("company", ""),
+        "period":  exp.get("duration") or exp.get("period") or exp.get("dates", ""),
+        "highlights": ach,
     }
+
+
+def _compute_gap_analysis(persona: Dict[str, Any], job_description: str) -> List[str]:
+    """Python-level deterministic gap analysis — compares JD keywords to candidate profile."""
+    suggestions = []
+    jd_lower = job_description.lower()
+    
+    # Collect all candidate text for comparison
+    skills = [s.lower() for s in (persona.get("top_skills") or [])]
+    summary = (persona.get("summary") or "").lower()
+    exp_text = " ".join([
+        f"{e.get('role','')} {e.get('company','')} {' '.join(e.get('tailored_bullets') or e.get('key_achievement') or []) if isinstance((e.get('tailored_bullets') or e.get('key_achievement')), list) else str(e.get('tailored_bullets') or e.get('key_achievement',''))}"
+        for e in (persona.get("experience_highlights") or [])
+    ]).lower()
+    projects = " ".join([
+        f"{p.get('name','')} {p.get('description','')}" for p in (persona.get("projects") or [])
+    ]).lower()
+    all_candidate_text = " ".join([summary, exp_text, projects] + skills)
+    
+    # Key technology stacks to check for
+    tech_groups = {
+        "react": ["react", "reactjs", "react.js"],
+        "node.js": ["node", "nodejs", "express"],
+        "typescript": ["typescript", "ts"],
+        "kubernetes": ["kubernetes", "k8s"],
+        "docker": ["docker", "containeris"],
+        "aws": ["aws", "amazon web services", "ec2", "s3", "lambda"],
+        "sql": ["sql", "postgres", "mysql", "database"],
+        "machine learning": ["machine learning", "ml", "tensorflow", "pytorch"],
+        "graphql": ["graphql"],
+        "redis": ["redis", "caching"],
+        "leadership": ["team lead", "management", "managed a team", "led a team"],
+        "agile": ["agile", "scrum", "kanban", "sprint"],
+    }
+    
+    missing = []
+    for tech, variants in tech_groups.items():
+        jd_mentions = any(v in jd_lower for v in variants)
+        candidate_has = any(v in all_candidate_text for v in variants)
+        if jd_mentions and not candidate_has:
+            missing.append(tech)
+    
+    # Generate readable suggestions
+    for tech in missing[:3]:
+        if tech in ["leadership", "agile"]:
+            suggestions.append(f"Add details about team leadership or {tech} experience to strengthen JD alignment.")
+        else:
+            suggestions.append(f"The JD requires '{tech}' — add a project or skill entry showcasing your {tech} experience to improve the ATS match.")
+    
+    # Check for missing quantifiable achievements
+    has_numbers = bool(re.search(r'\d+[%x]?|\$\d+|\d+\s*(million|k|users|team|members)', all_candidate_text))
+    if not has_numbers:
+        suggestions.append("Add quantifiable achievements (e.g., 'Reduced latency by 30%', 'Led a team of 5') to strengthen impact.")
+    
+    # Check for missing LinkedIn URL
+    if not persona.get("linkedin"):
+        suggestions.append("Add your LinkedIn profile URL — many ATS systems use it to validate your professional presence.")
+    
+    return suggestions[:4]  # Cap at 4 suggestions
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -114,6 +173,7 @@ STRICT RULES:
 {focus_prompt}
 - Return the candidate's Education details exactly as provided.
 - If the candidate has Projects, include and tailor their descriptions.
+- If the JD requires specific skills, roles, or experiences that are MISSING or weakly represented in the candidate's profile, generate a `gap_analysis` list with 1-3 specific, actionable suggestions for the candidate (e.g., "Add a project that highlights your experience with React", "Mention your team size to show leadership as required by the JD"). If there are no missing fields, return an empty list.
 - Output ONLY valid JSON. No preamble or explanation.
 
 Candidate:
@@ -123,12 +183,14 @@ Job Description (excerpt):
 {slim_jd}
 
 Required JSON:
-{{"tailored_summary":"summary text","tailored_skills":["skill1","skill2"],"tailored_experience":[{{"role":"Exact role","company":"Exact company","duration":"Exact dates","tailored_bullets":["Bullet 1","Bullet 2","Bullet 3"]}}],"tailored_projects":[{{"name":"Project Name","description":"Tailored Description"}}],"education":[{{"degree":"Degree","school":"School","year":"Year"}}],"match_analysis":"1-2 sentences on candidate fit"}}"""
+{{"tailored_summary":"summary text","tailored_skills":["skill1","skill2"],"tailored_experience":[{{"role":"Exact role","company":"Exact company","duration":"Exact dates","tailored_bullets":["Bullet 1","Bullet 2","Bullet 3"]}}],"tailored_projects":[{{"name":"Project Name","description":"Tailored Description"}}],"education":[{{"degree":"Degree","school":"School","year":"Year"}}],"match_analysis":"1-2 sentences on candidate fit","gap_analysis":["suggestion 1", "suggestion 2"]}}"""
 
         try:
             response = self.generator.run(prompt=prompt)
             content  = response["replies"][0]
             result   = _parse_json(content)
+            # Always compute gap_analysis at Python level (LLM may skip it)
+            result["gap_analysis"] = _compute_gap_analysis(persona, job_description)
             return {"tailored_result": result}
         except Exception as e:
             logger.error(f"Tailoring failed: {e}")
@@ -138,7 +200,8 @@ Required JSON:
                 "tailored_experience": [_fmt_exp(e) for e in (persona.get("experience_highlights") or [])],
                 "tailored_projects":   persona.get("projects", []),
                 "education":           persona.get("education", []),
-                "match_analysis":      "Tailor step encountered an error; original data preserved."
+                "match_analysis":      "Tailor step encountered an error; original data preserved.",
+                "gap_analysis":        _compute_gap_analysis(persona, job_description)
             }}
 
 
@@ -247,7 +310,7 @@ class FinalizeResumeComponent:
 - Bullets: action verb → task → metric. Max {'2' if compact else '4'} per role.
 - Skills: exact keyword phrases from JD."""
 
-        page_rules = f"""- Format: {'1-PAGE COMPACT (be concise, trim bullets to 2 per role, skills max 8)' if compact else '2-PAGE FULL-DETAIL (include all bullets and skills, be thorough)'}."""
+        page_rules = f"""- Format: {'1-PAGE COMPACT: You MUST strictly limit the summary to 2 sentences max. You MUST trim bullets to EXACTLY 2 per role. You MUST limit skills to a maximum of 8.' if compact else '2-PAGE FULL-DETAIL: You MUST include all bullets and skills, be thorough and expansive.'}"""
 
         prompt = f"""You are a professional resume editor finalizing content for a {template.upper()} template on {page_count} page(s).
 DO NOT re-invent or hallucinate content. Only adapt tone, length, and emphasis.
@@ -272,6 +335,12 @@ Output ONLY valid JSON:
             result.setdefault("tailored_projects", persona.get("projects") or persona.get("tailored_projects", []))
             result.setdefault("education", persona.get("education", []))
             result["cover_letter"] = persona.get("cover_letter", "")
+            if "gap_analysis" in persona:
+                result["gap_analysis"] = persona["gap_analysis"]
+            elif "gap_analysis" in result:
+                pass 
+            else:
+                result["gap_analysis"] = []
             return {"final_result": result}
         except Exception as e:
             logger.error(f"Finalize failed: {e}")
@@ -282,6 +351,7 @@ Output ONLY valid JSON:
                 "tailored_projects":   persona.get("projects") or persona.get("tailored_projects", []),
                 "education":           persona.get("education", []),
                 "cover_letter":        persona.get("cover_letter", ""),
+                "gap_analysis":        persona.get("gap_analysis", []),
             }}
 
 
@@ -380,6 +450,8 @@ Required JSON structure (extract real info only):
 
         final = tailor_result["tailored_result"]
         final["cover_letter"] = cl_result["cover_letter"]
+        if "gap_analysis" in tailor_result["tailored_result"]:
+            final["gap_analysis"] = tailor_result["tailored_result"]["gap_analysis"]
         return final
 
     async def finalize_resume(self, persona: Dict[str, Any], template: str, page_count: int, job_description: str = "") -> Dict[str, Any]:

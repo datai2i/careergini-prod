@@ -6,6 +6,7 @@ import { ProcessingOverlay } from '../components/common/ProcessingOverlay';
 import { useToast } from '../context/ToastContext';
 import { DraftResumeModal } from '../components/DraftResumeModal';
 import { UpgradePromptModal } from '../components/common/UpgradePromptModal';
+import { Lightbulb } from 'lucide-react';
 
 interface ResumePersona {
     full_name: string;
@@ -36,6 +37,7 @@ interface ResumePersona {
     }>;
     certifications?: string[];
     cover_letter?: string;
+    gap_analysis?: string[];
     ats_score?: number;
 }
 
@@ -119,6 +121,7 @@ export const ResumeBuilderPage: React.FC = () => {
                     top_skills: tc.tailored_skills || persona?.top_skills,
                     experience_highlights: tc.tailored_experience || persona?.experience_highlights,
                     cover_letter: tc.cover_letter || persona?.cover_letter,
+                    gap_analysis: tc.gap_analysis || [],
                 };
                 setPersona(persona);
                 setJobDescription(s.job_description || '');
@@ -299,7 +302,8 @@ export const ResumeBuilderPage: React.FC = () => {
                     summary: data.tailored_content.tailored_summary || persona?.summary,
                     top_skills: data.tailored_content.tailored_skills || persona?.top_skills,
                     experience_highlights: data.tailored_content.tailored_experience || persona?.experience_highlights,
-                    projects: data.tailored_content.tailored_projects || persona?.projects
+                    projects: data.tailored_content.tailored_projects || persona?.projects,
+                    gap_analysis: data.tailored_content.gap_analysis || persona?.gap_analysis || []
                 };
 
                 setTailoredContent(completeTailoredPersona);
@@ -550,7 +554,7 @@ export const ResumeBuilderPage: React.FC = () => {
                     <div className="space-y-6">
                         <div className="bg-white/70 backdrop-blur-md rounded-2xl p-8 border border-white/20 shadow-xl">
                             {(!persona.email || !persona.phone || !persona.linkedin) && (
-                                <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start">
+                                <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start shadow-sm">
                                     <AlertCircle className="w-5 h-5 text-amber-500 mt-0.5 mr-3 flex-shrink-0" />
                                     <div>
                                         <h4 className="text-sm font-semibold text-amber-800">Gini Suggests: Missing Contact Info</h4>
@@ -564,6 +568,24 @@ export const ResumeBuilderPage: React.FC = () => {
                                     </div>
                                 </div>
                             )}
+
+                            {persona.gap_analysis && persona.gap_analysis.length > 0 && (
+                                <div className="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start shadow-sm">
+                                    <Lightbulb className="w-5 h-5 text-blue-500 mt-0.5 mr-3 flex-shrink-0" />
+                                    <div>
+                                        <h4 className="text-sm font-semibold text-blue-800">Gini Suggests: Boost your ATS Match!</h4>
+                                        <p className="text-sm text-blue-700 mt-1 mb-2">
+                                            Based on the Job Description you provided, we highly recommend adding the following missing fields to improve your filtering success rate:
+                                        </p>
+                                        <ul className="text-sm text-blue-800 list-disc list-inside space-y-1 ml-1">
+                                            {persona.gap_analysis.map((suggestion, idx) => (
+                                                <li key={idx}>{suggestion}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                                 <div className="flex-1 w-full">
                                     <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Full Name</label>

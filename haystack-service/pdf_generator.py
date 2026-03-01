@@ -18,8 +18,9 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY, TA_RIGHT
 from reportlab.lib.units import inch
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from typing import Dict, Any, List, Optional
 import base64, io, logging, os
+from typing import Dict, Any, List, Optional
+from latex_generator import generate_pdf_latex
 
 logger = logging.getLogger(__name__)
 PAGE_W, PAGE_H = letter  # 612 × 792 pt
@@ -639,6 +640,15 @@ def generate_pdf(
     # Remap legacy template names
     if template not in ("professional", "executive", "fresher"):
         template = "professional"
+
+    # TRY LATEX FIRST
+    try:
+        success = generate_pdf_latex(output_path, persona, template, page_count)
+        if success:
+            return True
+        logger.warning(f"LaTeX generation failed for {template}. Falling back to ReportLab.")
+    except Exception as e:
+        logger.warning(f"LaTeX generation exception for {template}: {e}. Falling back to ReportLab.")
 
     compact = (page_count == 1)
 

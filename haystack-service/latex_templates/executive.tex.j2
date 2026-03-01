@@ -1,0 +1,101 @@
+\documentclass[\VAR{'10pt' if compact else '11pt'}, letterpaper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{libertine}
+\usepackage{geometry}
+\geometry{left=\VAR{'0.45in' if compact else '0.7in'}, top=\VAR{'0.45in' if compact else '0.6in'}, right=\VAR{'0.45in' if compact else '0.7in'}, bottom=\VAR{'0.45in' if compact else '0.6in'}}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{multicol}
+
+% Colors
+\definecolor{primary}{RGB}{0, 0, 0}
+\definecolor{secondary}{RGB}{68, 68, 68}
+\definecolor{accent}{RGB}{0, 0, 238}
+
+% Formatting
+\pagenumbering{gobble}
+\setlength{\parindent}{0pt}
+\titleformat{\section}{\Large\bfseries\color{primary}}{}{0em}{}[\vspace{-0.5em}\rule{\textwidth}{0.8pt}]
+\titlespacing*{\section}{0pt}{\VAR{'1ex' if compact else '3ex'}}{\VAR{'0.5ex' if compact else '1.5ex'}}
+
+\begin{document}
+% Header
+\noindent
+\begin{minipage}[b]{0.6\textwidth}
+    {\huge\bfseries\color{primary} \VAR{full_name|escape_latex}} \\ \vspace{0.3em}
+    \ifx\relax\VAR{professional_title|escape_latex}\relax\else
+    {\large\color{secondary} \VAR{professional_title|escape_latex}}
+    \fi
+\end{minipage}%
+\begin{minipage}[b]{0.4\textwidth}
+    \raggedleft\small\color{secondary}
+    \ifx\relax\VAR{email|default('')|escape_latex}\relax\else\href{mailto:\VAR{email|escape_latex}}{\VAR{email|escape_latex}} \\ \fi
+    \ifx\relax\VAR{phone|default('')|escape_latex}\relax\else\VAR{phone|escape_latex} \\ \fi
+    \ifx\relax\VAR{location|default('')|escape_latex}\relax\else\VAR{location|escape_latex} \\ \fi
+    \ifx\relax\VAR{linkedin|default('')|escape_latex}\relax\else\href{\VAR{linkedin|escape_latex}}{LinkedIn} \\ \fi
+\end{minipage}
+
+\vspace{0.5em}
+\rule{\textwidth}{0.8pt}
+\vspace{-0.5em}
+\rule{\textwidth}{0.2pt}
+
+% Summary
+\ifx\relax\VAR{summary|default('')|escape_latex}\relax\else
+\section*{Executive Profile}
+\VAR{summary|escape_latex}
+\fi
+
+% Skills
+\BLOCK{ if top_skills }
+\section*{Core Competencies}
+\begin{multicols}{3}
+\begin{itemize}[label=▸, leftmargin=*, noitemsep]
+\BLOCK{ for skill in top_skills }
+    \item \VAR{skill|escape_latex}
+\BLOCK{ endfor }
+\end{itemize}
+\end{multicols}
+\BLOCK{ endif }
+
+% Experience
+\BLOCK{ if experience_highlights }
+\section*{Career Timeline}
+\BLOCK{ for exp in experience_highlights }
+\textbf{\VAR{exp.role|default('')|escape_latex}} \hfill \textit{\VAR{exp.duration|default('')|escape_latex}} \\
+\textit{\color{secondary}\VAR{exp.company|default('')|escape_latex}}
+\vspace{-0.5em}
+\begin{itemize}[leftmargin=*, noitemsep\VAR{', topsep=0pt' if compact else ''}]
+\BLOCK{ for bullet in exp.tailored_bullets|default([]) }
+    \item \VAR{bullet|escape_latex}
+\BLOCK{ endfor }
+\end{itemize}
+\vspace{\VAR{'0.2em' if compact else '0.5em'}}
+\BLOCK{ endfor }
+\BLOCK{ endif }
+
+% Education
+\BLOCK{ if education }
+\section*{Education}
+\BLOCK{ for edu in education }
+\textbf{\VAR{edu.degree|default('')|escape_latex}} \hfill \textit{\VAR{edu.year|default('')|escape_latex}} \\
+\textit{\VAR{edu.school|default('')|escape_latex}}
+\vspace{\VAR{'0.2em' if compact else '0.5em'}}
+\BLOCK{ endfor }
+\BLOCK{ endif }
+
+% Projects
+\BLOCK{ if projects and not compact }
+\section*{Key Achievements \& Projects}
+\BLOCK{ for proj in projects }
+\textbf{\VAR{proj.name|default('')|escape_latex}} \\
+\VAR{proj.description|default('')|escape_latex}
+\vspace{\VAR{'0.2em' if compact else '0.5em'}}
+\BLOCK{ endfor }
+\BLOCK{ endif }
+
+\end{document}

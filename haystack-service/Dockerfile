@@ -2,9 +2,14 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies including LaTeX for PDF generation
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    texlive-xetex \
+    texlive-fonts-extra \
+    texlive-fonts-recommended \
+    texlive-latex-extra \
+    fontconfig \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

@@ -392,6 +392,27 @@ def generate_resume_docx(
     if "tailored_skills"     in persona: persona["top_skills"]             = persona["tailored_skills"]
     if "tailored_experience" in persona: persona["experience_highlights"]  = persona["tailored_experience"]
 
+    # Enforce compact mode constraints safely in python layer
+    if compact:
+        exps = persona.get("experience_highlights", [])
+        trimmed = []
+        for exp in exps:
+            exp_copy = dict(exp)
+            raw_bl = exp_copy.get("tailored_bullets") or exp_copy.get("key_achievement") or []
+            if isinstance(raw_bl, str):
+                 bl = [b.strip() for b in raw_bl.replace(";", "\n").split("\n") if b.strip()]
+            else:
+                bl = [str(b).strip() for b in raw_bl if str(b).strip()]
+            exp_copy["tailored_bullets"] = bl[:2]
+            trimmed.append(exp_copy)
+        persona["experience_highlights"] = trimmed
+        
+        if persona.get("top_skills"):
+            persona["top_skills"] = persona["top_skills"][:8]
+            
+        if template == "fresher" and persona.get("projects"):
+            persona["projects"] = persona["projects"][:2]
+
     try:
         logger.info(f"Starting DOCX generation: {template}, {page_count}p")
         doc = _setup_doc(template, page_count)
