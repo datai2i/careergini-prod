@@ -219,9 +219,28 @@ async def upload_resume(
             raise HTTPException(status_code=400, detail="Could not extract text from file.")
         
         # Extract Persona using ResumeAdvisorAgent
+        # IMPORTANT: extract_persona is a synchronous LLM call.
+        # We run it in a thread-pool executor so it doesn't block the event loop.
+        import asyncio
         ollama = get_ollama_client()
         agent = ResumeAdvisorAgent(ollama.get_generator("fast"))
-        persona = agent.extract_persona(text)
+        loop = asyncio.get_event_loop()
+        try:
+            persona = await asyncio.wait_for(
+                loop.run_in_executor(None, lambda: agent.extract_persona(text)),
+                timeout=120.0  # fail fast if LLM takes > 2 min
+            )
+        except asyncio.TimeoutError:
+            logger.error(f"extract_persona timed out for user {user_id}")
+            # Return graceful fallback so user can still use the app
+            persona = {
+                "full_name": "", "professional_title": "", "years_experience": 0,
+                "email": "", "phone": "", "location": "", "linkedin": "", "portfolio_url": "",
+                "summary": "Resume uploaded. Please complete your profile details below.",
+                "top_skills": [], "experience_highlights": [], "projects": [],
+                "education": [], "certifications": [], "career_level": "Unknown",
+                "suggested_roles": [], "_extraction_timeout": True
+            }
         
         # Save Persona to disk
         persona_path = f"{upload_dir}/persona.json"
