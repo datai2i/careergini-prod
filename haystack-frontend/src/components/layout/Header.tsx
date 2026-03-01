@@ -1,16 +1,24 @@
 import React from 'react';
-import { Bell, Moon, Sun, Search, LogIn, User as UserIcon, LogOut, Shield } from 'lucide-react';
+import { Bell, Moon, Sun, Search, LogIn, User as UserIcon, LogOut, Shield, Menu } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useNavigate, Link } from 'react-router-dom';
 
-export const Header: React.FC = () => {
+export const Header: React.FC<{ onToggleMobileMenu?: () => void }> = ({ onToggleMobileMenu }) => {
     const { user, logout, isAuthenticated } = useAuth();
     const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
 
     return (
-        <header className="sticky top-0 z-50 flex items-center justify-between px-6 py-4 bg-white/80 dark:bg-dark-card/80 backdrop-blur-md border-b border-gray-200/50 dark:border-dark-border/50">
+        <header className="sticky top-0 z-30 flex items-center justify-between px-4 md:px-6 py-4 bg-white/80 dark:bg-dark-card/80 backdrop-blur-md border-b border-gray-200/50 dark:border-dark-border/50">
+            {/* Mobile Hamburger */}
+            <button
+                className="md:hidden p-2 -ml-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-border rounded-xl transition-colors"
+                onClick={onToggleMobileMenu}
+            >
+                <Menu size={24} />
+            </button>
+
             {/* Search Bar */}
             <div className="relative w-96 hidden md:block group">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" size={20} />

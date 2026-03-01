@@ -3,12 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { MessageSquare, FileText, Briefcase, GraduationCap, Sparkles, Zap, ChevronRight, Star, Globe } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { GiniGuide } from '../components/GiniGuide';
-
-const PLAN_META: Record<string, { label: string; maxBuilds: number; color: string; upgradePlans: { key: string; label: string; price: string }[] }> = {
-    free: { label: 'Free', maxBuilds: 1, color: 'text-gray-600', upgradePlans: [{ key: 'starter', label: 'Starter', price: '$5' }, { key: 'premium', label: 'Premium', price: '$20' }] },
-    basic: { label: 'Starter', maxBuilds: 5, color: 'text-blue-600', upgradePlans: [{ key: 'premium', label: 'Premium', price: '$20' }] },
-    premium: { label: 'Premium', maxBuilds: 20, color: 'text-purple-600', upgradePlans: [] },
-};
+import { PLAN_META } from '../utils/planLimits';
 
 const PLAN_FEATURES: Record<string, string[]> = {
     free: ['1 AI resume build', 'ATS score & feedback', 'PDF export'],
@@ -71,7 +66,12 @@ export const HomePage: React.FC = () => {
                     <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Workspace Tools</h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {quickActions.map((action, index) => {
-                            const isLocked = plan === 'free' && action.title !== 'Resume Builder';
+                            let isLocked = false;
+                            if (action.title === 'Resume Builder') {
+                                isLocked = buildCount >= maxBuilds;
+                            } else if (plan === 'free') {
+                                isLocked = true;
+                            }
                             return (
                                 <button
                                     key={index}

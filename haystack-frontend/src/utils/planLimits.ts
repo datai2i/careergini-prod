@@ -72,3 +72,10 @@ export const checkAccess = (userPlan: PlanTier | string, feature: keyof PlanLimi
     if (typeof value === 'boolean') return value;
     return value > 0;
 };
+
+export const PLAN_META: Record<string, { label: string; maxBuilds: number; color: string; upgradePlans: { key: string; label: string; price: string }[] }> = {
+    free: { label: 'Free', maxBuilds: 1, color: 'text-gray-600', upgradePlans: [{ key: 'starter', label: 'Starter', price: '$5' }, { key: 'premium', label: 'Premium', price: '$20' }] },
+    basic: { label: 'Starter', maxBuilds: 5, color: 'text-blue-600', upgradePlans: [{ key: 'premium', label: 'Premium', price: '$20' }] },
+    premium: { label: 'Premium', maxBuilds: 20, color: 'text-purple-600', upgradePlans: [] },
+};
+

@@ -102,41 +102,43 @@ export const UpgradePromptModal: React.FC<UpgradePromptModalProps> = ({ isOpen, 
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-            <div className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden border border-white/20 animate-scaleIn">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+            <div className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden border border-white/20 animate-scaleIn flex flex-col max-h-[92vh]">
                 {/* Decorative Background */}
                 <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-r from-blue-600 to-purple-600 -z-10 opacity-10"></div>
                 <div className="absolute -top-20 -right-20 w-40 h-40 bg-purple-500/20 rounded-full blur-3xl"></div>
 
-                <button
-                    onClick={onClose}
-                    className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
-                >
-                    <X className="w-5 h-5 text-gray-500" />
-                </button>
+                <div className="sticky top-0 right-0 p-4 border-b border-transparent z-10 w-full flex justify-end">
+                    <button
+                        onClick={onClose}
+                        className="p-2 rounded-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-sm hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+                    >
+                        <X className="w-5 h-5 text-gray-500" />
+                    </button>
+                </div>
 
-                <div className="p-8 pt-10">
+                <div className="p-6 md:p-8 pt-2 overflow-y-auto">
                     <div className="flex items-center gap-3 mb-6">
-                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
-                            <Zap className="w-6 h-6" />
+                        <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/30 flex-shrink-0">
+                            <Zap className="w-5 h-5 md:w-6 md:h-6" />
                         </div>
-                        <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white leading-tight">
+                        <h2 className="text-xl md:text-2xl font-extrabold text-gray-900 dark:text-white leading-tight">
                             {title}
                         </h2>
                     </div>
 
-                    <p className="text-gray-600 dark:text-gray-300 mb-8 leading-relaxed">
+                    <p className="text-sm md:text-base text-gray-600 dark:text-gray-300 mb-6 md:mb-8 leading-relaxed">
                         {message}
                     </p>
 
                     {features.length > 0 && (
-                        <div className="space-y-4 mb-10">
+                        <div className="space-y-4 mb-8 md:mb-10">
                             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Included in next level:</p>
-                            <div className="grid grid-cols-1 gap-3">
+                            <div className="grid grid-cols-1 gap-2 md:gap-3">
                                 {features.map((feature, i) => (
-                                    <div key={i} className="flex items-center gap-3 p-3 rounded-2xl bg-gray-50 dark:bg-slate-800/50 border border-gray-100 dark:border-slate-700/50">
-                                        <div className="w-6 h-6 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400">
-                                            <Check className="w-4 h-4" />
+                                    <div key={i} className="flex items-center gap-3 p-2 md:p-3 rounded-2xl bg-gray-50 dark:bg-slate-800/50 border border-gray-100 dark:border-slate-700/50">
+                                        <div className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400 flex-shrink-0">
+                                            <Check className="w-3 h-3 md:w-4 md:h-4" />
                                         </div>
                                         <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{feature}</span>
                                     </div>

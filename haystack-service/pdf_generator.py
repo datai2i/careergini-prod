@@ -83,10 +83,33 @@ def parse_base64_image(b64: str, w: float = 1.1 * inch, h: float = 1.1 * inch):
 
 
 def _bullets(exp: dict) -> List[str]:
-    raw = exp.get("tailored_bullets") or exp.get("key_achievement") or []
+    """Extract bullet points from an experience entry. Handles list and string formats.
+    Checks tailored_bullets, bullets (from FinalizeComponent), and key_achievement.
+    """
+    raw = (exp.get("tailored_bullets")
+           or exp.get("bullets")
+           or exp.get("key_achievement")
+           or [])
     if isinstance(raw, list):
         return [str(b).strip() for b in raw if str(b).strip()]
-    return [b.strip() for b in str(raw).replace(";", "\n").split("\n") if b.strip()]
+    # Handle semicolon or newline-separated string
+    raw_str = str(raw).strip()
+    for sep in ["\n", ";"]:
+        parts = [b.strip() for b in raw_str.split(sep) if b.strip()]
+        if len(parts) > 1:
+            return parts
+    return [raw_str] if raw_str else []
+
+
+def _clean_duration(duration: str) -> str:
+    """Sanitize duration strings from LLM output."""
+    d = str(duration or "").strip()
+    # Remove artefacts like 'None', 'null', placeholder quotes
+    if d.lower() in ("none", "null", "n/a", "", "not specified", "(not specified)"):
+        return ""
+    # Remove surrounding quotes
+    d = d.strip('"\'')
+    return d
 
 
 def _ps(name: str, **kw) -> ParagraphStyle:
@@ -242,9 +265,16 @@ def _contact_line(persona: dict, S: dict) -> List:
 
 
 def _exp_block(exp: dict, S: dict, max_bullets: Optional[int] = None) -> List:
-    role     = _clean(exp.get("role"))
-    company  = _clean(exp.get("company"))
-    duration = _clean(exp.get("duration"))
+    """Render a single experience entry.
+    Layout:
+      Role (bold, accent)
+      Company  ·  Duration  (italic, sub-colour)
+      • Bullet 1
+      • Bullet 2
+    """
+    role     = _clean(exp.get("role") or exp.get("title") or "")
+    company  = _clean(exp.get("company") or exp.get("organization") or "")
+    duration = _clean_duration(exp.get("duration") or exp.get("period") or exp.get("dates") or "")
     blist    = _bullets(exp)
     if max_bullets:
         blist = blist[:max_bullets]
@@ -252,42 +282,85 @@ def _exp_block(exp: dict, S: dict, max_bullets: Optional[int] = None) -> List:
     items = []
     if role:
         items.append(Paragraph(role, S["role"]))
-    comp_dur = [x for x in [company, duration] if x]
-    if comp_dur:
-        items.append(Paragraph("  ·  ".join(comp_dur), S["company"]))
+    # Company and duration on the same line, clearly formatted
+    comp_parts = [p for p in [company, duration] if p]
+    if comp_parts:
+        items.append(Paragraph("  ·  ".join(comp_parts), S["company"]))
+    elif company:
+        items.append(Paragraph(company, S["company"]))
     for b in blist:
-        items.append(Paragraph(f"•\u00a0{b}", S["bullet"]))
+        safe_b = b.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        items.append(Paragraph(f"\u2022\u00a0{safe_b}", S["bullet"]))
     items.append(Spacer(1, S["_sp_exp"]))
     return items
 
 
+
 def _education_block(persona: dict, S: dict) -> List:
+    """Render education entries. Handles multiple LLM field name variants.
+    Always shows: Degree (bold) | School | Year — each clearly separated.
+    """
     items = []
     for edu in (persona.get("education") or []):
-        d  = _clean(edu.get("degree"))
-        sc = _clean(edu.get("school"))
-        yr = _clean(edu.get("year"))
-        parts = []
-        if d:  parts.append(f"<b>{d}</b>")
-        if sc: parts.append(sc)
-        txt = ", ".join(parts)
-        if yr: txt += f"  ({yr})"
-        if txt.strip():
-            items.append(Paragraph(txt, S["body_left"]))
-            items.append(Spacer(1, 3))
+        # Handle multiple field name variants from different LLM outputs
+        degree  = _clean(edu.get("degree")  or edu.get("qualification") or edu.get("program") or "")
+        school  = _clean(edu.get("school")  or edu.get("institution")   or edu.get("university") or edu.get("college") or "")
+        year    = _clean(edu.get("year")    or edu.get("graduation_year") or edu.get("end_year") or edu.get("date") or "")
+        subject = _clean(edu.get("subject") or edu.get("field") or edu.get("major") or "")
+
+        if not (degree or school):
+            continue
+
+        # Line 1: Degree  (School)  Year — all on one line, clearly formatted
+        line_parts = []
+        if degree:
+            line_parts.append(f"<b>{degree}</b>")
+            if subject:
+                line_parts[-1] += f" <i>in {subject}</i>"
+        if school:
+            line_parts.append(school)
+        line1 = "  |  ".join(line_parts)
+        if year:
+            line1 += f"  ({year})"
+        items.append(Paragraph(line1, S["body_left"]))
+        items.append(Spacer(1, 4))
     return items
 
 
-def _skills_inline(skills: List[str], S: dict) -> List:
-    """Comma-separated inline — ATS-safe."""
-    return [Paragraph(", ".join(skills), S["body_left"]), Spacer(1, 3)]
+def _skills_grid(skills: List[str], S: dict, cols: int = 2) -> List:
+    """Render skills in a clean N-column grid for professional/fresher templates.
+    ATS-safe (text-based, no boxes). Each skill on its own cell with a bullet.
+    """
+    if not skills:
+        return []
+    rows, row = [], []
+    for i, sk in enumerate(skills):
+        row.append(Paragraph(f"•\u00a0{sk}", S["bullet"]))
+        if len(row) == cols or i == len(skills) - 1:
+            while len(row) < cols:
+                row.append(Paragraph("", S["bullet"]))
+            rows.append(row)
+            row = []
+    if not rows:
+        return []
+    col_width = (PAGE_W - 2 * 0.42 * inch) / cols
+    tbl = Table(rows, colWidths=[col_width] * cols)
+    tbl.setStyle(TableStyle([
+        ("ALIGN",         (0, 0), (-1, -1), "LEFT"),
+        ("VALIGN",        (0, 0), (-1, -1), "TOP"),
+        ("TOPPADDING",    (0, 0), (-1, -1), 1),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING",  (0, 0), (-1, -1), 4),
+    ]))
+    return [tbl, Spacer(1, 4)]
 
 
 def _competency_grid(skills: List[str], S: dict, cols: int = 3) -> List:
     """3-column grid for Executive template — visual weight without losing ATS."""
     rows, row = [], []
     for i, sk in enumerate(skills):
-        row.append(Paragraph(f"▸  {sk}", S["competency"]))
+        row.append(Paragraph(f"\u25b8  {sk}", S["competency"]))
         if len(row) == cols or i == len(skills) - 1:
             while len(row) < cols:
                 row.append(Paragraph("", S["competency"]))
@@ -306,21 +379,21 @@ def _competency_grid(skills: List[str], S: dict, cols: int = 3) -> List:
     return [tbl, Spacer(1, 4)]
 
 
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Template-specific renderers
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _render_professional(story: List, persona: dict, S: dict, compact: bool):
     """
-    Professionally Crafted — clean single-column navy layout.
-
+    Professionally Crafted — clean single-column layout.
     Section order (same for 1 & 2 page):
-      Header → Professional Summary → Skills → Work Experience →
-      Education → Projects* → Certifications*
-    (* 2-page only)
+      Header → Professional Summary → Core Skills → Work Experience →
+      Projects → Education → Certifications → Awards → Languages
     """
-    max_bullets = 2 if compact else None
-    max_skills  = 8 if compact else None
+    # 1-page: 3 bullets/role, 14 skills; 2-page: all bullets, all skills
+    max_bullets = 3 if compact else None
+    max_skills  = 14 if compact else None
     skills = (persona.get("top_skills") or [])[:max_skills] if max_skills else (persona.get("top_skills") or [])
 
     # ── Header ───────────────────────────────────────────────────────────────
@@ -328,52 +401,78 @@ def _render_professional(story: List, persona: dict, S: dict, compact: bool):
     story.append(Paragraph(_clean(persona.get("professional_title")), S["title"]))
     story.extend(_contact_line(persona, S))
     story.append(Spacer(1, 4))
-    story.append(HRFlowable(width="100%", thickness=0.25,
-                            color=S["_sec_bar"], spaceAfter=4))
+    story.append(HRFlowable(width="100%", thickness=0.5,
+                            color=S["_sec_bar"], spaceAfter=6))
 
     # ── Summary ──────────────────────────────────────────────────────────────
     summary = _clean(persona.get("summary"))
     if summary:
         story.extend(_section_header("Professional Summary", S))
-        # For compact: first 2 sentences max
+        # For compact: first 4 sentences to keep density, 
+        # full content for 2-page
         if compact:
-            sentences = [s.strip() for s in summary.replace("!",".|").replace("?",".|").split(".") if s.strip()]
-            summary = ". ".join(sentences[:3]) + ("." if sentences else "")
+            sentences = [s.strip() for s in summary.replace("!", ".").replace("?", ".").split(".") if s.strip()]
+            summary = ". ".join(sentences[:4]) + "." if sentences else summary
         story.append(Paragraph(summary, S["body"]))
         story.append(Spacer(1, 2))
 
-    # ── Skills ───────────────────────────────────────────────────────────────
+    # ── Core Skills ──────────────────────────────────────────────────────────
     if skills:
         story.extend(_section_header("Core Skills", S))
-        story.extend(_skills_inline(skills, S))
+        story.extend(_skills_grid(skills, S, cols=2))
 
-    # ── Work Experience ─────────────────────────────────────────────────────
+    # ── Work Experience ──────────────────────────────────────────────────────
     exps = persona.get("experience_highlights") or []
     if exps:
         story.extend(_section_header("Work Experience", S))
         for exp in exps:
             story.append(KeepTogether(_exp_block(exp, S, max_bullets=max_bullets)))
 
+    # ── Projects (ALWAYS shown on both 1-page and 2-page) ────────────────────
+    projects = persona.get("projects") or persona.get("tailored_projects") or []
+    if projects:
+        story.extend(_section_header("Projects", S))
+        # On 1-page show first 2 projects; on 2-page show all
+        show_projs = projects[:2] if compact else projects
+        for proj in show_projs:
+            name = _clean(proj.get("name") or proj.get("title") or "")
+            desc = _clean(proj.get("description") or proj.get("summary") or "")
+            tech = _clean(proj.get("technologies") or proj.get("tech_stack") or proj.get("tools") or "")
+            if name:
+                story.append(Paragraph(f"<b>{name}</b>", S["body_bold"]))
+            line2_parts = []
+            if tech:
+                line2_parts.append(f"<i>{tech}</i>")
+            if line2_parts:
+                story.append(Paragraph(" | ".join(line2_parts), S["company"]))
+            if desc:
+                story.append(Paragraph(desc, S["body_left"]))
+            story.append(Spacer(1, 5))
+
     # ── Education ────────────────────────────────────────────────────────────
     if persona.get("education"):
         story.extend(_section_header("Education", S))
         story.extend(_education_block(persona, S))
 
-    # ── Projects (2-page only) ───────────────────────────────────────────────
-    if not compact and persona.get("projects"):
-        story.extend(_section_header("Projects", S))
-        for proj in (persona.get("projects") or []):
-            name = _clean(proj.get("name"))
-            desc = _clean(proj.get("description"))
-            if name: story.append(Paragraph(f"<b>{name}</b>", S["body_bold"]))
-            if desc: story.append(Paragraph(desc, S["body_left"]))
-            story.append(Spacer(1, 4))
-
-    # ── Certifications (2-page only) ─────────────────────────────────────────
-    if not compact and persona.get("certifications"):
+    # ── Certifications (always shown if present) ─────────────────────────────
+    certs = persona.get("certifications") or []
+    if certs:
         story.extend(_section_header("Certifications", S))
-        for c in (persona.get("certifications") or []):
-            story.append(Paragraph(f"•\u00a0{_clean(c)}", S["bullet"]))
+        for c in certs:
+            story.append(Paragraph(f"\u2022\u00a0{_clean(c)}", S["bullet"]))
+
+    # ── Awards & Languages (2-page only) ─────────────────────────────────────
+    if not compact:
+        awards = persona.get("awards") or []
+        if awards:
+            story.extend(_section_header("Awards & Recognition", S))
+            for a in awards:
+                story.append(Paragraph(f"\u2022\u00a0{_clean(a)}", S["bullet"]))
+        languages = persona.get("languages") or []
+        if languages:
+            story.extend(_section_header("Languages", S))
+            story.append(Paragraph(", ".join([_clean(l) for l in languages]), S["body_left"]))
+
 
 
 def _render_executive(story: List, persona: dict, S: dict, compact: bool):
@@ -472,11 +571,24 @@ def _render_executive(story: List, persona: dict, S: dict, compact: bool):
             if desc: story.append(Paragraph(desc, S["body_left"]))
             story.append(Spacer(1, 4))
 
-    # ── Certifications (2-page only) ─────────────────────────────────────────
-    if not compact and persona.get("certifications"):
+    # ── Certifications (always shown if present) ─────────────────────────────
+    certs = persona.get("certifications") or []
+    if certs:
         story.extend(_section_header("Certifications & Credentials", S))
-        for c in (persona.get("certifications") or []):
+        for c in certs:
             story.append(Paragraph(f"•\u00a0{_clean(c)}", S["bullet"]))
+
+    # ── Awards & Languages (2-page only) ─────────────────────────────────────
+    if not compact:
+        awards = persona.get("awards") or []
+        if awards:
+            story.extend(_section_header("Awards & Recognition", S))
+            for a in awards:
+                story.append(Paragraph(f"•\u00a0{_clean(a)}", S["bullet"]))
+        languages = persona.get("languages") or []
+        if languages:
+            story.extend(_section_header("Languages", S))
+            story.append(Paragraph(", ".join([_clean(l) for l in languages]), S["body_left"]))
 
 
 
@@ -603,6 +715,7 @@ def generate_cover_letter_pdf(
     story.append(Paragraph(cl, S["body_left"]))
 
     try:
+        import logging; logging.info(f'STORY LENGTH: {len(story)}');
         doc.build(story)
         logger.info(f"Cover Letter PDF → {output_path}")
         return True
@@ -642,13 +755,13 @@ def generate_pdf(
         template = "professional"
 
     # TRY LATEX FIRST
-    try:
-        success = generate_pdf_latex(output_path, persona, template, page_count)
-        if success:
-            return True
-        logger.warning(f"LaTeX generation failed for {template}. Falling back to ReportLab.")
-    except Exception as e:
-        logger.warning(f"LaTeX generation exception for {template}: {e}. Falling back to ReportLab.")
+    # try:
+    #     success = generate_pdf_latex(output_path, persona, template, page_count)
+    #     if success:
+    #         return True
+    #     logger.warning(f"LaTeX generation failed for {template}. Falling back to ReportLab.")
+    # except Exception as e:
+    #     logger.warning(f"LaTeX generation exception for {template}: {e}. Falling back to ReportLab.")
 
     compact = (page_count == 1)
 
@@ -705,6 +818,7 @@ def generate_pdf(
         else:
             _render_professional(story, persona, S, compact)
 
+        import logging; logging.info(f'STORY LENGTH: {len(story)}');
         doc.build(story)
         logger.info(f"PDF built → {output_path}  [{template}, {page_count}p, compact={compact}]")
         return True

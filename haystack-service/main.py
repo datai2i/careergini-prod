@@ -711,7 +711,7 @@ async def generate_resume_pdf(request: ResumeTailorRequest):
                     "role": m["role"],
                     "company": m["company"],
                     "duration": m["duration"],
-                    "key_achievement": "; ".join(m["bullets"])
+                    "tailored_bullets": m["bullets"]
                 }
                 standard_exp.append(exp_entry)
             
@@ -722,8 +722,15 @@ async def generate_resume_pdf(request: ResumeTailorRequest):
             request.persona["summary"] = request.persona["tailored_summary"]
         if "tailored_skills" in request.persona:
             request.persona["top_skills"] = request.persona["tailored_skills"]
-                
-        # Generate the PDF
+        # Forward enriched fields from LLM tailoring into standard persona slots
+        if "tailored_projects" in request.persona and request.persona["tailored_projects"]:
+            request.persona["projects"] = request.persona["tailored_projects"]
+        # Forward certifications, awards, languages if present from tailoring step
+        for field in ("certifications", "awards", "languages"):
+            if field in request.persona and not request.persona.get(field):
+                pass  # Already set from base persona
+            # Already present - no action needed; they're accessed directly by pdf_generator
+
         # Note: In a real implementation, we would use reportlab here
         # For now, we will return a mock success response to unblock the frontend
         

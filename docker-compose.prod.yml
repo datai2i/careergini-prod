@@ -87,7 +87,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\" || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -103,8 +103,6 @@ services:
       context: ./profile-service
       dockerfile: ../docker/profile-service.Dockerfile
     container_name: careergini-profile
-    volumes:
-      - ./profile-service:/app
     command: npm start
     restart: unless-stopped
     environment:
@@ -125,7 +123,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -154,7 +152,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3002/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -235,7 +233,7 @@ services:
       - job-service
       - learning-service
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

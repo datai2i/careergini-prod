@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, FileText, CheckCircle, Download, ArrowRight, RefreshCw, AlertCircle, History, Clock, Edit3, Briefcase } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Upload, FileText, CheckCircle, Download, ArrowRight, RefreshCw, AlertCircle, History, Clock, Edit3, Briefcase, Sparkles as SparklesIcon, Lightbulb, Lock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { notifyStep, requestNotificationPermission } from '../utils/notify';
 import { ProcessingOverlay } from '../components/common/ProcessingOverlay';
 import { useToast } from '../context/ToastContext';
 import { DraftResumeModal } from '../components/DraftResumeModal';
 import { UpgradePromptModal } from '../components/common/UpgradePromptModal';
-import { Lightbulb } from 'lucide-react';
+import { PLAN_META } from '../utils/planLimits';
 
 interface ResumePersona {
     full_name: string;
@@ -57,6 +58,7 @@ const getDynamicRoles = (persona: any) => {
 };
 
 export const ResumeBuilderPage: React.FC = () => {
+    const navigate = useNavigate();
     const { user, refreshUser } = useAuth();
     const { showToast } = useToast();
     const [step, setStep] = useState(1);
@@ -431,120 +433,155 @@ export const ResumeBuilderPage: React.FC = () => {
                     </div>
                 )}
 
-                {/* Step 1: Choose How to Start */}
+                {/* Step 1: Integrated Resume Source */}
                 {step === 1 && (
-                    <div className="space-y-6">
-                        <div className="text-center mb-2">
-                            <h2 className="text-2xl font-semibold text-gray-800">How would you like to start?</h2>
-                            <p className="text-gray-500 text-sm mt-1">Choose an option below to begin building your resume.</p>
+                    <div className="max-w-4xl mx-auto space-y-8">
+                        <div className="text-center">
+                            <h2 className="text-3xl font-extrabold text-gray-900 mb-2">Build Your Resume</h2>
+                            <p className="text-gray-500 max-w-md mx-auto">Select how you'd like to provide your profile information to begin the tailoring process.</p>
                         </div>
 
-                        {/* Three option cards */}
-                        <div className="grid md:grid-cols-3 gap-5">
+                        {/* Quota Exhaustion Warning */}
+                        {user && user.resume_count >= (PLAN_META[user.plan || 'free']?.maxBuilds || 1) && (
+                            <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center gap-3 text-red-700 animate-pulse shadow-sm">
+                                <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                                <p className="text-sm font-bold uppercase tracking-tight">You have reached your plan limit. Please upgrade to build or download new resumes.</p>
+                            </div>
+                        )}
 
-                            {/* Card 1: Start Fresh */}
-                            <div className="bg-white/60 backdrop-blur-sm border-2 border-purple-100 hover:border-purple-400 rounded-2xl p-7 flex flex-col items-center text-center shadow-md hover:shadow-lg transition-all group">
-                                <div className="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-purple-200 transition-colors">
-                                    <Upload className="w-8 h-8 text-purple-600" />
+                        {/* Unified Source Selection Card */}
+                        <div className="bg-white rounded-[2rem] border-2 border-purple-50 p-2 shadow-2xl overflow-hidden relative group">
+                            {/* Locking Overlay */}
+                            {user && user.resume_count >= (PLAN_META[user.plan || 'free']?.maxBuilds || 1) && user.role !== 'admin' && (
+                                <div className="absolute inset-0 z-20 bg-gray-50/40 backdrop-blur-[2px] cursor-not-allowed flex flex-col items-center justify-center p-6 text-center">
+                                    <div className="bg-white p-6 rounded-3xl shadow-2xl border border-gray-100 max-w-sm">
+                                        <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center text-red-600 mx-auto mb-4">
+                                            <Lock size={32} />
+                                        </div>
+                                        <h4 className="text-xl font-black text-gray-900 mb-2">Build Limit Reached</h4>
+                                        <p className="text-sm text-gray-500 mb-6">Upgrade your plan to unlock AI tailoring and resume generation.</p>
+                                        <button
+                                            onClick={() => navigate('/payment')}
+                                            className="w-full py-4 bg-black text-white rounded-2xl font-bold hover:bg-gray-800 transition-colors shadow-lg"
+                                        >
+                                            Upgrade Now
+                                        </button>
+                                    </div>
                                 </div>
-                                <h3 className="text-lg font-bold text-gray-800 mb-2">Start Fresh</h3>
-                                <p className="text-sm text-gray-500 mb-5 flex-1">
-                                    We'll parse your resume or you can draft it manually, then guide you through 4 steps to tailor and generate your perfect resume.
-                                </p>
-                                <div className="w-full flex flex-col gap-2">
-                                    <button
-                                        onClick={() => setIsDraftModalOpen(true)}
-                                        className="w-full text-center bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-200 px-5 py-2.5 rounded-xl font-medium transition-all inline-flex items-center justify-center shadow-sm"
-                                    >
-                                        <Edit3 className="w-4 h-4 mr-2" /> Draft Manually
-                                    </button>
-                                    <label className="cursor-pointer w-full text-center bg-gradient-to-r from-purple-600 to-blue-600 text-white px-5 py-2.5 rounded-xl font-medium hover:opacity-90 transition-all inline-flex items-center justify-center shadow">
-                                        {uploading ? (
-                                            <><RefreshCw className="w-4 h-4 mr-2 animate-spin" /> Analyzing...</>
-                                        ) : (
-                                            <><FileText className="w-4 h-4 mr-2" /> Upload Resume</>
-                                        )}
-                                        <input
-                                            type="file"
-                                            className="hidden"
-                                            accept=".pdf,.docx,.txt"
-                                            onChange={handleFileUpload}
-                                            disabled={uploading}
-                                        />
-                                    </label>
+                            )}
+
+                            <div className="grid md:grid-cols-2">
+                                {/* Left Side: New Content */}
+                                <div className="p-8 space-y-6">
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
+                                            <SparklesIcon size={20} />
+                                        </div>
+                                        <h3 className="text-lg font-bold text-gray-800">Start Fresh</h3>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        {/* Upload Option */}
+                                        <label className="group cursor-pointer block p-4 rounded-2xl bg-gray-50 hover:bg-white border-2 border-transparent hover:border-purple-300 transition-all shadow-sm hover:shadow-md">
+                                            <input type="file" className="hidden" accept=".pdf,.docx,.txt" onChange={handleFileUpload} disabled={uploading} />
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+                                                    {uploading ? <RefreshCw className="animate-spin text-purple-600" /> : <Upload className="text-purple-600" />}
+                                                </div>
+                                                <div className="flex-1">
+                                                    <p className="font-bold text-gray-900">Upload Resume</p>
+                                                    <p className="text-xs text-gray-400">PDF, Word, or Text</p>
+                                                </div>
+                                                <ArrowRight size={18} className="text-gray-300 group-hover:text-purple-400 -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-300" />
+                                            </div>
+                                        </label>
+
+                                        {/* Draft Option */}
+                                        <button
+                                            onClick={() => setIsDraftModalOpen(true)}
+                                            className="w-full group p-4 rounded-2xl bg-gray-50 hover:bg-white border-2 border-transparent hover:border-blue-300 transition-all shadow-sm hover:shadow-md text-left"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform text-blue-600">
+                                                    <Edit3 />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <p className="font-bold text-gray-900">Draft Manually</p>
+                                                    <p className="text-xs text-gray-400">Step-by-step editor</p>
+                                                </div>
+                                                <ArrowRight size={18} className="text-gray-300 group-hover:text-blue-400 -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-300" />
+                                            </div>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Right Side: Existing Profile */}
+                                <div className="p-8 bg-gray-50 border-l border-gray-100 flex flex-col justify-center gap-6">
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+                                            <History size={20} />
+                                        </div>
+                                        <h3 className="text-lg font-bold text-gray-800">Fast Track</h3>
+                                    </div>
+
+                                    {persona ? (
+                                        <button
+                                            onClick={() => setStep(3)}
+                                            className="w-full group p-6 rounded-2xl bg-white border-2 border-emerald-50 hover:border-emerald-400 transition-all shadow-xl hover:shadow-2xl text-left relative overflow-hidden"
+                                        >
+                                            <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full -mr-10 -mt-10 blur-xl"></div>
+                                            <div className="flex items-center gap-4 relative z-10">
+                                                <div className="w-14 h-14 rounded-2xl bg-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-200 group-hover:scale-110 transition-transform">
+                                                    <CheckCircle size={28} />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <p className="text-xs font-bold text-emerald-600 uppercase tracking-widest mb-1">Found Profile</p>
+                                                    <p className="text-lg font-black text-gray-900 truncate">Continue as {persona.full_name?.split(' ')[0]}</p>
+                                                    <p className="text-xs text-gray-400 flex items-center gap-1 mt-1">
+                                                        <Clock size={12} /> Last active profile ready
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="mt-4 flex items-center justify-between text-xs font-bold text-emerald-600 border-t border-emerald-50 pt-4">
+                                                <span>SKIP TO JOB TAILORING</span>
+                                                <ArrowRight size={14} />
+                                            </div>
+                                        </button>
+                                    ) : (
+                                        <div className="w-full p-8 rounded-2xl bg-white border-2 border-dashed border-gray-200 text-center space-y-3 opacity-60">
+                                            <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center mx-auto text-gray-300">
+                                                <History size={24} />
+                                            </div>
+                                            <div>
+                                                <p className="font-bold text-gray-400 italic font-medium">No profile data yet</p>
+                                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Greys out until first upload</p>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
+                        </div>
 
-                            {/* Card 2: Existing Resume → Step 3 */}
-                            <div className={`bg-white/60 backdrop-blur-sm border-2 rounded-2xl p-7 flex flex-col items-center text-center shadow-md transition-all group ${persona ? 'border-emerald-100 hover:border-emerald-400 hover:shadow-lg' : 'border-gray-100 opacity-50'
-                                }`}>
-                                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-colors ${persona ? 'bg-emerald-100 group-hover:bg-emerald-200' : 'bg-gray-100'
-                                    }`}>
-                                    <CheckCircle className={`w-8 h-8 ${persona ? 'text-emerald-600' : 'text-gray-400'}`} />
+                        {/* Recent Activity Mini-Card */}
+                        {sessions.length > 0 && (
+                            <div className="bg-white/40 backdrop-blur-sm border border-white/60 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex -space-x-2">
+                                        {sessions.slice(0, 3).map((s, i) => (
+                                            <div key={i} className="w-8 h-8 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-400 shadow-sm">
+                                                {s.job_title_snippet?.[0] || 'R'}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <p className="text-xs font-medium text-gray-500">
+                                        Access <span className="font-bold text-gray-700">{sessions.length}</span> previously tailored sessions
+                                    </p>
                                 </div>
-                                <h3 className="text-lg font-bold text-gray-800 mb-2">Existing Resume</h3>
-                                <p className="text-sm text-gray-500 mb-5 flex-1">
-                                    {persona
-                                        ? `Your ${user?.latest_resume_filename ? `resume '${user.latest_resume_filename}'` : 'previous resume'} for ${persona.full_name} is ready. Jump straight to entering a job description.`
-                                        : 'No parsed resume found. Upload a new resume first to enable this option.'}
-                                </p>
-                                <button
-                                    onClick={() => { if (persona) setStep(3); }}
-                                    disabled={!persona}
-                                    className={`w-full px-5 py-2.5 rounded-xl font-medium border-2 transition-all inline-flex items-center justify-center ${persona
-                                        ? 'border-emerald-400 text-emerald-700 hover:bg-emerald-50'
-                                        : 'border-gray-200 text-gray-400 cursor-not-allowed'
-                                        }`}
-                                >
-                                    <ArrowRight className="w-4 h-4 mr-2" />
-                                    {persona ? `Continue as ${persona.full_name?.split(' ')[0] || 'User'}` : 'Not Available'}
+                                <button onClick={() => setStep(2)} className="text-[10px] font-bold text-blue-600 hover:text-blue-700 uppercase tracking-widest bg-blue-50 px-3 py-1.5 rounded-lg transition-colors">
+                                    View History →
                                 </button>
                             </div>
-
-                            {/* Card 3: Tailored Resume → Step 4 */}
-                            <div className={`bg-white/60 backdrop-blur-sm border-2 rounded-2xl p-7 flex flex-col items-center text-center shadow-md transition-all group ${sessions.length > 0 ? 'border-blue-100 hover:border-blue-400 hover:shadow-lg' : 'border-gray-100 opacity-50'
-                                }`}>
-                                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-colors ${sessions.length > 0 ? 'bg-blue-100 group-hover:bg-blue-200' : 'bg-gray-100'
-                                    }`}>
-                                    <History className={`w-8 h-8 ${sessions.length > 0 ? 'text-blue-600' : 'text-gray-400'}`} />
-                                </div>
-                                <h3 className="text-lg font-bold text-gray-800 mb-2">Tailored Resume</h3>
-                                <p className="text-sm text-gray-500 mb-4 flex-1">
-                                    {sessions.length > 0
-                                        ? `${sessions.length} previously tailored session${sessions.length > 1 ? 's' : ''} available. Pick one and jump straight to template selection.`
-                                        : 'No tailored sessions yet. Complete a tailoring step first.'}
-                                </p>
-                                {sessions.length > 0 ? (
-                                    <div className="w-full space-y-2 max-h-48 overflow-y-auto">
-                                        {sessions.map((s) => {
-                                            const dt = s.timestamp.replace('T', ' at ').substring(0, 19).replace(/-/g, '/');
-                                            return (
-                                                <button
-                                                    key={s.session_id}
-                                                    onClick={() => loadSession(s.session_id)}
-                                                    disabled={loadingSession}
-                                                    className="w-full text-left px-3 py-2.5 rounded-xl border border-blue-100 bg-blue-50/60 hover:bg-blue-100 transition-colors disabled:opacity-50 flex items-center gap-3"
-                                                >
-                                                    <Clock className="w-4 h-4 text-blue-400 flex-shrink-0" />
-                                                    <div className="min-w-0 flex-1">
-                                                        <p className="text-xs font-semibold text-gray-800 truncate">{s.job_title_snippet || 'Tailored Resume'}</p>
-                                                        <p className="text-xs text-gray-400">{dt}</p>
-                                                    </div>
-                                                    <span className="text-xs font-bold text-blue-600 flex-shrink-0">
-                                                        {loadingSession ? '...' : '→'}
-                                                    </span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                ) : (
-                                    <div className="w-full px-5 py-2.5 rounded-xl font-medium border-2 border-gray-200 text-gray-400 text-center text-sm">
-                                        No Sessions Yet
-                                    </div>
-                                )}
-                            </div>
-
-                        </div>
+                        )}
                     </div>
                 )}
 
@@ -1214,9 +1251,9 @@ export const ResumeBuilderPage: React.FC = () => {
                                     <button
                                         key={tpl.id}
                                         onClick={() => setSelectedTemplate(tpl.id)}
-                                        className={`p-5 rounded-xl border-2 text-left transition-all relative flex flex-col h-full ${selectedTemplate === tpl.id
-                                            ? 'border-purple-600 bg-purple-50 shadow-md ring-1 ring-purple-100'
-                                            : 'border-gray-200 bg-white hover:border-purple-300 hover:shadow-sm'
+                                        className={`p-5 rounded-xl border-2 text-left relative flex flex-col h-full transition-[transform,box-shadow,border-color,opacity] duration-300 ${selectedTemplate === tpl.id
+                                            ? 'border-purple-600 bg-purple-50 shadow-[0_0_20px_rgba(147,51,234,0.3)] ring-4 ring-purple-600/20 transform scale-105 z-10'
+                                            : 'border-gray-200 bg-white hover:border-purple-300 hover:shadow-md opacity-70 hover:opacity-100 hover:scale-[1.02]'
                                             }`}
                                     >
                                         <div className="flex items-start justify-between mb-2">

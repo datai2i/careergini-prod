@@ -23,7 +23,7 @@ import clsx from 'clsx';
 import { useAuth } from '../../context/AuthContext';
 import { usePlanAccess } from '../../hooks/usePlanAccess';
 
-export const Sidebar: React.FC = () => {
+export const Sidebar: React.FC<{ onItemClick?: () => void }> = ({ onItemClick }) => {
     const { logout, user } = useAuth();
     const { canAccess } = usePlanAccess();
     const navigate = useNavigate();
@@ -92,6 +92,7 @@ export const Sidebar: React.FC = () => {
         return (
             <NavLink
                 to={item.path}
+                onClick={onItemClick}
                 className={({ isActive }) =>
                     clsx(
                         "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
@@ -114,7 +115,7 @@ export const Sidebar: React.FC = () => {
     };
 
     return (
-        <aside className="hidden md:flex flex-col w-72 bg-white dark:bg-dark-card border-r border-gray-200 dark:border-dark-border">
+        <aside className="flex flex-col w-[280px] md:w-72 h-full bg-white dark:bg-dark-card border-r border-gray-200 dark:border-dark-border shadow-2xl md:shadow-none">
             <div className="p-6 pb-2 border-b border-gray-100 dark:border-dark-border/50">
                 <div className="flex items-center justify-center">
                     <button onClick={() => navigate('/home')} className="focus:outline-none" title="Go to Dashboard">
