@@ -58,19 +58,44 @@ export const LearningPage: React.FC = () => {
             fetchProgress();
             try {
                 const token = localStorage.getItem('auth_token');
-                if (token) {
-                    const profileRes = await fetch('/api/profile/me', {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    });
-                    if (profileRes.ok) {
-                        const profile = await profileRes.json();
-                        const skillsStr = Array.isArray(profile.skills) ? profile.skills.join(',') : '';
-                        const titleStr = profile.headline || profile.title || 'Software Engineering';
+                if (token && user?.id) {
+                    let skillsStr = '';
+                    let titleStr = 'Software Engineering';
 
-                        setSearchQuery(titleStr);
-                        await fetchCourses(titleStr, skillsStr);
-                        return;
+                    // 1. Try to fetch the rich AI persona first (including gaps)
+                    try {
+                        const personaRes = await fetch(`/api/resume/persona/${user.id}`);
+                        if (personaRes.ok) {
+                            const data = await personaRes.json();
+                            if (data.status === 'success' && data.persona) {
+                                const persona = data.persona;
+                                titleStr = persona.professional_title || titleStr;
+                                const allSkills = [
+                                    ...(persona.top_skills || []),
+                                    ...(persona.gap_analysis || [])
+                                ];
+                                skillsStr = allSkills.map(s => String(s).trim()).filter(Boolean).join(',');
+                            }
+                        }
+                    } catch (e) {
+                        console.log("No AI persona found for recommendations");
                     }
+
+                    // 2. Fallback to basic profile if no rich AI skills exist
+                    if (!skillsStr) {
+                        const profileRes = await fetch('/api/profile/me', {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        if (profileRes.ok) {
+                            const profile = await profileRes.json();
+                            skillsStr = Array.isArray(profile.skills) ? profile.skills.join(',') : '';
+                            titleStr = profile.headline || profile.title || titleStr;
+                        }
+                    }
+
+                    setSearchQuery(titleStr);
+                    await fetchCourses(titleStr, skillsStr);
+                    return;
                 }
             } catch (err) {
                 console.error("Failed to fetch profile context for learning", err);

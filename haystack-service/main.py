@@ -219,28 +219,9 @@ async def upload_resume(
             raise HTTPException(status_code=400, detail="Could not extract text from file.")
         
         # Extract Persona using ResumeAdvisorAgent
-        # IMPORTANT: extract_persona is a synchronous LLM call.
-        # We run it in a thread-pool executor so it doesn't block the event loop.
-        import asyncio
         ollama = get_ollama_client()
         agent = ResumeAdvisorAgent(ollama.get_generator("fast"))
-        loop = asyncio.get_event_loop()
-        try:
-            persona = await asyncio.wait_for(
-                loop.run_in_executor(None, lambda: agent.extract_persona(text)),
-                timeout=120.0  # fail fast if LLM takes > 2 min
-            )
-        except asyncio.TimeoutError:
-            logger.error(f"extract_persona timed out for user {user_id}")
-            # Return graceful fallback so user can still use the app
-            persona = {
-                "full_name": "", "professional_title": "", "years_experience": 0,
-                "email": "", "phone": "", "location": "", "linkedin": "", "portfolio_url": "",
-                "summary": "Resume uploaded. Please complete your profile details below.",
-                "top_skills": [], "experience_highlights": [], "projects": [],
-                "education": [], "certifications": [], "career_level": "Unknown",
-                "suggested_roles": [], "_extraction_timeout": True
-            }
+        persona = await agent.extract_persona(text)
         
         # Save Persona to disk
         persona_path = f"{upload_dir}/persona.json"
@@ -454,7 +435,7 @@ async def generate_gini_guide(user_id: str):
             exp_text += f"- {exp.get('role', 'Professional')} at {exp.get('company', 'Company')} ({exp.get('duration', '')})\n"
             highlights = exp.get("highlights", exp.get("key_achievement", exp.get("tailored_bullets", [])))
             if isinstance(highlights, list):
-                highlights = " | ".join(highlights)
+                highlights = " | ".join(str(h) for h in highlights)
             if highlights:
                 exp_text += f"  Highlights: {highlights[:200]}\n"
         
@@ -463,7 +444,7 @@ async def generate_gini_guide(user_id: str):
 User Profile:
 Name: {identity.get("full_name", "User")}
 Current Title: {identity.get("professional_title", "Professional")}
-Current Skills: {', '.join(skills[:20])}
+Current Skills: {', '.join(str(s) for s in skills[:20])}
 Recent Experience:
 {exp_text}
 
@@ -561,12 +542,12 @@ async def tailor_resume_endpoint(request: ResumeTailorRequest):
         # To score, we need a flat text representation of the tailored persona
         flat_text = f"{persona.get('full_name', '')}\\n"
         flat_text += f"{result.get('tailored_summary', '')}\\n"
-        flat_text += ", ".join(result.get('tailored_skills', [])) + "\\n"
+        flat_text += ", ".join(str(s) for s in result.get('tailored_skills', [])) + "\\n"
         for exp in result.get('tailored_experience', []):
             flat_text += f"{exp.get('role', '')} {exp.get('company', '')}\\n"
             ach = exp.get("key_achievement") or exp.get("tailored_bullets") or []
             if isinstance(ach, list):
-                flat_text += "\\n".join(ach) + "\\n"
+                flat_text += "\\n".join(str(a) for a in ach) + "\\n"
             else:
                 flat_text += str(ach) + "\\n"
         
@@ -902,7 +883,8 @@ async def parse_resume_text(request: dict):
         ollama = get_ollama_client()
         generator = ollama.get_generator("fast")  # Use fast model for quick parsing
         
-        prompt = f"""Extract structured information from this resume and return ONLY valid JSON with these exact fields:
+        async def extract_core():
+            prompt = f"""Extract CORE identity information from this resume and return ONLY valid JSON with these exact fields:
 {{
     "name": "Full Name",
     "email": "email@example.com",
@@ -910,12 +892,6 @@ async def parse_resume_text(request: dict):
     "location": "City, State/Country",
     "title": "Professional Title",
     "summary": "Professional summary",
-    "experience": [
-        {{"company": "Company Name", "role": "Job Title", "duration": "2020-2023", "description": "Key achievements"}}
-    ],
-    "education": [
-        {{"school": "University Name", "degree": "Degree Name", "year": "2020"}}
-    ],
     "skills": ["skill1", "skill2", "skill3"]
 }}
 
@@ -923,40 +899,96 @@ Resume text:
 {text[:4000]}
 
 Return ONLY the JSON object, no other text."""
+            loop = asyncio.get_event_loop()
+            resp = await loop.run_in_executor(None, lambda: generator.run(prompt=prompt))
+            return resp
 
-        # Direct LLM call natively in Haystack
-        response = await asyncio.to_thread(generator.run, prompt=prompt)
+        async def extract_experience():
+            prompt = f"""Extract PROFESSIONAL EXPERIENCE from this resume and return ONLY valid JSON with this exact field:
+{{
+    "experience": [
+        {{"company": "Company Name", "role": "Job Title", "duration": "2020-2023", "description": "Key achievements"}}
+    ]
+}}
+
+Resume text:
+{text[:4000]}
+
+Return ONLY the JSON object, no other text."""
+            loop = asyncio.get_event_loop()
+            resp = await loop.run_in_executor(None, lambda: generator.run(prompt=prompt))
+            return resp
+
+        async def extract_credentials():
+            prompt = f"""Extract CREDENTIALS from this resume and return ONLY valid JSON with these exact fields. Do NOT miss certifications or education:
+{{
+    "education": [
+        {{"school": "University Name", "degree": "Degree Name", "year": "2020"}}
+    ],
+    "projects": [],
+    "certifications": ["cert 1", "cert 2"]
+}}
+
+Resume text:
+{text[:4000]}
+
+Return ONLY the JSON object, no other text."""
+            loop = asyncio.get_event_loop()
+            resp = await loop.run_in_executor(None, lambda: generator.run(prompt=prompt))
+            return resp
+
+        # Direct LLM calls natively in Haystack executing concurrently
+        core_resp, exp_resp, cred_resp = await asyncio.gather(
+            extract_core(),
+            extract_experience(),
+            extract_credentials()
+        )
         
-        ai_response = response["replies"][0]
+        # Merge the AI text replies to parse them below
+        # We will parse each piece separately
+        ai_response_core = core_resp["replies"][0]
+        ai_response_exp = exp_resp["replies"][0]
+        ai_response_cred = cred_resp["replies"][0]
         
         # Try to extract JSON from response
         parsed_data = {}
-        try:
-            # Clean up response (remove markdown code blocks if present)
-            clean_response = ai_response.strip()
-            if clean_response.startswith("```json"):
-                clean_response = clean_response[7:]
-            if clean_response.startswith("```"):
-                clean_response = clean_response[3:]
-            if clean_response.endswith("```"):
-                clean_response = clean_response[:-3]
-            clean_response = clean_response.strip()
+        
+        def _robust_parse(ai_text):
+            clean = ai_text.strip()
+            if clean.startswith("```json"): clean = clean[7:]
+            if clean.startswith("```"): clean = clean[3:]
+            if clean.endswith("```"): clean = clean[:-3]
+            clean = clean.strip()
+            start = clean.find('{')
+            end = clean.rfind('}') + 1
+            if start >= 0 and end > start:
+                try:
+                    return json.loads(clean[start:end])
+                except Exception:
+                    pass
+            return {}
 
-            # Look for JSON in the cleaned response
-            json_start = clean_response.find('{')
-            json_end = clean_response.rfind('}') + 1
-            if json_start >= 0 and json_end > json_start:
-                json_str = clean_response[json_start:json_end]
-                parsed_data = json.loads(json_str)
-                logger.info(f"Successfully parsed resume data: {list(parsed_data.keys())}")
-            else:
-                raise ValueError("No JSON object found in response")
+        try:
+            core_json = _robust_parse(ai_response_core)
+            exp_json = _robust_parse(ai_response_exp)
+            cred_json = _robust_parse(ai_response_cred)
+            
+            parsed_data = {**core_json, **exp_json, **cred_json}
+            
+            # Ensure essential keys exist
+            parsed_data.setdefault("name", "")
+            parsed_data.setdefault("summary", "")
+            parsed_data.setdefault("experience", [])
+            parsed_data.setdefault("skills", [])
+            parsed_data.setdefault("education", [])
+            parsed_data.setdefault("certifications", [])
+
+            logger.info(f"Successfully chunk-parsed resume data: {list(parsed_data.keys())}")
         except Exception as e:
-            logger.warning(f"Could not parse AI response as JSON: {e}")
-            # Try basic extraction as fallback
+            logger.warning(f"Could not parse AI responses as JSON: {e}")
             parsed_data = {
-                "raw_response": ai_response,
-                "note": "Could not parse as JSON, please edit manually"
+                "raw_response": ai_response_core + "\n" + ai_response_exp,
+                "note": "Could not parse fully as JSON, please edit manually"
             }
         
         return {

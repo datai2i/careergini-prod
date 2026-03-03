@@ -6,10 +6,9 @@ interface UpgradePromptModalProps {
     isOpen: boolean;
     onClose: () => void;
     currentPlan: string;
-    buildCount: number;
 }
 
-export const UpgradePromptModal: React.FC<UpgradePromptModalProps> = ({ isOpen, onClose, currentPlan, buildCount }) => {
+export const UpgradePromptModal: React.FC<UpgradePromptModalProps> = ({ isOpen, onClose, currentPlan }) => {
     const navigate = useNavigate();
 
     if (!isOpen) return null;
@@ -24,19 +23,19 @@ export const UpgradePromptModal: React.FC<UpgradePromptModalProps> = ({ isOpen, 
     let nextPlan = 'starter';
     let features: string[] = [];
 
-    if (isFree && buildCount >= 1) {
+    if (isFree) {
         title = "First Build Complete! 🎉";
         message = "You've experienced the power of AI tailoring. Unlock 5 more builds, industry-specific tailoring, and cover letter auto-generation with the Starter plan — just $5 one-time.";
         ctaText = "Upgrade to Starter — $5 One-Time";
         nextPlan = 'starter';
         features = ["5 AI-tailored resume builds", "Industry-specific tailoring (Tech, Finance, Healthcare & more)", "ATS score + 1-click regeneration", "Cover letter auto-generation", "Credits never expire"];
-    } else if (isStarter && buildCount >= 5) {
+    } else if (isStarter) {
         title = "Starter Build Limit Reached";
         message = "You've used all 5 Starter builds. Upgrade to Premium and unlock Gini Chat mentorship, the global Job Search, Learning Hub, and 20 builds — all for a single $20 payment.";
         ctaText = "Upgrade to Premium — $20 One-Time";
         nextPlan = 'premium';
         features = ["20 AI-tailored resume builds", "Unlimited Gini Chat AI mentor sessions", "Hyper-personalised global job search", "Learning Hub — skills, courses & career roadmap", "Credits never expire"];
-    } else if (isPremium && buildCount >= 20) {
+    } else if (isPremium) {
         title = "Power User — 20 Builds Used!";
         message = "You've utilized your 20 Premium builds. Contact our team at team@datai2i.com to instantly reload your credits, or explore our upcoming Ultra Premium features.";
         ctaText = "Contact Support to Reload Credits";
@@ -55,7 +54,7 @@ export const UpgradePromptModal: React.FC<UpgradePromptModalProps> = ({ isOpen, 
 
     // For Free users, show buttons for both plans
     const renderButtons = () => {
-        if (isFree && buildCount >= 1) {
+        if (isFree) {
             return (
                 <div className="flex flex-col gap-3">
                     <button

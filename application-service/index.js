@@ -460,7 +460,7 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok', service: 'application-tracker' });
 });
 
-const PORT = process.env.APPLICATION_SERVICE_PORT || 8006;
+const PORT = process.env.PORT || process.env.APPLICATION_SERVICE_PORT || 3002;
 
 app.listen(PORT, () => {
     console.log(`Application Tracker Service running on port ${PORT}`);

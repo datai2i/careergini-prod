@@ -1421,7 +1421,6 @@ export const ResumeBuilderPage: React.FC = () => {
                 isOpen={showUpgradeModal}
                 onClose={() => setShowUpgradeModal(false)}
                 currentPlan={user?.plan || 'free'}
-                buildCount={(user?.resume_count || 0)}
             />
         </div>
     );

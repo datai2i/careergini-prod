@@ -37,7 +37,7 @@ def _fmt_exp(exp: dict) -> dict:
     """Normalise an experience entry for prompt serialisation."""
     ach = exp.get("key_achievement") or exp.get("tailored_bullets") or ""
     if isinstance(ach, list):
-        ach = " | ".join(ach)
+        ach = " | ".join(str(a) for a in ach)
     return {
         "role":    exp.get("role") or exp.get("title", ""),
         "company": exp.get("company", ""),
@@ -52,10 +52,10 @@ def _compute_gap_analysis(persona: Dict[str, Any], job_description: str) -> List
     jd_lower = job_description.lower()
     
     # Collect all candidate text for comparison
-    skills = [s.lower() for s in (persona.get("top_skills") or [])]
-    summary = (persona.get("summary") or "").lower()
+    skills = [str(s).lower() for s in (persona.get("top_skills") or [])]
+    summary = str(persona.get("summary") or "").lower()
     exp_text = " ".join([
-        f"{e.get('role','')} {e.get('company','')} {' '.join(e.get('tailored_bullets') or e.get('key_achievement') or []) if isinstance((e.get('tailored_bullets') or e.get('key_achievement')), list) else str(e.get('tailored_bullets') or e.get('key_achievement',''))}"
+        f"{e.get('role','')} {e.get('company','')} {' '.join(str(b) for b in (e.get('tailored_bullets') or e.get('key_achievement') or [])) if isinstance((e.get('tailored_bullets') or e.get('key_achievement')), list) else str(e.get('tailored_bullets') or e.get('key_achievement',''))}"
         for e in (persona.get("experience_highlights") or [])
     ]).lower()
     projects = " ".join([
@@ -121,64 +121,144 @@ class TailorResumeComponent:
         self.generator = generator
 
     @component.output_types(tailored_result=Dict[str, Any])
-    def run(self, persona: Dict[str, Any], job_description: str, target_industry: str = "", focus_area: str = "", template: str = "professional"):
-        # TOKEN BUDGET (qwen2.5:1.5b, num_ctx=4096):
-        #   ~600 tokens: instructions + rules
-        #   ~400 tokens: candidate JSON (name, title, summary, skills, 3 exp)
-        #   ~150 tokens: JD excerpt
-        #   ~150 tokens: JSON output schema
-        #   ~800 tokens: reserved for LLM response
-        #   Total budget: ~2100 input + 800 output = ~2900 tokens (safe in 4096)
+    async def run(self, persona: Dict[str, Any], job_description: str, target_industry: str = "", focus_area: str = "", template: str = "professional"):
         experiences = [
             _fmt_exp(e)
-            for e in (persona.get("experience_highlights") or [])[:5]  # top 5 roles only
+            for e in (persona.get("experience_highlights") or [])[:8]
         ]
         candidate = {
-            "name":      persona.get("full_name", ""),
-            "title":     persona.get("professional_title", ""),
-            "summary":   str(persona.get("summary", ""))[:400],   # 100 tokens max
-            "skills":    (persona.get("top_skills") or [])[:15],  # top 15 skills
-            "exp":       experiences,
-            "projects":  [
-                {"name": p.get("name",""), "desc": str(p.get("description",""))[:120]}
-                for p in (persona.get("projects") or [])[:3]       # top 3 projects
-            ],
-            "edu":       (persona.get("education") or [])[:2],    # top 2 degrees
-            "certs":     (persona.get("certifications") or [])[:4],
+            "name":          persona.get("full_name", ""),
+            "title":         persona.get("professional_title", ""),
+            "summary":       str(persona.get("summary", ""))[:1500],
+            "skills":        (persona.get("top_skills") or [])[:25],
+            "experience":    experiences,
+            "projects":      (persona.get("projects") or [])[:6],
+            "education":     (persona.get("education") or [])[:3],
+            "certifications": (persona.get("certifications") or [])[:8],
         }
-        # 600 chars (~150 tokens) of JD — enough to get key requirements
-        slim_jd = str(job_description)[:600]
+        # Give the LLM a full view of the JD
+        slim_jd = str(job_description)[:1500]
 
-        focus_note = f"Emphasize {focus_area}." if focus_area else ""
-        industry_note = f"Use {target_industry} industry vocabulary." if target_industry else ""
+        industry_prompt = f"- Align the vocabulary and metrics to the {target_industry} industry standard." if target_industry else ""
+        focus_prompt = f"- Give special emphasis to {focus_area} in the summary and bullets." if focus_area else ""
 
-        # Compact template rules — keep token count low
+        # ── Template-specific tailoring instructions ──────────────────────────
         if template == "executive":
-            style = "Executive tone: authoritative, no first-person. Reframe skills as leadership domains. Lead bullets with scope+outcome."
+            template_rules = """- Strategic executive narrative summary: positioning statement, career arc, top 3 strategic achievements, leadership philosophy.
+- Reframed skills as leadership domains (P&L Management, Enterprise Sales, etc).
+- Experience: write ALL bullet points as leadership-impact STAR statements (Scope -> Action -> Result). Ensure 4-6 quantitative bullets per role.
+- Tone: authoritative, visionary, board-room ready."""
         elif template == "fresher":
-            style = "Fresher tone: write Career Objective (3 sentences). Emphasise projects, internships, academic wins. Keep bullets to 2-3."
+            template_rules = """- Compelling Career Objective summary: mention target role, learning mindset, and value.
+- Skills: concrete tool/tech names.
+- Experience: write 3-4 bullets framing contributions -> tech used -> outcome (even small metrics).
+- Projects: rich and results-oriented. Mention tools used, scale, and problem solved.
+- Tone: ambitious, enthusiastic, growth-focused."""
         else:
-            style = "Professional tone: STAR bullets (action→task→metric). 3-4 bullets per role. ATS keywords from JD in skills list."
+            template_rules = """- Rich 5-7 sentence professional summary: domain expertise, top strengths, problems solved, and value proposition.
+- Exactly matching JD keywords into the skills list.
+- Experience: write ALL bullet points as powerful STAR-format ATS-optimised statements.
+- Tone: professional, confident, results-focused. Quantify everything possible."""
 
-        prompt = f"""You are a professional resume writer. Tailor this resume for the job. Output ONLY valid JSON.
-Rules: Do NOT invent roles/companies/dates. Only improve existing content. {style} {focus_note} {industry_note}
+        async def tailor_narrative():
+            prompt = f"""You are an expert resume writer. Write a highly tailored PROFESSIONAL SUMMARY and SKILLS LIST for this candidate applying to the specific job below.
 
-Candidate:
-{json.dumps(candidate)}
+QUALITY RULES:
+{template_rules}
+{industry_prompt}
+{focus_prompt}
+- Output ONLY valid JSON.
 
-Job (key requirements):
+Candidate Data:
+{json.dumps({"name": candidate["name"], "title": candidate["title"], "summary": candidate["summary"], "skills": candidate["skills"]})}
+
+Job Description:
 {slim_jd}
 
-JSON output (copy all exp entries, improve bullets and summary):
-{{"tailored_summary":"3-4 sentence summary tailored to this job","tailored_skills":["skill1","skill2"],"tailored_experience":[{{"role":"role","company":"company","duration":"dates","tailored_bullets":["STAR bullet 1","STAR bullet 2","STAR bullet 3"]}}],"tailored_projects":[{{"name":"name","description":"desc"}}],"education":[{{"degree":"deg","school":"school","year":"yr"}}],"certifications":["cert"]}}"""
+Required JSON:
+{{"tailored_summary": "Rich 5-7 sentence tailored summary...", "tailored_skills": ["skill1", "skill2..."]}}"""
+            loop = asyncio.get_event_loop()
+            resp = await loop.run_in_executor(None, lambda: self.generator.run(prompt=prompt))
+            return _parse_json(resp["replies"][0])
+
+        async def tailor_experience():
+            prompt = f"""You are an expert resume writer. Rewrite the candidate's PROFESSIONAL EXPERIENCE explicitly targeting the provided Job Description.
+
+QUALITY RULES:
+{template_rules}
+{industry_prompt}
+{focus_prompt}
+- NEVER invent new jobs, roles, companies, or fake metrics. Only rewrite existing achievements.
+- Generate 4-6 rich STAR bullets per role (Action Verb + task + quantified result).
+- Output ONLY valid JSON.
+
+Candidate Experience:
+{json.dumps(experiences)}
+
+Job Description:
+{slim_jd}
+
+Required JSON:
+{{
+  "tailored_experience": [
+    {{"role": "Exact role name", "company": "Exact company", "duration": "Exact duration", "tailored_bullets": ["STAR bullet 1", "STAR bullet 2", "STAR bullet 3", "STAR bullet 4"]}}
+  ]
+}}"""
+            loop = asyncio.get_event_loop()
+            resp = await loop.run_in_executor(None, lambda: self.generator.run(prompt=prompt))
+            return _parse_json(resp["replies"][0])
+
+        async def tailor_projects():
+            if not candidate["projects"]:
+                return {"tailored_projects": []}
+            prompt = f"""You are an expert resume writer. Rewrite the candidate's PROJECTS to highlight skills relevant to the Job Description.
+
+QUALITY RULES:
+{template_rules}
+- Specifically mention technologies from the JD if the candidate used them in these projects.
+- Make project descriptions rich (2-3 sentences), covering problem solved, tech used, and outcome.
+- Output ONLY valid JSON.
+
+Candidate Projects:
+{json.dumps(candidate["projects"])}
+
+Job Description:
+{slim_jd}
+
+Required JSON:
+{{"tailored_projects": [{{"name": "Project Name", "description": "Rich 2-3 sentence description showcasing relevant skills"}}]}}"""
+            loop = asyncio.get_event_loop()
+            resp = await loop.run_in_executor(None, lambda: self.generator.run(prompt=prompt))
+            return _parse_json(resp["replies"][0])
 
         try:
-            response = self.generator.run(prompt=prompt)
-            content  = response["replies"][0]
-            result   = _parse_json(content)
-            # Always compute gap_analysis at Python level (LLM may skip it)
+            # Run the three complex tailoring tasks concurrently
+            nar_res, exp_res, proj_res = await asyncio.gather(
+                tailor_narrative(),
+                tailor_experience(),
+                tailor_projects()
+            )
+
+            result = {
+                **nar_res, 
+                **exp_res, 
+                **proj_res,
+                "education": candidate["education"],
+                "certifications": candidate["certifications"]
+            }
+
+            # Python-level fast deterministic computation
             result["gap_analysis"] = _compute_gap_analysis(persona, job_description)
+            result["match_analysis"] = "Candidate possesses strong foundational alignment. See summary for details."
+            
+            # Ensure fallbacks 
+            result.setdefault("tailored_summary", persona.get("summary", ""))
+            result.setdefault("tailored_skills", persona.get("top_skills", []))
+            result.setdefault("tailored_experience", experiences)
+            result.setdefault("tailored_projects", candidate["projects"])
+            
             return {"tailored_result": result}
+            
         except Exception as e:
             logger.error(f"Tailoring failed: {e}")
             return {"tailored_result": {
@@ -187,6 +267,7 @@ JSON output (copy all exp entries, improve bullets and summary):
                 "tailored_experience": [_fmt_exp(e) for e in (persona.get("experience_highlights") or [])],
                 "tailored_projects":   persona.get("projects", []),
                 "education":           persona.get("education", []),
+                "certifications":      persona.get("certifications", []),
                 "match_analysis":      "Tailor step encountered an error; original data preserved.",
                 "gap_analysis":        _compute_gap_analysis(persona, job_description)
             }}
@@ -218,7 +299,7 @@ Rules:
 {focus_prompt}
 - MAXIMUM 150 words total. Be crisp and punchy.
 - 2 short paragraphs only: (1) intro + value proposition, (2) call to action.
-- Mention 2-3 specific skills: {', '.join(top3)}.
+- Mention 2-3 specific skills: {', '.join(str(s) for s in top3)}.
 - Do NOT exceed 150 words under any circumstance.
 - Start directly with "Dear Hiring Manager," — no header, no date, no address.
 - End with "Sincerely,\\n{name}".
@@ -240,7 +321,7 @@ Job (excerpt):
             return {"cover_letter": (
                 f"Dear Hiring Manager,\n\n"
                 f"I am excited to apply for this opportunity. As a {title}, I bring "
-                f"expertise in {', '.join(top3)} and a strong track record of delivering results. "
+                f"expertise in {', '.join(str(s) for s in top3)} and a strong track record of delivering results. "
                 f"I am confident I would be a valuable addition to your team.\n\n"
                 f"Sincerely,\n{name}"
             )}
@@ -250,69 +331,96 @@ Job (excerpt):
 # Stage 2: Finalize content for specific template + page count
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _finalize_python(persona: Dict[str, Any], template: str, page_count: int) -> Dict[str, Any]:
+@component
+class FinalizeResumeComponent:
     """
-    Python-native finalization — NO LLM call needed.
-    Simply normalises field names and ensures the output dict has all keys
-    the PDF generator expects. This eliminates an entire LLM round-trip,
-    cutting the finalize step from ~90s → <1ms.
+    Stage 2 AI step: takes Stage 1 tailored persona + user edits, then
+    re-polishes the final text for the selected template's tone/density
+    and page constraint (1-page compact vs 2-page full-detail).
+
+    NOT a re-tailor — JD alignment is preserved from Stage 1.
+    Its job: adapt length, tone, and emphasis for the chosen format.
     """
-    compact = (page_count == 1)
+    def __init__(self, generator):
+        self.generator = generator
 
-    summary = (persona.get("tailored_summary")
-               or persona.get("summary")
-               or "")
-    skills = (persona.get("tailored_skills")
-              or persona.get("top_skills")
-              or [])
-    # Max skills: 12 for compact, all for full
-    skills = skills[:12] if compact else skills
+    @component.output_types(final_result=Dict[str, Any])
+    def run(self, persona: Dict[str, Any], template: str, page_count: int, job_description: str = ""):
+        compact  = (page_count == 1)
+        slim_jd  = str(job_description)[:1000]
 
-    exp_src = (persona.get("tailored_experience")
-               or persona.get("experience_highlights")
-               or [])
-    tailored_exp = []
-    for e in exp_src[:8]:
-        blist = (e.get("tailored_bullets")
-                 or e.get("bullets")
-                 or e.get("key_achievement")
-                 or [])
-        if isinstance(blist, str):
-            blist = [b.strip() for b in blist.replace(";", "\n").split("\n") if b.strip()]
-        # For 1-page: keep 3 bullets per role; for 2-page: keep all
-        if compact:
-            blist = blist[:3]
-        tailored_exp.append({
-            "role":              e.get("role") or e.get("title", ""),
-            "company":           e.get("company") or e.get("organization", ""),
-            "duration":          e.get("duration") or e.get("period") or e.get("dates", ""),
-            "tailored_bullets":  blist,
-        })
+        tailored_summary = persona.get("summary") or persona.get("tailored_summary", "")
+        tailored_skills  = persona.get("top_skills") or persona.get("tailored_skills", [])
+        tailored_exp     = []
+        for e in (persona.get("experience_highlights") or persona.get("tailored_experience") or [])[:8]:
+            blist = e.get("tailored_bullets") or e.get("key_achievement") or []
+            if isinstance(blist, str):
+                blist = [b.strip() for b in blist.replace(";", "\n").split("\n") if b.strip()]
+            tailored_exp.append({
+                "role": e.get("role", ""), "company": e.get("company", ""),
+                "duration": e.get("duration", ""), "bullets": blist,
+            })
 
-    projects = (persona.get("tailored_projects")
-                or persona.get("projects")
-                or [])
+        if template == "executive":
+            tone_rules = """- Tone: authoritative, board-room ready, no first-person pronouns.
+- Summary: 6-8 sentence strategic executive narrative (vision, career arc, impact, leadership philosophy, value proposition).
+- Competencies: 12 leadership domain phrases (not tool names).
+- Bullets: KEEP ALL bullets — scope (team/budget/revenue) then measurable outcome. 4-6 per role."""
+        elif template == "fresher":
+            tone_rules = f"""- Rewrite summary as Career Objective: 3-4 sentences — target role, strongest qualification, what you bring, and ambition.
+- Skills: concrete tool/tech names only.
+- Bullets per role: {'3' if compact else '4'} — frame as learning + tangible delivery + tool used.
+- Emphasize projects heavily — make descriptions specific, 2-3 sentences each.
+- Tone: ambitious, eager, forward-looking."""
+        else:
+            tone_rules = f"""- Tone: clean, confident, professional, ATS-optimised.
+- Summary: {'4-5' if compact else '5-7'} sentences — role, top strengths, problem-solving approach, domain experience, value proposition.
+- Bullets: STAR format — action verb → specific task/project → quantified outcome. {'3' if compact else '4-6'} per role.
+- Skills: include all skills relevant to JD."""
 
-    return {
-        "tailored_summary":    summary,
-        "tailored_skills":     skills,
-        "tailored_experience": tailored_exp,
-        "tailored_projects":   projects,
-        "education":           persona.get("education", []),
-        "certifications":      persona.get("certifications", []),
-        "awards":              persona.get("awards", []),
-        "languages":           persona.get("languages", []),
-        "cover_letter":        persona.get("cover_letter", ""),
-        "gap_analysis":        persona.get("gap_analysis", []),
-        "match_analysis":      persona.get("match_analysis", ""),
-        "full_name":           persona.get("full_name", ""),
-        "professional_title":  persona.get("professional_title", ""),
-        "email":               persona.get("email", ""),
-        "phone":               persona.get("phone", ""),
-        "location":            persona.get("location", ""),
-        "linkedin":            persona.get("linkedin", ""),
-        "portfolio_url":       persona.get("portfolio_url", ""),
-    }
+        page_rules = f"""- Page format: {'1-PAGE COMPACT: Keep content focused but still RICH. Summary: 4-5 sentences. Bullets: 3 per role max. Skills: top 12.' if compact else '2-PAGE FULL DETAIL: Include EVERYTHING. Full summary. All bullets. All skills. All projects. All certifications. Be comprehensive and expansive — the goal is to fill 2 pages with high-quality content.'}"""
+
+        prompt = f"""You are an expert resume editor making final quality improvements to this {template.upper()} resume for {page_count} page(s).
+Your job is to polish and expand the content — make it rich, professional, and impactful. Do NOT invent content, but DO elaborate, strengthen, and improve what is given.
+
+Quality rules:
+{tone_rules}
+{page_rules}
+
+Content to finalize (use ALL of this as a base — do not drop sections):
+Summary: {tailored_summary[:2000]}
+Skills: {', '.join(str(s) for s in tailored_skills[:25])}
+Experience entries: {json.dumps(tailored_exp)}
+JD context (for keyword alignment): {slim_jd}
+
+Output ONLY valid JSON — preserve ALL experience entries, DO NOT drop any roles:
+{{"tailored_summary":"rich final summary text","tailored_skills":["skill1","skill2"],"tailored_experience":[{{"role":"role","company":"company","duration":"duration","tailored_bullets":["rich STAR bullet 1","rich STAR bullet 2","rich STAR bullet 3"]}}]}}"""
+
+        try:
+            response = self.generator.run(prompt=prompt)
+            content  = response["replies"][0]
+            result   = _parse_json(content)
+            result.setdefault("tailored_projects", persona.get("projects") or persona.get("tailored_projects", []))
+            result.setdefault("education", persona.get("education", []))
+            result["cover_letter"] = persona.get("cover_letter", "")
+            if "gap_analysis" in persona:
+                result["gap_analysis"] = persona["gap_analysis"]
+            elif "gap_analysis" in result:
+                pass 
+            else:
+                result["gap_analysis"] = []
+            return {"final_result": result}
+        except Exception as e:
+            logger.error(f"Finalize failed: {e}")
+            return {"final_result": {
+                "tailored_summary":    tailored_summary,
+                "tailored_skills":     tailored_skills,
+                "tailored_experience": tailored_exp,
+                "tailored_projects":   persona.get("projects") or persona.get("tailored_projects", []),
+                "education":           persona.get("education", []),
+                "cover_letter":        persona.get("cover_letter", ""),
+                "gap_analysis":        persona.get("gap_analysis", []),
+            }}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -326,39 +434,113 @@ class ResumeAdvisorAgent(BaseAgent):
         self.pipeline.add_component("tailor_resume", TailorResumeComponent(self.generator))
         self.pipeline.add_component("cover_letter",  CoverLetterComponent(self.generator))
 
-    def extract_persona(self, resume_text: str) -> Dict[str, Any]:
+    async def extract_persona(self, resume_text: str) -> Dict[str, Any]:
         """
-        Extract structured persona from resume text.
-        TOKEN BUDGET for qwen2.5:1.5b (num_ctx=4096):
-          ~500 tokens: resume text (2000 chars)
-          ~250 tokens: prompt instructions
-          ~150 tokens: JSON schema definition
-          ~800 tokens: LLM response (the structured JSON)
-          Total: ~1700 tokens — well within 4096 window.
+        Extract a structured professional persona from resume text using a Parallel Chunked Architecture.
+        Splits extraction into Core Identity, Experience, and Credentials for maximum quality from local LLMs.
         """
-        # 2000 chars (~500 tokens) — covers the most important sections of any resume
-        resume_snippet = str(resume_text).strip()[:2000]
+        # Pass up to 6000 chars to cover full 2-page resumes without missing content
+        resume_snippet = str(resume_text).strip()[:6000]
 
-        prompt = f"""Extract resume info. Output ONLY valid JSON, no explanation.
-
-Resume:
+        async def extract_core():
+            prompt = f"""You are a professional resume parser. Extract the CORE IDENTITY from this resume completely and accurately.
+Resume text:
 {resume_snippet}
 
-JSON:
-{{"full_name":"","professional_title":"","email":"","phone":"","location":"","linkedin":"","years_experience":0,"summary":"2-3 sentence professional bio","top_skills":["skill1"],"experience_highlights":[{{"role":"","company":"","duration":"","tailored_bullets":["achievement 1","achievement 2"]}}],"projects":[{{"name":"","description":""}}],"education":[{{"degree":"","school":"","year":""}}],"certifications":[],"career_level":"Mid"}}"""
+Required JSON structure (extract ONLY these fields):
+{{
+  "full_name": "Full name",
+  "professional_title": "Current/most-recent job title",
+  "years_experience": 0,
+  "email": "email address",
+  "phone": "phone number",
+  "location": "city, country",
+  "linkedin": "full linkedin URL if present, else empty string",
+  "portfolio_url": "portfolio/github URL if present, else empty string",
+  "summary": "Write a detailed 5-7 sentence professional bio covering: (1) career level and domain, (2) top 3 technical strengths, (3) types of problems solved, (4) industries or company types worked in, (5) leadership or collaboration style, (6) most notable career achievement. Be specific and use the candidate's actual experience.",
+  "top_skills": ["List ALL technical and domain skills mentioned — tools, frameworks, languages, methodologies — aim for 15-25 skills"],
+  "career_level": "Entry/Mid/Senior/Exec",
+  "suggested_roles": ["Role 1", "Role 2"]
+}}
+
+Return ONLY the JSON object, no other text:"""
+            loop = asyncio.get_event_loop()
+            resp = await loop.run_in_executor(None, lambda: self.generator.run(prompt=prompt))
+            return _parse_json(resp["replies"][0])
+
+        async def extract_experience():
+            prompt = f"""You are a professional resume parser. Extract ONLY the PROFESSIONAL EXPERIENCE from this resume thoroughly and comprehensively. Do NOT merge distinct roles.
+Resume text:
+{resume_snippet}
+
+Required JSON structure:
+{{
+  "experience_highlights": [
+    {{
+      "role": "Exact job title",
+      "company": "Exact company name",
+      "duration": "Start date - End date",
+      "tailored_bullets": [
+        "3-5 specific, detailed achievement bullets from this role. Each bullet: action verb + what you did + quantified impact. Extract real details from the resume text.",
+        "Include metrics (%, $, team size, scale) wherever the resume mentions them.",
+        "Do NOT generalize. Copy actual achievements from the resume text."
+      ]
+    }}
+  ]
+}}
+
+Return ONLY the JSON object, no other text:"""
+            loop = asyncio.get_event_loop()
+            resp = await loop.run_in_executor(None, lambda: self.generator.run(prompt=prompt))
+            return _parse_json(resp["replies"][0])
+
+        async def extract_credentials():
+            prompt = f"""You are a professional resume parser. Extract ONLY the CREDENTIALS (Projects, Education, Certifications, Awards, Languages) completely and accurately. DO NOT drop any items.
+Resume text:
+{resume_snippet}
+
+Required JSON structure:
+{{
+  "projects": [
+    {{"name": "Project Name", "description": "2-3 sentence description: what was built, technologies used, and impact or outcome"}}
+  ],
+  "education": [{{"degree": "Degree name", "school": "University/College name", "year": "Graduation year"}}],
+  "certifications": ["List all certifications and licenses mentioned. Extract every single one."],
+  "awards": ["List any awards, honours, or recognition mentioned"],
+  "languages": ["List spoken languages if mentioned"]
+}}
+
+Return ONLY the JSON object, no other text:"""
+            loop = asyncio.get_event_loop()
+            resp = await loop.run_in_executor(None, lambda: self.generator.run(prompt=prompt))
+            return _parse_json(resp["replies"][0])
 
         try:
-            response = self.generator.run(prompt=prompt)
-            content  = response["replies"][0]
-            result = _parse_json(content)
+            # Run all 3 extractions in parallel
+            core_res, exp_res, cred_res = await asyncio.gather(
+                extract_core(),
+                extract_experience(),
+                extract_credentials()
+            )
+
+            # Merge results into a single persona dictionary
+            result = {**core_res, **exp_res, **cred_res}
+
             # Ensure contact fields exist to prevent UI errors
             result.setdefault("email", "")
             result.setdefault("phone", "")
             result.setdefault("linkedin", "")
             result.setdefault("portfolio_url", "")
+            result.setdefault("summary", "")
+            result.setdefault("top_skills", [])
+            result.setdefault("experience_highlights", [])
+            result.setdefault("projects", [])
+            result.setdefault("education", [])
+            result.setdefault("certifications", [])
+
             return result
         except Exception as e:
-            logger.error(f"Persona extraction failed: {e}")
+            logger.error(f"Persona parallel extraction failed: {e}")
             return {
                 "full_name":             "Candidate",
                 "professional_title":    "Professional",
@@ -387,10 +569,16 @@ JSON:
 
         loop = asyncio.get_event_loop()
 
-        tailor_result = await loop.run_in_executor(
-            None,
-            lambda: tailor_comp.run(persona=persona, job_description=job_description, target_industry=target_industry, focus_area=focus_area, template=template)
+        # tailor_comp.run is now an async pipeline, so await it directly
+        tailor_result = await tailor_comp.run(
+            persona=persona, 
+            job_description=job_description, 
+            target_industry=target_industry, 
+            focus_area=focus_area, 
+            template=template
         )
+        
+        # Cover letter is still sync
         cl_result = await loop.run_in_executor(
             None,
             lambda: cl_comp.run(persona=persona, job_description=job_description, target_industry=target_industry, focus_area=focus_area)
@@ -403,11 +591,17 @@ JSON:
         return final
 
     async def finalize_resume(self, persona: Dict[str, Any], template: str, page_count: int, job_description: str = "") -> Dict[str, Any]:
-        """Stage 2: Finalize content for specific template and page count.
-        Uses Python-native finalization — no LLM call, instant execution.
-        """
-        logger.info(f"Finalizing resume (Python-native) [{template}, {page_count}p]")
-        return _finalize_python(persona, template, page_count)
+        """Stage 2: Finalize content for specific template and page count."""
+        print(f"Resume Advisor Agent finalizing resume [{template}, {page_count}p]...")
+        
+        finalize_comp = FinalizeResumeComponent(self.generator)
+        loop = asyncio.get_event_loop()
+        
+        result = await loop.run_in_executor(
+            None,
+            lambda: finalize_comp.run(persona=persona, template=template, page_count=page_count, job_description=job_description)
+        )
+        return result["final_result"]
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Standard run method for workflow integration."""

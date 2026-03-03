@@ -125,6 +125,11 @@ def generate_pdf_latex(
             result = subprocess.run(cmd, cwd=temp_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
             
             pdf_path = os.path.join(temp_dir, "resume.pdf")
+            
+            # DEBUG: Save tex file for inspection
+            import shutil
+            shutil.copy2(tex_file_path, "debug_resume.tex")
+            
             if os.path.exists(pdf_path):
                 # Copy to output path
                 import shutil

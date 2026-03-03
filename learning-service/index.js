@@ -194,10 +194,13 @@ app.get('/recommendations', async (req, res) => {
             return res.json([]);
         }
 
-        // Fetch courses for each skill
-        const coursePromises = skillsArray.slice(0, 3).map(skill =>
-            edx.searchCourses(skill, level)
-        );
+        // Fetch courses for each skill from all available platforms
+        const coursePromises = [];
+        skillsArray.slice(0, 3).forEach(skill => {
+            coursePromises.push(youtube.searchCourses(skill));
+            coursePromises.push(edx.searchCourses(skill, level));
+            coursePromises.push(coursera.searchCourses(skill));
+        });
 
         const results = await Promise.allSettled(coursePromises);
         let courses = [];

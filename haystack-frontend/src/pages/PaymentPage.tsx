@@ -225,10 +225,10 @@ const PaymentPage: React.FC = () => {
                             key={pk}
                             onClick={() => setSelectedPlan(pk)}
                             className={`px-6 py-2.5 rounded-xl font-bold text-sm border-2 transition-all ${selectedPlan === pk
-                                    ? pk === 'premium'
-                                        ? 'border-purple-600 bg-purple-600 text-white shadow-md'
-                                        : 'border-blue-600 bg-blue-600 text-white shadow-md'
-                                    : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-blue-400'
+                                ? pk === 'premium'
+                                    ? 'border-purple-600 bg-purple-600 text-white shadow-md'
+                                    : 'border-blue-600 bg-blue-600 text-white shadow-md'
+                                : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-blue-400'
                                 }`}
                         >
                             {PLAN_CONFIG[pk].name} — {CURRENCY_SYMBOLS['USD']}{PLAN_CONFIG[pk].price['USD']}
@@ -238,30 +238,30 @@ const PaymentPage: React.FC = () => {
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
                     {/* Left: Plan Summary */}
-                    <div className={`rounded-3xl bg-gradient-to-br ${plan.color} p-8 text-white shadow-2xl`}>
-                        <div className="flex items-center gap-3 mb-6">
-                            <Star className="w-7 h-7" />
+                    <div className={`rounded-3xl bg-gradient-to-br ${plan.color} p-6 text-white shadow-2xl`}>
+                        <div className="flex items-center gap-2 mb-4">
+                            <Star className="w-5 h-5" />
                             <div>
-                                <p className="text-sm font-semibold opacity-80">Upgrading to</p>
-                                <h2 className="text-3xl font-extrabold">{plan.name} Plan</h2>
+                                <p className="text-xs font-semibold opacity-80">Upgrading to</p>
+                                <h2 className="text-2xl font-extrabold">{plan.name} Plan</h2>
                             </div>
                         </div>
 
                         {/* Price display */}
-                        <div className="bg-white/10 rounded-2xl p-5 mb-7">
+                        <div className="bg-white/10 rounded-2xl p-4 mb-5">
                             <div className="flex items-baseline gap-2 mb-1">
-                                <span className="text-5xl font-black">{symbol}{price}</span>
+                                <span className="text-4xl font-black">{symbol}{price}</span>
                                 <span className="text-sm opacity-70">one-time · never expires</span>
                             </div>
-                            <p className="text-sm opacity-80">{plan.builds} resume builds included</p>
+                            <p className="text-xs opacity-80">{plan.builds} resume builds included</p>
                         </div>
 
                         {/* Features */}
-                        <ul className="space-y-3">
+                        <ul className="space-y-2">
                             {plan.features.map((f, i) => (
-                                <li key={i} className="flex items-start gap-3 text-sm">
-                                    <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                                        <Check className="w-3 h-3" />
+                                <li key={i} className="flex items-start gap-2 text-sm">
+                                    <div className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                        <Check className="w-2.5 h-2.5" />
                                     </div>
                                     {f}
                                 </li>
@@ -269,7 +269,7 @@ const PaymentPage: React.FC = () => {
                         </ul>
 
                         {/* Trust badges */}
-                        <div className="mt-8 flex flex-wrap gap-4 text-xs opacity-80">
+                        <div className="mt-6 flex flex-wrap gap-4 text-xs opacity-80">
                             <span className="flex items-center gap-1.5"><Shield className="w-3.5 h-3.5" /> SSL Encrypted</span>
                             <span className="flex items-center gap-1.5"><Lock className="w-3.5 h-3.5" /> PCI DSS Compliant</span>
                             <span className="flex items-center gap-1.5"><Globe className="w-3.5 h-3.5" /> 150+ Countries</span>
