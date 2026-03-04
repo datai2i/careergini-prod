@@ -120,6 +120,9 @@ services:
       - REDIS_URL=redis://:${REDIS_PASSWORD:-careergini_redis}@redis:6379
       - FRONTEND_URL=https://www.careergini.com
       - PORT=3001
+      - NODE_ENV=${NODE_ENV:-production}
+      - PAYPAL_CLIENT_ID=${PAYPAL_CLIENT_ID}
+      - PAYPAL_CLIENT_SECRET=${PAYPAL_CLIENT_SECRET}
     ports:
       - "3001:3001"
     depends_on:

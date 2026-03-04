@@ -480,7 +480,7 @@ const PLAN_DB_MAP = { starter: 'basic', premium: 'premium' };
 async function upgradeUserPlan(userId, planKey, gateway, orderId, amount, currency) {
     const dbPlan = PLAN_DB_MAP[planKey] || planKey;
     await db.query(
-        'UPDATE users SET plan = $1, resume_count = 0, updated_at = NOW() WHERE id = $2',
+        'UPDATE users SET plan = $1, updated_at = NOW() WHERE id = $2',
         [dbPlan, userId]
     );
     await db.query(
@@ -500,7 +500,7 @@ app.post('/payments/paypal/create-order', verifyToken, async (req, res) => {
 
         const { ordersController } = getPayPalClient();
         const frontendUrl = process.env.FRONTEND_URL || 'https://www.careergini.com';
-        const { body: order } = await ordersController.createOrder({
+        const orderResp = await ordersController.createOrder({
             body: {
                 intent: 'CAPTURE',
                 purchaseUnits: [{
@@ -513,8 +513,10 @@ app.post('/payments/paypal/create-order', verifyToken, async (req, res) => {
                 },
             },
         });
+        const order = orderResp.result;
         const approval = order.links?.find(l => l.rel === 'approve');
-        res.json({ orderId: order.id, approvalUrl: approval?.href });
+        if (!approval?.href) throw new Error('No PayPal approval URL returned');
+        res.json({ orderId: order.id, approvalUrl: approval.href });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -524,7 +526,8 @@ app.post('/payments/paypal/capture-order', verifyToken, async (req, res) => {
     try {
         const { orderId, plan, currency = 'USD' } = req.body;
         const { ordersController } = getPayPalClient();
-        const { body: capture } = await ordersController.captureOrder({ id: orderId });
+        const captureResp = await ordersController.captureOrder({ id: orderId });
+        const capture = captureResp.result;
         if (capture.status === 'COMPLETED') {
             const price = PLAN_PRICES[plan]?.[currency] || 0;
             await upgradeUserPlan(req.user.id, plan, 'paypal', orderId, price, currency);
