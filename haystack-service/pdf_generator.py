@@ -357,8 +357,7 @@ def _skills_grid(skills: List[Any], S: dict, cols: int = 2) -> List:
             row = []
     if not rows:
         return []
-    col_width = (PAGE_W - 2 * 0.42 * inch) / cols
-    tbl = Table(rows, colWidths=[col_width] * cols)
+    tbl = Table(rows, colWidths=[f"{100/cols}%"] * cols)
     tbl.setStyle(TableStyle([
         ("ALIGN",         (0, 0), (-1, -1), "LEFT"),
         ("VALIGN",        (0, 0), (-1, -1), "TOP"),

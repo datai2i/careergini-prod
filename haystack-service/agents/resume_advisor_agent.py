@@ -40,6 +40,14 @@ def _sanitize_dict(data: dict) -> dict:
                     exp["tailored_bullets"] = _sanitize_bullets_list(exp["tailored_bullets"])
                 if "key_achievement" in exp:
                     exp["key_achievement"] = _sanitize_bullets_list(exp["key_achievement"])
+    if "certifications" in data and isinstance(data["certifications"], list):
+        clean_certs = []
+        for c in data["certifications"]:
+            if isinstance(c, dict):
+                clean_certs.append(" - ".join(str(v) for v in c.values() if v))
+            else:
+                clean_certs.append(str(c))
+        data["certifications"] = clean_certs
     return data
 
 def _parse_json(content: str) -> dict:
@@ -181,13 +189,15 @@ class TailorResumeComponent:
 - Tone: authoritative, visionary, board-room ready."""
         elif template == "fresher":
             template_rules = """- Compelling Career Objective summary: mention target role, learning mindset, and value.
-- Skills: concrete tool/tech names.
+- NEVER repeat the candidate's name in the summary. Use implied pronouns (e.g., "Highly motivated engineer...").
+- Skills: concrete tool/tech names ONLY. NO sentences, long phrases, or project names.
 - Experience: write 3-4 bullets framing contributions -> tech used -> outcome (even small metrics).
 - Projects: rich and results-oriented. Mention tools used, scale, and problem solved.
 - Tone: ambitious, enthusiastic, growth-focused."""
         else:
             template_rules = """- Rich 5-7 sentence professional summary: domain expertise, top strengths, problems solved, and value proposition.
-- Exactly matching JD keywords into the skills list.
+- NEVER repeat the candidate's name in the summary. Use implied pronouns (e.g., "Experienced engineer with a proven track record...").
+- Exactly matching JD keywords into the skills list. Skills MUST be short, recognizable technical skills ONLY (e.g., Python, SQL). NEVER include long phrases or project names.
 - Experience: write ALL bullet points as powerful STAR-format ATS-optimised statements.
 - Tone: professional, confident, results-focused. Quantify everything possible."""
 
@@ -198,6 +208,7 @@ QUALITY RULES:
 {template_rules}
 {industry_prompt}
 {focus_prompt}
+- NEVER invent new skills. You MUST select strictly from the Candidate Skills list provided.
 - Output ONLY valid JSON.
 
 Candidate Data:
@@ -213,31 +224,78 @@ Required JSON:
             return _parse_json(resp["replies"][0])
 
         async def tailor_experience():
-            prompt = f"""You are an expert resume writer. Rewrite the candidate's PROFESSIONAL EXPERIENCE explicitly targeting the provided Job Description.
+            if not experiences:
+                return {"tailored_experience": []}
 
-QUALITY RULES:
+            # Create deterministic mapping
+            mapped_exps = []
+            payload_for_llm = []
+            
+            for i, exp in enumerate(experiences):
+                exp_dict = dict(exp) if isinstance(exp, dict) else exp
+                bullets = exp_dict.get("tailored_bullets") or exp_dict.get("highlights") or []
+                if isinstance(bullets, str):
+                    bullets = [bullets]
+                
+                payload_for_llm.append({
+                    "id": i,
+                    "bullets": bullets
+                })
+                # Keep exact original data for reconstruction
+                mapped_exps.append({
+                    "role": exp_dict.get("role", "Unknown"),
+                    "company": exp_dict.get("company", "Unknown"),
+                    "duration": exp_dict.get("period") or exp_dict.get("duration", "Unknown")
+                })
+
+            prompt = f"""You are an expert resume writer. Rewrite the bullet points for the following {len(payload_for_llm)} roles to explicitly target the provided Job Description.
+
+CRITICAL RULES (MUST FOLLOW):
 {template_rules}
 {industry_prompt}
 {focus_prompt}
-- NEVER invent new jobs, roles, companies, or fake metrics. Only rewrite existing achievements.
-- Generate 4-6 rich STAR bullets per role (Action Verb + task + quantified result).
+- You MUST output ALL {len(payload_for_llm)} items provided below. Do NOT drop any IDs.
+- Keep the exact "id" for each role in your output.
+- ONLY rewrite the bullet points. Generate 4-6 rich STAR bullets per role (Action Verb + task + quantified result).
+- Each bullet MUST be a plain string.
 - Output ONLY valid JSON.
 
-Candidate Experience:
-{json.dumps(experiences)}
+Roles to Rewrite (preserve ALL IDs):
+{json.dumps(payload_for_llm, indent=2)}
 
 Job Description:
 {slim_jd}
 
-Required JSON:
+Required JSON (output ALL {len(payload_for_llm)} items):
 {{
-  "tailored_experience": [
-    {{"role": "Exact role name", "company": "Exact company", "duration": "Exact duration", "tailored_bullets": ["STAR bullet 1", "STAR bullet 2", "STAR bullet 3", "STAR bullet 4"]}}
+  "tailored_bullets": [
+    {{"id": 0, "bullets": ["STAR bullet 1", "STAR bullet 2"]}},
+    {{"id": 1, "bullets": ["STAR bullet 1"]}}
   ]
 }}"""
             loop = asyncio.get_event_loop()
-            resp = await loop.run_in_executor(None, lambda: self.generator.run(prompt=prompt))
-            return _parse_json(resp["replies"][0])
+            try:
+                resp = await loop.run_in_executor(None, lambda: self.generator.run(prompt=prompt))
+                llm_res = _parse_json(resp["replies"][0])
+            except Exception as e:
+                logger.error(f"Tailor experience LLM failed: {e}")
+                llm_res = {}
+            
+            tailored_bullets_list = llm_res.get("tailored_bullets", [])
+            bullets_by_id = {}
+            for item in tailored_bullets_list:
+                if isinstance(item, dict) and "id" in item:
+                    bullets_by_id[item["id"]] = item.get("bullets", [])
+
+            for i, exp in enumerate(mapped_exps):
+                llm_bullets = bullets_by_id.get(i)
+                if llm_bullets and isinstance(llm_bullets, list) and len(llm_bullets) > 0:
+                     exp["tailored_bullets"] = [str(b) for b in llm_bullets]
+                else:
+                    original = dict(experiences[i]) if i < len(experiences) else {}
+                    exp["tailored_bullets"] = original.get("tailored_bullets") or original.get("highlights") or []
+                    
+            return {"tailored_experience": mapped_exps}
 
         async def tailor_projects():
             if not candidate["projects"]:
@@ -270,29 +328,41 @@ Required JSON:
                 tailor_projects()
             )
 
+            # Build result with explicit fallbacks — never let empty LLM output blank the resume
             result = {
-                **nar_res, 
-                **exp_res, 
-                **proj_res,
-                "education": candidate["education"],
-                "certifications": candidate["certifications"]
+                # Identity fields — ALWAYS pass through from persona
+                "full_name":           persona.get("full_name", ""),
+                "professional_title":  persona.get("professional_title", ""),
+                "email":               persona.get("email", ""),
+                "phone":               persona.get("phone", ""),
+                "location":            persona.get("location", ""),
+                "linkedin":            persona.get("linkedin", ""),
+                "portfolio_url":       persona.get("portfolio_url", ""),
+                # Tailored content — use LLM result OR fallback to original persona
+                "tailored_summary":    nar_res.get("tailored_summary") or persona.get("summary", ""),
+                "tailored_skills":     nar_res.get("tailored_skills") or persona.get("top_skills", []),
+                "tailored_experience": exp_res.get("tailored_experience") or experiences,
+                "tailored_projects":   proj_res.get("tailored_projects") or candidate["projects"],
+                "education":           candidate["education"],
+                "certifications":      candidate["certifications"],
             }
 
             # Python-level fast deterministic computation
             result["gap_analysis"] = _compute_gap_analysis(persona, job_description)
             result["match_analysis"] = "Candidate possesses strong foundational alignment. See summary for details."
             
-            # Ensure fallbacks 
-            result.setdefault("tailored_summary", persona.get("summary", ""))
-            result.setdefault("tailored_skills", persona.get("top_skills", []))
-            result.setdefault("tailored_experience", experiences)
-            result.setdefault("tailored_projects", candidate["projects"])
-            
             return {"tailored_result": result}
             
         except Exception as e:
             logger.error(f"Tailoring failed: {e}")
             return {"tailored_result": {
+                "full_name":           persona.get("full_name", ""),
+                "professional_title":  persona.get("professional_title", ""),
+                "email":               persona.get("email", ""),
+                "phone":               persona.get("phone", ""),
+                "location":            persona.get("location", ""),
+                "linkedin":            persona.get("linkedin", ""),
+                "portfolio_url":       persona.get("portfolio_url", ""),
                 "tailored_summary":    persona.get("summary", ""),
                 "tailored_skills":     persona.get("top_skills", []),
                 "tailored_experience": [_fmt_exp(e) for e in (persona.get("experience_highlights") or [])],
@@ -323,7 +393,7 @@ class CoverLetterComponent:
         industry_prompt = f"- Use tone appropriate for the {target_industry} industry." if target_industry else ""
         focus_prompt = f"- Emphasize {focus_area}." if focus_area else ""
 
-        prompt = f"""Write a professional cover letter for {name} ({title}) applying to this role.
+        prompt = f"""Write a professional cover letter for a candidate named {name}, whose current title is {title}, applying to the role described below.
 
 Rules:
 {industry_prompt}
@@ -334,7 +404,8 @@ Rules:
 - Do NOT exceed 150 words under any circumstance.
 - Start directly with "Dear Hiring Manager," — no header, no date, no address.
 - End with "Sincerely,\\n{name}".
-- If the company name or job details are vague/missing, write a generic but strong opening (e.g., "I am writing to express my interest in the open position...") rather than using placeholders like [Company Name].
+- IMPORTANT: "{name}" is the CANDIDATE's name, NOT a company name. Never write "at {name}" — that is wrong.
+- If the company name is mentioned in the Job Description, use it. Otherwise use a generic opening like "I am writing to express my interest in the open position..." — do NOT use placeholders like [Company Name].
 - Output ONLY the letter text, nothing else.
 
 Job (excerpt):
@@ -418,37 +489,59 @@ Quality rules:
 {tone_rules}
 {page_rules}
 
+CRITICAL ANTI-HALLUCINATION RULES:
+- NEVER invent new skills that are not in the Skills list below.
+- NEVER repeat the candidate's name in the summary. Use implied pronouns (e.g., "Experienced AI Engineer...").
+- Skills list MUST ONLY contain concise, targeted technical tools (e.g. Python, SQL). Remove any long phrases, sentences, or project names from the skills array.
+- DO NOT duplicate entries. Each skill must appear exactly once.
+
 Content to finalize (use ALL of this as a base — do not drop sections):
 Summary: {tailored_summary[:2000]}
 Skills: {', '.join(str(s) for s in tailored_skills[:25])}
-Experience entries: {json.dumps(tailored_exp)}
 JD context (for keyword alignment): {slim_jd}
 
-Output ONLY valid JSON — preserve ALL experience entries, DO NOT drop any roles:
-{{"tailored_summary":"rich final summary text","tailored_skills":["skill1","skill2"],"tailored_experience":[{{"role":"role","company":"company","duration":"duration","tailored_bullets":["rich STAR bullet 1","rich STAR bullet 2"]}}]}}"""
+Output ONLY valid JSON:
+{{"tailored_summary":"rich final summary text","tailored_skills":["skill1","skill2"]}}"""
 
         try:
             response = self.generator.run(prompt=prompt)
             content  = response["replies"][0]
             result   = _parse_json(content)
+            # Always pass identity fields through from persona
+            for id_key in ("full_name", "professional_title", "email", "phone", "location", "linkedin", "portfolio_url"):
+                result.setdefault(id_key, persona.get(id_key, ""))
+            # Ensure tailored fields have fallbacks
+            if not result.get("tailored_summary"):
+                result["tailored_summary"] = tailored_summary
+            if not result.get("tailored_skills"):
+                result["tailored_skills"] = tailored_skills
+            # Strictly hardcode the deterministic experience array
+            result["tailored_experience"] = tailored_exp
             result.setdefault("tailored_projects", persona.get("projects") or persona.get("tailored_projects", []))
             result.setdefault("education", persona.get("education", []))
+            result.setdefault("certifications", persona.get("certifications", []))
             result["cover_letter"] = persona.get("cover_letter", "")
             if "gap_analysis" in persona:
                 result["gap_analysis"] = persona["gap_analysis"]
-            elif "gap_analysis" in result:
-                pass 
-            else:
+            elif "gap_analysis" not in result:
                 result["gap_analysis"] = []
             return {"final_result": result}
         except Exception as e:
             logger.error(f"Finalize failed: {e}")
             return {"final_result": {
+                "full_name":           persona.get("full_name", ""),
+                "professional_title":  persona.get("professional_title", ""),
+                "email":               persona.get("email", ""),
+                "phone":               persona.get("phone", ""),
+                "location":            persona.get("location", ""),
+                "linkedin":            persona.get("linkedin", ""),
+                "portfolio_url":       persona.get("portfolio_url", ""),
                 "tailored_summary":    tailored_summary,
                 "tailored_skills":     tailored_skills,
                 "tailored_experience": tailored_exp,
                 "tailored_projects":   persona.get("projects") or persona.get("tailored_projects", []),
                 "education":           persona.get("education", []),
+                "certifications":      persona.get("certifications", []),
                 "cover_letter":        persona.get("cover_letter", ""),
                 "gap_analysis":        persona.get("gap_analysis", []),
             }}
@@ -480,7 +573,7 @@ Resume text:
 
 Required JSON structure (extract ONLY these fields):
 {{
-  "full_name": "Full name",
+  "full_name": "Full name (ONLY the candidate's actual name, NOT their city, location, or contact details)",
   "professional_title": "Current/most-recent job title",
   "years_experience": 0,
   "email": "email address",
@@ -489,7 +582,7 @@ Required JSON structure (extract ONLY these fields):
   "linkedin": "full linkedin URL if present, else empty string",
   "portfolio_url": "portfolio/github URL if present, else empty string",
   "summary": "Write a detailed 5-7 sentence professional bio covering: (1) career level and domain, (2) top 3 technical strengths, (3) types of problems solved, (4) industries or company types worked in, (5) leadership or collaboration style, (6) most notable career achievement. Be specific and use the candidate's actual experience.",
-  "top_skills": ["List ALL technical and domain skills mentioned — tools, frameworks, languages, methodologies — aim for 15-25 skills"],
+  "top_skills": ["List ONLY exact, concise, recognizable technical skills (e.g. Python, SQL). DO NOT extract long phrases, project names, or generic bullet points"],
   "career_level": "Entry/Mid/Senior/Exec",
   "suggested_roles": ["Role 1", "Role 2"]
 }}
@@ -520,6 +613,8 @@ Required JSON structure:
   ]
 }}
 
+DO NOT duplicate entries. Extract each entry exactly once.
+
 Return ONLY the JSON object, no other text:"""
             loop = asyncio.get_event_loop()
             resp = await loop.run_in_executor(None, lambda: self.generator.run(prompt=prompt))
@@ -540,6 +635,8 @@ Required JSON structure:
   "awards": ["List any awards, honours, or recognition mentioned"],
   "languages": ["List spoken languages if mentioned"]
 }}
+
+DO NOT duplicate entries. Extract each entry exactly once.
 
 Return ONLY the JSON object, no other text:"""
             loop = asyncio.get_event_loop()

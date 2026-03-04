@@ -1,0 +1,144 @@
+============================================================
+THOROUGH RESUME GENERATION TEST
+============================================================
+
+📄 Reading: /app/Bugs_Resumes/Orginal_Bheemeswararao_Aika_Profile.pdf
+✅ Extracted 4355 chars of text
+   First 300 chars: BHEEMESWARARAO AIKA
+Hyderabad,India | bheemesh9392@gmail.com | +919392484785 | Hackerrank | Portfolio | LinkedIn | GitHub
+PROFESSIONALPROFILE
+AIEngineerInternwithhands-onexpertiseinPython,SQL,MachineLearning,NLP,andBusinessIntelligence,specializing
+in high-volume data pipelines, low-latency inferenc
+
+
+🔍 STEP 2: Extracting persona...
+
+────────────────────────────────────────────────────────────
+📋 EXTRACTED PERSONA
+────────────────────────────────────────────────────────────
+  full_name: Bheemeshwararao Aika
+  professional_title: AI Engineer Intern with Hands-on Expertise in Python, SQL, Machine Learning, NLP and Business Intelligence
+  years_experience: 0
+  email: bheemesh9392@gmail.com
+  phone: +919392484785
+  location: Hyderabad, India
+  linkedin: 
+  portfolio_url: 
+  summary: As a hands-on AI engineer intern with specialization in Python, SQL, Machine Learning, NLP and Business Intelligence, I have demonstrated exceptional skills in optimizing data workflows. My proficienc...
+  top_skills: [4 items]
+    [0] Python
+    [1] SQL
+    [2] Machine Learning
+  career_level: Entry/Mid/Senior/Exec
+  suggested_roles: [0 items]
+  experience_highlights: [2 items]
+    [0] {'role': 'AI Engineer Intern', 'company': 'DecentrialzLabs (Advait Labs)', 'duration': 'Oct 2024 - Sep 2025', 'tailored_
+    [1] {'role': 'Data Scientist Intern', 'company': 'Innomatics Research Labs', 'duration': 'Jun 2024 - Aug 2024', 'tailored_bu
+  projects: [6 items]
+    [0] {'name': 'DecentrialzPlatform', 'description': 'Architected and optimized end-to-end ETL pipelines for large-scale clini
+    [1] {'name': 'SyntraAIIntelligenceStructured', 'description': 'Built structured machine learning models with a 92% predictiv
+    [2] {'name': 'MobileNetV2ModelOptimization', 'description': 'Applied quantization-aware training and structured pruning to c
+  education: [1 items]
+    [0] {'degree': 'Bachelor of Technology (B.Tech)', 'school': 'Satya Institute of Technology and Management', 'year': '2020'}
+  certifications: [6 items]
+    [0] Advanced Data Science with Python – NASSCOM(Gold)
+    [1] Career Essentials in Generative AI – Microsoft & LinkedIn
+    [2] Python Programming – HackerRank (Gold)
+  awards: [0 items]
+  languages: [1 items]
+    [0] English
+
+
+🔍 STEP 3: Tailoring resume...
+Resume Advisor Agent tailoring resume [professional]...
+
+────────────────────────────────────────────────────────────
+📋 TAILORED RESULT
+────────────────────────────────────────────────────────────
+  full_name: Bheemeshwararao Aika
+  professional_title: AI Engineer Intern with Hands-on Expertise in Python, SQL, Machine Learning, NLP and Business Intelligence
+  email: bheemesh9392@gmail.com
+  phone: +919392484785
+  location: Hyderabad, India
+  linkedin: 
+  portfolio_url: 
+  tailored_summary: As a hands-on AI engineer intern with specialization in Python, SQL, Machine Learning, NLP and Business Intelligence, I have demonstrated exceptional skills in optimizing data workflows. My proficienc...
+  tailored_skills: [4 items]
+    [0] Python
+    [1] SQL
+    [2] Machine Learning
+  tailored_experience: [2 items]
+    [0] {'role': 'AI Engineer Intern', 'company': 'DecentrialzLabs (Advait Labs)', 'duration': 'Unknown', 'tailored_bullets': ['
+    [1] {'role': 'Data Scientist Intern', 'company': 'Innomatics Research Labs', 'duration': 'Unknown', 'tailored_bullets': ['Re
+  tailored_projects: [6 items]
+    [0] {'name': 'DecentrialzPlatform', 'description': 'Architected and optimized end-to-end ETL pipelines for large-scale clini
+    [1] {'name': 'SyntraAIIntelligenceStructured', 'description': 'Built structured machine learning models with a 92% predictiv
+    [2] {'name': 'MobileNetV2ModelOptimization', 'description': 'Applied quantization-aware training and structured pruning to c
+  education: [1 items]
+    [0] {'degree': 'Bachelor of Technology (B.Tech)', 'school': 'Satya Institute of Technology and Management', 'year': '2020'}
+  certifications: [6 items]
+    [0] Advanced Data Science with Python – NASSCOM(Gold)
+    [1] Career Essentials in Generative AI – Microsoft & LinkedIn
+    [2] Python Programming – HackerRank (Gold)
+  gap_analysis: [4 items]
+    [0] The JD requires 'react' — add a project or skill entry showcasing your react experience to improve the ATS match.
+    [1] The JD requires 'node.js' — add a project or skill entry showcasing your node.js experience to improve the ATS match.
+    [2] The JD requires 'aws' — add a project or skill entry showcasing your aws experience to improve the ATS match.
+  match_analysis: Candidate possesses strong foundational alignment. See summary for details.
+  cover_letter: Dear Hiring Manager,
+
+I am writing to express my interest in the Senior Software Engineer role at [Company Name]. As an AI Engineer Intern with Full Stack Development expertise in Python and SQL, I br...
+
+
+🔍 STEP 4: Checking PDF input data...
+  has full_name:    True → Bheemeshwararao Aika
+  has summary:      True
+  has skills:       True → count=4
+  has experience:   True → count=2
+  has education:    True
+  has certs:        True
+
+────────────────────────────────────────────────────────────
+📋 FINAL PDF INPUT DATA
+────────────────────────────────────────────────────────────
+  full_name: Bheemeshwararao Aika
+  professional_title: AI Engineer Intern with Hands-on Expertise in Python, SQL, Machine Learning, NLP and Business Intelligence
+  email: bheemesh9392@gmail.com
+  phone: +919392484785
+  location: Hyderabad, India
+  linkedin: 
+  portfolio_url: 
+  tailored_summary: As a hands-on AI engineer intern with specialization in Python, SQL, Machine Learning, NLP and Business Intelligence, I have demonstrated exceptional skills in optimizing data workflows. My proficienc...
+  tailored_skills: [4 items]
+    [0] Python
+    [1] SQL
+    [2] Machine Learning
+  tailored_experience: [2 items]
+    [0] {'role': 'AI Engineer Intern', 'company': 'DecentrialzLabs (Advait Labs)', 'duration': 'Unknown', 'tailored_bullets': ['
+    [1] {'role': 'Data Scientist Intern', 'company': 'Innomatics Research Labs', 'duration': 'Unknown', 'tailored_bullets': ['Re
+  tailored_projects: [6 items]
+    [0] {'name': 'DecentrialzPlatform', 'description': 'Architected and optimized end-to-end ETL pipelines for large-scale clini
+    [1] {'name': 'SyntraAIIntelligenceStructured', 'description': 'Built structured machine learning models with a 92% predictiv
+    [2] {'name': 'MobileNetV2ModelOptimization', 'description': 'Applied quantization-aware training and structured pruning to c
+  education: [1 items]
+    [0] {'degree': 'Bachelor of Technology (B.Tech)', 'school': 'Satya Institute of Technology and Management', 'year': '2020'}
+  certifications: [6 items]
+    [0] Advanced Data Science with Python – NASSCOM(Gold)
+    [1] Career Essentials in Generative AI – Microsoft & LinkedIn
+    [2] Python Programming – HackerRank (Gold)
+  gap_analysis: [4 items]
+    [0] The JD requires 'react' — add a project or skill entry showcasing your react experience to improve the ATS match.
+    [1] The JD requires 'node.js' — add a project or skill entry showcasing your node.js experience to improve the ATS match.
+    [2] The JD requires 'aws' — add a project or skill entry showcasing your aws experience to improve the ATS match.
+  match_analysis: Candidate possesses strong foundational alignment. See summary for details.
+  cover_letter: Dear Hiring Manager,
+
+I am writing to express my interest in the Senior Software Engineer role at [Company Name]. As an AI Engineer Intern with Full Stack Development expertise in Python and SQL, I br...
+
+
+🔍 STEP 5: Generating PDFs...
+✅ 2-page PDF: /app/Bugs_Resumes/Test_Patched_2Page.pdf (5730 bytes)
+✅ 1-page PDF: /app/Bugs_Resumes/Test_Patched_1Page.pdf (4571 bytes)
+
+
+✅ TEST COMPLETE
