@@ -358,7 +358,7 @@ export const ResumeBuilderPage: React.FC = () => {
 
                 // Show upgrade prompt if milestone reached
                 const currentPlan = user?.plan || 'free';
-                const count = (user?.resume_count || 0) + 1; // +1 since we just generated one
+                const count = Number(user?.resume_count || 0) + 1; // +1 since we just generated one
 
                 if (
                     (currentPlan === 'free' && count >= 1) ||

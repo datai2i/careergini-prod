@@ -327,12 +327,26 @@ def _education_block(persona: dict, S: dict) -> List:
     return items
 
 
-def _skills_grid(skills: List[str], S: dict, cols: int = 2) -> List:
-    """Render skills in a clean N-column grid for professional/fresher templates.
-    ATS-safe (text-based, no boxes). Each skill on its own cell with a bullet.
-    """
+def _skills_grid(skills: List[Any], S: dict, cols: int = 2) -> List:
+    """Render skills. If categorized (dicts), renders as a list. If flat (strings), renders as grid."""
     if not skills:
         return []
+        
+    # Categorized rendering
+    if isinstance(skills[0], dict):
+        items = []
+        for cat in skills:
+            if not isinstance(cat, dict): continue
+            c_name = cat.get("category", "")
+            c_items = cat.get("skills", cat.get("items", []))
+            if not c_name or not c_items: continue
+            skills_str = ", ".join(str(s) for s in c_items)
+            text = f"<b>{c_name}:</b> {skills_str}"
+            items.append(Paragraph(f"\u2022\u00a0{text}", S["bullet"]))
+        if items:
+            items.append(Spacer(1, 4))
+        return items
+
     rows, row = [], []
     for i, sk in enumerate(skills):
         row.append(Paragraph(f"•\u00a0{sk}", S["bullet"]))
@@ -356,8 +370,24 @@ def _skills_grid(skills: List[str], S: dict, cols: int = 2) -> List:
     return [tbl, Spacer(1, 4)]
 
 
-def _competency_grid(skills: List[str], S: dict, cols: int = 3) -> List:
-    """3-column grid for Executive template — visual weight without losing ATS."""
+def _competency_grid(skills: List[Any], S: dict, cols: int = 3) -> List:
+    """3-column grid for Executive template — visual weight without losing ATS. Support categorized skills."""
+    if not skills: return []
+    
+    if isinstance(skills[0], dict):
+        items = []
+        for cat in skills:
+            if not isinstance(cat, dict): continue
+            c_name = cat.get("category", "")
+            c_items = cat.get("skills", cat.get("items", []))
+            if not c_name or not c_items: continue
+            skills_str = ", ".join(str(s) for s in c_items)
+            text = f"<b>{c_name}:</b> {skills_str}"
+            items.append(Paragraph(f"\u25b8  {text}", S["competency"]))
+        if items:
+            items.append(Spacer(1, 4))
+        return items
+
     rows, row = [], []
     for i, sk in enumerate(skills):
         row.append(Paragraph(f"\u25b8  {sk}", S["competency"]))
@@ -636,24 +666,34 @@ def _render_fresher(story: List, persona: dict, S: dict, compact: bool):
     # ── Skills (Clean List, No Boxes) ────────────────────────────────────────
     if skills:
         story.extend(_section_header("Technical Skills", S))
-        # Group skills by 3 per row for clean scanning, purely text-based
-        cols = 3
-        rows, row = [], []
-        for i, sk in enumerate(skills):
-            row.append(Paragraph(f"• {sk}", S["body_left"]))
-            if len(row) == cols or i == len(skills) - 1:
-                while len(row) < cols: row.append(Paragraph("", S["body"]))
-                rows.append(row)
-                row = []
-        if rows:
-            tbl = Table(rows, colWidths=[f"{33}%"] * cols)
-            tbl.setStyle(TableStyle([
-                ("ALIGN", (0, 0), (-1, -1), "LEFT"),
-                ("TOPPADDING", (0, 0), (-1, -1), 1),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
-                ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ]))
-            story.append(tbl)
+        if isinstance(skills[0], dict):
+            for cat in skills:
+                if not isinstance(cat, dict): continue
+                c_name = cat.get("category", "")
+                c_items = cat.get("skills", cat.get("items", []))
+                if not c_name or not c_items: continue
+                skills_str = ", ".join(str(s) for s in c_items)
+                text = f"<b>{c_name}:</b> {skills_str}"
+                story.append(Paragraph(f"• {text}", S["body_left"]))
+        else:
+            # Group skills by 3 per row for clean scanning, purely text-based
+            cols = 3
+            rows, row = [], []
+            for i, sk in enumerate(skills):
+                row.append(Paragraph(f"• {sk}", S["body_left"]))
+                if len(row) == cols or i == len(skills) - 1:
+                    while len(row) < cols: row.append(Paragraph("", S["body"]))
+                    rows.append(row)
+                    row = []
+            if rows:
+                tbl = Table(rows, colWidths=[f"{33}%"] * cols)
+                tbl.setStyle(TableStyle([
+                    ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                    ("TOPPADDING", (0, 0), (-1, -1), 1),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ]))
+                story.append(tbl)
         story.append(Spacer(1, 4))
 
     # ── Projects (prominently placed — key differentiator for freshers) ───────

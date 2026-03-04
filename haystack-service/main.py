@@ -603,7 +603,7 @@ async def tailor_resume_endpoint(request: ResumeTailorRequest):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error tailoring resume: {e}")
+        logger.exception("Error tailoring resume")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/resume/sessions/{user_id}")
@@ -646,6 +646,44 @@ async def load_resume_session(user_id: str, session_id: str):
 def _clean(v) -> str:
     """Sanitize resume fields by removing placeholders."""
     return str(v or "").replace("Not specified", "").replace("(Not specified)", "").strip()
+
+import re
+def _categorize_skills(skills: list) -> list:
+    if not skills: return []
+    if isinstance(skills[0], dict): return skills
+    
+    categories = {
+        "Programming Languages": ["python", "java", "c++", "c#", "javascript", "typescript", "ruby", "go", "php", "swift", "kotlin", "rust", "scala", "r", "matlab", "bash", "shell", "html", "css", "c"],
+        "Frameworks & Libraries": ["react", "angular", "vue", "next.js", "svelte", "bootstrap", "tailwind", "node", "node.js", "nodejs", "express", "django", "flask", "fastapi", "spring", "ruby on rails", "pandas", "numpy", "scikit", "tensorflow", "pytorch", "keras", "spark", "hadoop", "graphql"],
+        "Databases": ["sql", "mysql", "postgresql", "mongodb", "redis", "oracle", "sql server", "cassandra", "dynamodb", "elasticsearch"],
+        "Cloud & DevOps": ["aws", "azure", "gcp", "docker", "kubernetes", "jenkins", "gitlab ci", "terraform", "ansible", "linux", "ci/cd", "ci", "cd"],
+        "Tools & Platforms": ["git", "github", "jira", "confluence", "figma", "postman", "slack", "vscode", "intellij", "maven", "gradle"]
+    }
+    
+    categorized = {k: [] for k in categories.keys()}
+    categorized["Other Core Skills"] = []
+    
+    for skill in skills:
+        placed = False
+        s_lower = str(skill).lower()
+        for cat, kw_list in categories.items():
+            for kw in kw_list:
+                # Handle special characters for C++ and C#
+                if kw in ("c++", "c#"):
+                    if kw in s_lower:
+                        categorized[cat].append(skill)
+                        placed = True
+                        break
+                elif re.search(r'\b' + re.escape(kw) + r'\b', s_lower):
+                    categorized[cat].append(skill)
+                    placed = True
+                    break
+            if placed: break
+        if not placed:
+            categorized["Other Core Skills"].append(skill)
+            
+    res = [{"category": k, "skills": v} for k, v in categorized.items() if v]
+    return res
 
 @app.post("/resume/generate")
 async def generate_resume_pdf(request: ResumeTailorRequest):
@@ -718,10 +756,15 @@ async def generate_resume_pdf(request: ResumeTailorRequest):
             request.persona["experience_highlights"] = standard_exp
         
         # Mapping summary and skills is now redundant but kept for safety if frontend sends old format
+        # Mapping summary and skills is now redundant but kept for safety if frontend sends old format
         if "tailored_summary" in request.persona:
             request.persona["summary"] = request.persona["tailored_summary"]
         if "tailored_skills" in request.persona:
             request.persona["top_skills"] = request.persona["tailored_skills"]
+            
+        # Deterministically categorize flat skills arrays for beautiful rendering in generated docs
+        if "top_skills" in request.persona:
+            request.persona["top_skills"] = _categorize_skills(request.persona["top_skills"])
         # Forward enriched fields from LLM tailoring into standard persona slots
         if "tailored_projects" in request.persona and request.persona["tailored_projects"]:
             request.persona["projects"] = request.persona["tailored_projects"]

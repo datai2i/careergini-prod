@@ -565,6 +565,32 @@ app.post('/payments/razorpay/verify', verifyToken, async (req, res) => {
     }
 });
 
+app.post('/payments/coupon/redeem', verifyToken, async (req, res) => {
+    try {
+        const { plan, code } = req.body;
+
+        // Ensure plan logic maps directly to codes for clean assignment
+        const validCoupons = {
+            'TEST_STARTER_GINI': 'starter',
+            'TEST_PREMIUM_GINI': 'premium' // Can technically upgrade any user immediately
+        };
+
+        const redeemedPlan = validCoupons[code];
+        if (!redeemedPlan || redeemedPlan !== plan) {
+            return res.status(400).json({ error: 'Invalid or expired coupon code.' });
+        }
+
+        const price = PLAN_PRICES[redeemedPlan]?.USD || 0;
+        const mockOrderId = `coupon_${code}_${Date.now()}`;
+
+        // Leverage existing centralized upgrade architecture
+        await upgradeUserPlan(req.user.id, redeemedPlan, 'coupon', mockOrderId, price, 'USD');
+        res.json({ success: true, plan: PLAN_DB_MAP[redeemedPlan] || redeemedPlan });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.post('/payments/stripe/create-session', verifyToken, async (req, res) => {
     try {
         const { plan, currency = 'usd' } = req.body;

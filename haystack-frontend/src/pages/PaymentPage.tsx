@@ -57,6 +57,7 @@ const PaymentPage: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [paymentStatus, setPaymentStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [errorMsg, setErrorMsg] = useState('');
+    const [couponCode, setCouponCode] = useState('');
 
     const { user, refreshUser } = useAuth();
     const { showToast } = useToast();
@@ -181,6 +182,33 @@ const PaymentPage: React.FC = () => {
         if (gateway === 'paypal') handlePayPal();
         else if (gateway === 'razorpay') handleRazorpay();
         else handleStripe();
+    };
+
+    const handleRedeemCoupon = async () => {
+        if (!couponCode.trim()) {
+            setErrorMsg('Please enter a valid coupon code.');
+            return;
+        }
+        setLoading(true);
+        setErrorMsg('');
+        try {
+            const res = await fetch('/api/profile/payments/coupon/redeem', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ plan: planKey, code: couponCode }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Invalid or expired coupon code');
+
+            // Success flow
+            await refreshUser();
+            showToast('Coupon applied successfully! Plan activated.', 'success');
+            setPaymentStatus('success');
+        } catch (err: any) {
+            setErrorMsg(err.message);
+        } finally {
+            setLoading(false);
+        }
     };
 
     if (paymentStatus === 'success') {
@@ -352,6 +380,27 @@ const PaymentPage: React.FC = () => {
                                         <p className="text-xs text-gray-400">International cards · Apple Pay · Google Pay · USD, EUR, INR</p>
                                     </div>
                                     {gateway === 'stripe' && <div className="ml-auto w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center"><Check className="w-3 h-3 text-white" /></div>}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Coupon Code Section */}
+                        <div className="mb-6">
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Have a Coupon Code?</label>
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    placeholder="Enter code here"
+                                    value={couponCode}
+                                    onChange={(e) => setCouponCode(e.target.value)}
+                                    className="flex-1 px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-medium uppercase"
+                                />
+                                <button
+                                    onClick={handleRedeemCoupon}
+                                    disabled={loading || !couponCode.trim()}
+                                    className="px-6 py-3 bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50"
+                                >
+                                    Apply
                                 </button>
                             </div>
                         </div>

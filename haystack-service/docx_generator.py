@@ -236,6 +236,28 @@ def _setup_doc(template: str, page_count: int) -> Document:
     return doc
 
 
+def _add_skills_body(doc, skills, palette, compact):
+    if not skills: return
+    if isinstance(skills[0], dict):
+        for cat in skills:
+            if not isinstance(cat, dict): continue
+            c_name = cat.get("category", "")
+            c_items = cat.get("skills", cat.get("items", []))
+            if not c_name or not c_items: continue
+            p = doc.add_paragraph()
+            r1 = p.add_run(f"•  {c_name}: ")
+            r1.bold = True
+            r1.font.size = Pt(9 if compact else 10.5)
+            _set_run_color(r1, palette["body"])
+            r2 = p.add_run(", ".join(str(s) for s in c_items))
+            r2.font.size = Pt(9 if compact else 10.5)
+            _set_run_color(r2, palette["body"])
+            _set_para_margins(p, bottom_pt=2)
+    else:
+        _add_body(doc, ", ".join(str(s) for s in skills), palette, compact)
+
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Template renderers
 # ─────────────────────────────────────────────────────────────────────────────
@@ -256,7 +278,7 @@ def _render_professional_docx(doc, persona, palette, compact):
 
     if skills:
         _add_section_header(doc, "Core Skills", palette, compact)
-        _add_body(doc, ", ".join(skills), palette, compact)
+        _add_skills_body(doc, skills, palette, compact)
 
     exps = persona.get("experience_highlights") or []
     if exps:
@@ -300,7 +322,7 @@ def _render_executive_docx(doc, persona, palette, compact):
 
     if skills:
         _add_section_header(doc, "Core Competencies", palette, compact)
-        _add_body(doc, ", ".join(skills), palette, compact)
+        _add_skills_body(doc, skills, palette, compact)
 
     exps = persona.get("experience_highlights") or []
     if exps:
@@ -347,7 +369,7 @@ def _render_fresher_docx(doc, persona, palette, compact):
 
     if skills:
         _add_section_header(doc, "Technical Skills", palette, compact)
-        _add_body(doc, ", ".join(skills), palette, compact)
+        _add_skills_body(doc, skills, palette, compact)
 
     if projects:
         _add_section_header(doc, "Projects & Academic Work", palette, compact)

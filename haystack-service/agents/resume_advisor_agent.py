@@ -13,24 +13,55 @@ logger = logging.getLogger(__name__)
 # Shared helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _sanitize_bullets_list(bullets):
+    if not isinstance(bullets, list):
+        bullets = [bullets]
+    clean = []
+    for b in bullets:
+        if isinstance(b, dict):
+            parts = [str(b[k]).strip() for k in ["action", "result"] if b.get(k)]
+            if parts:
+                clean.append(" ".join(parts))
+            else:
+                clean.append(" - ".join(str(v) for v in b.values() if v))
+        elif isinstance(b, str):
+            clean.append(b)
+        else:
+            clean.append(str(b))
+    return clean
+
+def _sanitize_dict(data: dict) -> dict:
+    if not isinstance(data, dict): return data
+    for key in ["tailored_experience", "experience", "experience_highlights"]:
+        if key in data and isinstance(data[key], list):
+            for exp in data[key]:
+                if not isinstance(exp, dict): continue
+                if "tailored_bullets" in exp:
+                    exp["tailored_bullets"] = _sanitize_bullets_list(exp["tailored_bullets"])
+                if "key_achievement" in exp:
+                    exp["key_achievement"] = _sanitize_bullets_list(exp["key_achievement"])
+    return data
+
 def _parse_json(content: str) -> dict:
     """Robustly extract the first JSON object from LLM output."""
-    # Strip markdown fences
+    raw_json = content
     if "```json" in content:
-        content = content.split("```json")[1].split("```")[0]
+        raw_json = content.split("```json")[1].split("```")[0]
     elif "```" in content:
-        content = content.split("```")[1].split("```")[0]
-    # Find the first { ... } block
-    match = re.search(r'\{.*\}', content, re.DOTALL)
+        raw_json = content.split("```")[1].split("```")[0]
+    
+    match = re.search(r'\{.*\}', raw_json, re.DOTALL)
     if match:
         raw = match.group(0)
-        # Repair trailing commas before } or ]
         raw = re.sub(r',(\s*[}\]])', r'\1', raw)
         try:
-            return json.loads(raw)
+            return _sanitize_dict(json.loads(raw))
         except json.JSONDecodeError:
             pass
-    return json.loads(content.strip())
+    try:
+        return _sanitize_dict(json.loads(raw_json.strip()))
+    except:
+        return {}
 
 
 def _fmt_exp(exp: dict) -> dict:
@@ -394,7 +425,7 @@ Experience entries: {json.dumps(tailored_exp)}
 JD context (for keyword alignment): {slim_jd}
 
 Output ONLY valid JSON — preserve ALL experience entries, DO NOT drop any roles:
-{{"tailored_summary":"rich final summary text","tailored_skills":["skill1","skill2"],"tailored_experience":[{{"role":"role","company":"company","duration":"duration","tailored_bullets":["rich STAR bullet 1","rich STAR bullet 2","rich STAR bullet 3"]}}]}}"""
+{{"tailored_summary":"rich final summary text","tailored_skills":["skill1","skill2"],"tailored_experience":[{{"role":"role","company":"company","duration":"duration","tailored_bullets":["rich STAR bullet 1","rich STAR bullet 2"]}}]}}"""
 
         try:
             response = self.generator.run(prompt=prompt)
