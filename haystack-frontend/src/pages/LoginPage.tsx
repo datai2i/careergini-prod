@@ -39,33 +39,33 @@ export const LoginPage: React.FC = () => {
     const features = [
         {
             icon: <BrainCircuit className="w-8 h-8 text-blue-500" />,
-            title: "Step 1: Upload & AI Analysis",
-            description: "Simply upload your existing resume. CareerGini\'s AI instantly parses your history, maps your core competencies, and identifies your skill gaps to create a centralized, master AI profile unique to you."
+            title: "Simplicity First: Instant AI Parsing",
+            description: "Simply upload your existing resume. Our mature AI engine instantly parses your history, extracting deep technical capabilities without missing a beat, to establish your master profile."
         },
         {
             icon: <Target className="w-8 h-8 text-purple-500" />,
-            title: "Step 2: Hyper-Personalization",
-            description: "Paste any job description. The AI cross-references your master profile against the employer\'s requirements, rewriting your bullet points to mirror their exact vocabulary, metrics, and industry tone."
+            title: "Hyper-Personalized Tailoring",
+            description: "Paste your target job description. Advanced, highly-tailored LLMs immediately cross-reference your skills, intelligently rewriting every bullet point to perfectly mirror the employer's exact vocabulary."
         },
         {
             icon: <MessageSquare className="w-8 h-8 text-indigo-500" />,
-            title: "Dynamic AI Mentorship (Premium)",
-            description: "Gini Chat is aware of your entire profile. Instead of generic advice, our AI mentor dynamically suggests missing skills, interview tactics, and salary negotiations based entirely on your centralized career data."
+            title: "Gini Chat: Dedicated AI Mentor",
+            description: "Unlock our flagship Premium feature. Gini Chat knows your entire career history contextually. It provides bespoke interview strategies, salary negotiation tactics, and cover letters that generic bots simply cannot match."
         },
         {
             icon: <Globe className="w-8 h-8 text-emerald-500" />,
             title: "Smart Learning Hub (Premium)",
-            description: "Stop guessing what to learn next. CareerGini uses your AI profile's identified gap analysis to recommend highly targeted YouTube and Coursera courses, accelerating your upskilling journey."
+            description: "Identify precisely why ATS systems reject you. Our AI maps your skill gaps against the market and auto-recommends targeted courses from YouTube and Coursera to rapidly accelerate your upskilling journey."
         },
         {
             icon: <Star className="w-8 h-8 text-pink-500" />,
-            title: "Historical Resumes Forever",
-            description: "Every hyper-tailored ATS PDF you generate is saved securely to your Dashboard. Download them anytime, anywhere — your historical documents remain accessible forever, even if your plan credits run out."
+            title: "Your Arsenal, Saved Forever",
+            description: "Every hyper-tailored ATS PDF you craft is stored securely on your dashboard. Download your historical documents anytime, seamlessly tracking your professional progression over the years."
         },
         {
             icon: <Zap className="w-8 h-8 text-amber-500" />,
-            title: "Exceptional Value, No Lock-In",
-            description: "No monthly subscriptions or hidden fees. Experience elite AI career tooling starting completely free, or unlock our Premium suite for a single, uniquely low cost. Pay once, use forever."
+            title: "Exceptional Value, Guaranteed",
+            description: "Build your first game-changing resume absolutely free. When you're ready, unlock the full Premium suite for a single, low one-time cost. Pay once, use forever."
         }
     ];
 
@@ -135,15 +135,13 @@ export const LoginPage: React.FC = () => {
                         <span>Your AI Career Coach — Free to Try. Built to Accelerate.</span>
                     </div>
 
-                    <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-8 leading-tight animate-fade-in-up animation-delay-100">
-                        Your Résumé. Tailored by AI. <br className="hidden md:block" />
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 animate-gradient-x">
-                            Designed to Get You Hired.
-                        </span>
+                    <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6 leading-tight animate-fade-in-up animation-delay-100">
+                        Build a <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 animate-gradient-x">Hyper-Personalized</span> Résumé <br className="hidden md:block" />
+                        Using Advanced AI.
                     </h1>
 
                     <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 mb-12 max-w-3xl mx-auto leading-relaxed animate-fade-in-up animation-delay-200">
-                        CareerGini reads your profile and the job description — then writes a hyper-personalized, ATS-beating resume in under 5 minutes. <strong>Start completely free. No card needed.</strong>
+                        Stop sending generic resumes. CareerGini's highly-tailored LLMs instantly map your entire professional history to the exact job you want, rewriting bullets to match industry keywords perfectly. <strong>Fast, simple, and mature intelligence. Start for free.</strong>
                     </p>
 
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up animation-delay-300">
@@ -259,14 +257,14 @@ export const LoginPage: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-16 items-stretch">
 
                         {/* Free Plan */}
-                        <div className="relative flex flex-col p-6 rounded-3xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                            <div className="mb-4">
-                                <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center mb-3">
+                        <div className="relative flex flex-col p-5 rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                            <div className="mb-3">
+                                <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center mb-2">
                                     <Globe className="w-5 h-5 text-gray-500" />
                                 </div>
                                 <h3 className="text-xl font-bold text-gray-900 dark:text-white">Free</h3>
-                                <div className="flex items-end gap-1 mt-2">
-                                    <span className="text-4xl font-extrabold text-gray-900 dark:text-white">$0</span>
+                                <div className="flex items-end gap-1 mt-1">
+                                    <span className="text-3xl font-extrabold text-gray-900 dark:text-white">$0</span>
                                     <span className="text-gray-500 dark:text-gray-400 mb-1">forever</span>
                                 </div>
                                 <div className="mt-3 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg inline-block">
@@ -292,25 +290,25 @@ export const LoginPage: React.FC = () => {
                                 ))}
                             </ul>
 
-                            <button onClick={() => handleLogin('google')} className="w-full py-3 px-6 rounded-xl border-2 border-gray-900 dark:border-white text-gray-900 dark:text-white font-bold hover:bg-gray-900 hover:text-white dark:hover:bg-white dark:hover:text-gray-900 transition-all duration-200">
+                            <button onClick={() => handleLogin('google')} className="w-full py-2.5 px-4 rounded-xl border-2 border-gray-900 dark:border-white text-gray-900 dark:text-white font-bold hover:bg-gray-900 hover:text-white dark:hover:bg-white dark:hover:text-gray-900 transition-all duration-200">
                                 Start Free — No Card Needed
                             </button>
                         </div>
 
                         {/* Starter Plan */}
-                        <div className="relative flex flex-col p-6 rounded-3xl border-2 border-blue-500 bg-white dark:bg-slate-800 shadow-2xl shadow-blue-500/20 hover:shadow-blue-500/30 transition-all duration-300 hover:-translate-y-1">
+                        <div className="relative flex flex-col p-5 rounded-2xl border-2 border-blue-500 bg-white dark:bg-slate-800 shadow-2xl shadow-blue-500/20 hover:shadow-blue-500/30 transition-all duration-300 hover:-translate-y-1">
                             <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-blue-600 text-white shadow-lg shadow-blue-500/40">
                                     <Zap className="w-3 h-3" /> Most Popular
                                 </span>
                             </div>
-                            <div className="mb-4">
-                                <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center mb-3">
+                            <div className="mb-3">
+                                <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center mb-2">
                                     <BookOpen className="w-5 h-5 text-blue-600" />
                                 </div>
                                 <h3 className="text-xl font-bold text-gray-900 dark:text-white">Starter</h3>
-                                <div className="flex items-end gap-2 mt-2">
-                                    <span className="text-4xl font-extrabold text-blue-600">$5</span>
+                                <div className="flex items-end gap-2 mt-1">
+                                    <span className="text-3xl font-extrabold text-blue-600">$5</span>
                                     <span className="text-gray-500 dark:text-gray-400 mb-1">one-time</span>
                                 </div>
                                 <div className="mt-3 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 rounded-lg inline-flex items-center gap-2">
@@ -338,25 +336,25 @@ export const LoginPage: React.FC = () => {
                                 ))}
                             </ul>
 
-                            <button onClick={() => handleLogin('google')} className="w-full py-3 px-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:-translate-y-0.5 transition-all duration-200">
+                            <button onClick={() => handleLogin('google')} className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:-translate-y-0.5 transition-all duration-200">
                                 Get 5 Builds for $5 →
                             </button>
                         </div>
 
                         {/* Premium Plan */}
-                        <div className="relative flex flex-col p-6 rounded-3xl border-2 border-purple-500 bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 dark:bg-slate-800 shadow-lg hover:shadow-purple-500/20 transition-all duration-300 hover:-translate-y-1">
+                        <div className="relative flex flex-col p-5 rounded-2xl border-2 border-purple-500 bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 dark:bg-slate-800 shadow-lg hover:shadow-purple-500/20 transition-all duration-300 hover:-translate-y-1">
                             <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-500/40">
                                     <Star className="w-3 h-3" /> Full Power Unlocked
                                 </span>
                             </div>
-                            <div className="mb-4">
-                                <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center mb-3">
+                            <div className="mb-3">
+                                <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center mb-2">
                                     <Compass className="w-5 h-5 text-purple-600" />
                                 </div>
                                 <h3 className="text-xl font-bold text-gray-900 dark:text-white">Premium</h3>
-                                <div className="flex items-end gap-2 mt-2">
-                                    <span className="text-4xl font-extrabold text-purple-600">$20</span>
+                                <div className="flex items-end gap-2 mt-1">
+                                    <span className="text-3xl font-extrabold text-purple-600">$20</span>
                                     <span className="text-gray-500 dark:text-gray-400 mb-1">one-time</span>
                                 </div>
                                 <div className="mt-3 px-3 py-1.5 bg-purple-50 dark:bg-purple-900/30 rounded-lg inline-flex items-center gap-2">
@@ -384,7 +382,7 @@ export const LoginPage: React.FC = () => {
                                 ))}
                             </ul>
 
-                            <button onClick={() => handleLogin('google')} className="w-full py-3 px-6 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 hover:-translate-y-0.5 transition-all duration-200">
+                            <button onClick={() => handleLogin('google')} className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 hover:-translate-y-0.5 transition-all duration-200">
                                 Unlock Full Power — $20 One-Time
                             </button>
                         </div>

@@ -266,8 +266,8 @@ const PaymentPage: React.FC = () => {
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
                     {/* Left: Plan Summary */}
-                    <div className={`rounded-3xl bg-gradient-to-br ${plan.color} p-6 text-white shadow-2xl`}>
-                        <div className="flex items-center gap-2 mb-4">
+                    <div className={`rounded-3xl bg-gradient-to-br ${plan.color} p-5 text-white shadow-2xl`}>
+                        <div className="flex items-center gap-2 mb-3">
                             <Star className="w-5 h-5" />
                             <div>
                                 <p className="text-xs font-semibold opacity-80">Upgrading to</p>
@@ -276,9 +276,9 @@ const PaymentPage: React.FC = () => {
                         </div>
 
                         {/* Price display */}
-                        <div className="bg-white/10 rounded-2xl p-4 mb-5">
+                        <div className="bg-white/10 rounded-2xl p-4 mb-4">
                             <div className="flex items-baseline gap-2 mb-1">
-                                <span className="text-4xl font-black">{symbol}{price}</span>
+                                <span className="text-3xl font-black">{symbol}{price}</span>
                                 <span className="text-sm opacity-70">one-time · never expires</span>
                             </div>
                             <p className="text-xs opacity-80">{plan.builds} resume builds included</p>
@@ -297,7 +297,7 @@ const PaymentPage: React.FC = () => {
                         </ul>
 
                         {/* Trust badges */}
-                        <div className="mt-6 flex flex-wrap gap-4 text-xs opacity-80">
+                        <div className="mt-4 flex flex-wrap gap-4 text-xs opacity-80">
                             <span className="flex items-center gap-1.5"><Shield className="w-3.5 h-3.5" /> SSL Encrypted</span>
                             <span className="flex items-center gap-1.5"><Lock className="w-3.5 h-3.5" /> PCI DSS Compliant</span>
                             <span className="flex items-center gap-1.5"><Globe className="w-3.5 h-3.5" /> 150+ Countries</span>
@@ -305,12 +305,12 @@ const PaymentPage: React.FC = () => {
                     </div>
 
                     {/* Right: Checkout Form */}
-                    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-lg p-8 border border-gray-100 dark:border-gray-700">
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Payment Details</h3>
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-lg p-6 border border-gray-100 dark:border-gray-700">
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Payment Details</h3>
 
                         {/* Currency Selector */}
-                        <div className="mb-6">
-                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Currency</label>
+                        <div className="mb-5">
+                            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-2">Currency</label>
                             <div className="grid grid-cols-3 gap-2">
                                 {(Object.keys(CURRENCY_LABELS) as Currency[]).map(c => (
                                     <button
@@ -329,9 +329,9 @@ const PaymentPage: React.FC = () => {
                         </div>
 
                         {/* Payment Method */}
-                        <div className="mb-6">
-                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Payment Method</label>
-                            <div className="space-y-3">
+                        <div className="mb-5">
+                            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-2">Payment Method</label>
+                            <div className="space-y-2.5">
                                 {/* PayPal */}
                                 <button
                                     onClick={() => setGateway('paypal')}
@@ -385,8 +385,8 @@ const PaymentPage: React.FC = () => {
                         </div>
 
                         {/* Coupon Code Section */}
-                        <div className="mb-6">
-                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Have a Coupon Code?</label>
+                        <div className="mb-5">
+                            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-2">Have a Coupon Code?</label>
                             <div className="flex gap-2">
                                 <input
                                     type="text"
@@ -403,6 +403,9 @@ const PaymentPage: React.FC = () => {
                                     Apply
                                 </button>
                             </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                <strong>Instructions:</strong> Select your target plan above, enter the corresponding valid coupon code, and click Apply.
+                            </p>
                         </div>
 
                         {/* Error */}

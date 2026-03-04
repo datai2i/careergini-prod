@@ -160,16 +160,14 @@ export const HomePage: React.FC = () => {
                                         : 'bg-gradient-to-r from-blue-500 to-blue-600'
                                         }`}
                                 >
-                                    <span>Upgrade to {up.label} — {up.price} one-time</span>
+                                    <span>{up.label} — {up.price} one-time</span>
                                     <ChevronRight size={16} />
                                 </button>
                             ))}
                         </div>
                     ) : (
                         <div className="mt-auto p-3 rounded-xl bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800 text-xs text-purple-700 dark:text-purple-300 font-medium text-center">
-                            {buildCount >= maxBuilds
-                                ? '🔋 20 builds used. Contact team@datai2i.com to reload credits.'
-                                : '🌟 You\'re on the full Premium plan. Enjoy all features!'}
+                            🌟 You're on the full Premium plan. Enjoy all features!
                         </div>
                     )}
 
