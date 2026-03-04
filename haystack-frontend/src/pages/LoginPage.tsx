@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Sparkles, ArrowRight, BrainCircuit, Target, MessageSquare, Star, ShieldCheck, Zap, Check, X, Globe, BookOpen, Compass, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { Navigate } from 'react-router-dom';
 
 export const LoginPage: React.FC = () => {
     const AUTH_URL = `/api/profile/auth`;
@@ -29,8 +30,8 @@ export const LoginPage: React.FC = () => {
         );
     }
 
-    // Already authenticated — RootRedirect will navigate away, show nothing
-    if (isAuthenticated) return null;
+    // Already authenticated — let RootRedirect handle where they go next
+    if (isAuthenticated) return <Navigate to="/" replace />;
 
     const handleLogin = (provider: string) => {
         window.location.href = `${AUTH_URL}/${provider}?source=haystack`;

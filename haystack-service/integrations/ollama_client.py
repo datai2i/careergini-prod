@@ -18,6 +18,7 @@ class OllamaClient:
     
     def __init__(self):
         self.base_url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
+        self.model_name = os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b")
         # Reduced threads to 4 for legacy CPU to avoid synchronization overhead
         num_threads = 4
         
@@ -25,7 +26,7 @@ class OllamaClient:
         
         # Model 1: Complex Reasoning (Supervisor, Resume Builder)
         self.generator_reasoning = OllamaGenerator(
-            model="qwen2.5:1.5b",
+            model=self.model_name,
             url=self.base_url,
             timeout=1200,
             generation_kwargs={
@@ -36,11 +37,11 @@ class OllamaClient:
                 "repeat_penalty": 1.1
             }
         )
-        logger.info("✓ Loaded reasoning model generator: qwen2.5:1.5b")
+        logger.info(f"✓ Loaded reasoning model generator: {self.model_name}")
         
         # Model 2: Fast Tasks (Profile, Jobs, Learning)
         self.generator_fast = OllamaGenerator(
-            model="qwen2.5:1.5b",
+            model=self.model_name,
             url=self.base_url,
             timeout=1200,
             generation_kwargs={
@@ -51,11 +52,11 @@ class OllamaClient:
                 "repeat_penalty": 1.0
             }
         )
-        logger.info("✓ Loaded fast model generator: qwen2.5:1.5b")
+        logger.info(f"✓ Loaded fast model generator: {self.model_name}")
         
         # Model 3: Technical/Coding Tasks (Skills Gap)
         self.generator_coder = OllamaGenerator(
-            model="qwen2.5:1.5b",
+            model=self.model_name,
             url=self.base_url,
             timeout=1200,
             generation_kwargs={
@@ -66,7 +67,7 @@ class OllamaClient:
                 "repeat_penalty": 1.05
             }
         )
-        logger.info("✓ Loaded coder model generator: qwen2.5:1.5b")
+        logger.info(f"✓ Loaded coder model generator: {self.model_name}")
     
     def get_generator(self, task_type: Literal["reasoning", "fast", "coding"]) -> OllamaGenerator:
         """

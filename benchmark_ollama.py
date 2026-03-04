@@ -2,8 +2,9 @@ import time
 import httpx
 import json
 
-base_url = "http://localhost:11435"
-model = "qwen2.5:1.5b"
+import os
+base_url = "http://localhost:11434"
+model = os.getenv("OLLAMA_MODEL", "qwen3.5:9b")
 
 prompt = """Extract structured information from this resume. Output ONLY valid JSON.
 Resume text:
@@ -32,7 +33,7 @@ Required JSON structure (extract real info only):
 print(f"Benchmarking {model}...")
 start_time = time.time()
 
-with httpx.Client(timeout=120.0) as client:
+with httpx.Client(timeout=600.0) as client:
     response = client.post(
         f"{base_url}/api/generate",
         json={
