@@ -76,7 +76,7 @@ export const ResumeBuilderPage: React.FC = () => {
     const [coverLetterDocxUrl, setCoverLetterDocxUrl] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-    const [pageCount, setPageCount] = useState<number>(2);
+    const pageCount = 1; // Templates are single-page only
     const [sessions, setSessions] = useState<Array<{ session_id: string; timestamp: string; job_title_snippet: string }>>([]);
     const [loadingSession, setLoadingSession] = useState(false);
     const [targetIndustry, setTargetIndustry] = useState<string>('');
@@ -1303,30 +1303,6 @@ export const ResumeBuilderPage: React.FC = () => {
                             </div>
 
                             <div className="border-t border-gray-100 pt-6 space-y-5">
-                                {/* Page Length Toggle */}
-                                <div className="flex items-center justify-center gap-3">
-                                    <span className="text-sm font-medium text-gray-600">Resume Length:</span>
-                                    <div className="flex rounded-xl overflow-hidden border border-gray-200 shadow-sm">
-                                        {[
-                                            { value: 1, label: '1 Page', desc: 'Compact' },
-                                            { value: 2, label: '2 Pages', desc: 'Full Detail' },
-                                        ].map((opt) => (
-                                            <button
-                                                key={opt.value}
-                                                onClick={() => setPageCount(opt.value)}
-                                                className={`px-5 py-2 text-sm font-semibold transition-all ${pageCount === opt.value
-                                                    ? 'bg-purple-600 text-white'
-                                                    : 'bg-white text-gray-600 hover:bg-gray-50'
-                                                    }`}
-                                            >
-                                                {opt.label}
-                                                <span className={`ml-1.5 text-xs font-normal ${pageCount === opt.value ? 'text-purple-200' : 'text-gray-400'}`}>
-                                                    {opt.desc}
-                                                </span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
 
                                 {/* Action Buttons */}
                                 <div className="flex justify-between items-center">
