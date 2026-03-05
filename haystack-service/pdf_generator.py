@@ -789,18 +789,22 @@ def generate_pdf(
     """
     _ensure_fonts()
 
-    # Remap legacy template names
-    if template not in ("professional", "executive", "fresher"):
+    # Allow both legacy and new ATS templates
+    valid_templates = ("professional", "executive", "fresher", "deedy", "jakes", "faangpath")
+    if template not in valid_templates:
+        logger.warning(f"Unknown template '{template}', defaulting to professional.")
         template = "professional"
 
     # TRY LATEX FIRST
-    # try:
-    #     success = generate_pdf_latex(output_path, persona, template, page_count)
-    #     if success:
-    #         return True
-    #     logger.warning(f"LaTeX generation failed for {template}. Falling back to ReportLab.")
-    # except Exception as e:
-    #     logger.warning(f"LaTeX generation exception for {template}: {e}. Falling back to ReportLab.")
+    try:
+        success = generate_pdf_latex(output_path, persona, template, page_count)
+        if success:
+            logger.info(f"LaTeX generation successful! Halting ReportLab fallback.")
+            return True
+        else:
+            logger.warning("LaTeX generation failed, falling back to ReportLab...")
+    except Exception as e:
+        logger.warning(f"LaTeX generation error: {e}, falling back to ReportLab...")
 
     compact = (page_count == 1)
 

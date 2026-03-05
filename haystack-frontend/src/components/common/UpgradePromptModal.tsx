@@ -28,19 +28,19 @@ export const UpgradePromptModal: React.FC<UpgradePromptModalProps> = ({ isOpen, 
         message = "You've experienced the power of AI tailoring. Unlock 5 more builds, industry-specific tailoring, and cover letter auto-generation with the Starter plan — just $5 one-time.";
         ctaText = "Upgrade to Starter — $5 One-Time";
         nextPlan = 'starter';
-        features = ["5 AI-tailored resume builds", "Industry-specific tailoring (Tech, Finance, Healthcare & more)", "ATS score + 1-click regeneration", "Cover letter auto-generation", "Credits never expire"];
+        features = ["5 AI-tailored Resume Builds", "Industry-specific tailoring (Tech, Finance, Healthcare & more)", "ATS score + 1-click regeneration", "Cover letter auto-generation", "Credits never expire"];
     } else if (isStarter) {
         title = "Starter Build Limit Reached";
-        message = "You've used all 5 Starter builds. Renew your Starter plan, or upgrade to Premium to unlock Gini Chat mentorship and the Learning Hub.";
+        message = "You've used all 5 Starter Resume Builds. Renew your Starter plan, or upgrade to Premium to unlock Gini Chat mentorship and the Learning Hub.";
         ctaText = "Upgrade to Premium — $20 One-Time";
         nextPlan = 'premium';
-        features = ["20 AI-tailored resume builds", "Unlimited Gini Chat AI mentor sessions", "Hyper-personalised global job search", "Learning Hub — skills, courses & career roadmap", "Credits never expire"];
+        features = ["20 AI-tailored Resume Builds", "Unlimited Gini Chat AI mentor sessions", "Hyper-personalised global job search", "Learning Hub — skills, courses & career roadmap", "Credits never expire"];
     } else if (isPremium) {
-        title = "Power User — 20 Builds Used!";
-        message = "You've utilized your 20 Premium builds. Renew your Premium plan to reload your 20 builds and maintain uninterrupted access to Gini Chat and the Learning Hub.";
+        title = "Power User — 20 Resume Builds Used!";
+        message = "You've utilized your 20 Premium Resume Builds. Renew your Premium plan to reload your 20 Reserve Builds and maintain uninterrupted access to Gini Chat and the Learning Hub.";
         ctaText = "Renew Premium — $20 One-Time";
         nextPlan = 'premium';
-        features = ["20 AI-tailored resume builds", "Unlimited Gini Chat AI mentor sessions", "Learning Hub & Global Job Search", "Credits never expire"];
+        features = ["20 AI-tailored Resume Builds", "Unlimited Gini Chat AI mentor sessions", "Learning Hub & Global Job Search", "Credits never expire"];
     }
 
     const handleCTA = (planKey: string) => {

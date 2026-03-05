@@ -131,8 +131,98 @@ async def startup_event():
     ollama = get_ollama_client()
     health = await ollama.health_check()
     logger.info(f"Ollama Health: {health}")
+    
+    # Strictly ensure the required model is pulled into the Ollama container
+    # so we don't get 404s when parsing resumes after a docker-compose wipe
+    model_ready = await ollama.ensure_model()
+    if not model_ready:
+        logger.error("Failed to ensure Ollama model is ready. Resume parsing may fail!")
+
+import xml.etree.ElementTree as ET
+import random
+
+# ── Namespaces used by some RSS/Atom feeds ────────────────────────────────────
+_RSS_NS = {"content": "http://purl.org/rss/1.0/modules/content/",
+           "atom":    "http://www.w3.org/2005/Atom"}
+
+# ── Free RSS feeds — no API key required ─────────────────────────────────────
+_NEWS_FEEDS = [
+    # AI / Tech
+    ("https://feeds.feedburner.com/TechCrunch",              "TechCrunch"),
+    ("https://www.artificialintelligence-news.com/feed/",    "AI News"),
+    ("https://dev.to/feed/tag/ai",                           "Dev.to • AI"),
+    ("https://hnrss.org/frontpage?points=100",               "Hacker News"),
+    # Career / Hiring
+    ("https://feeds.feedburner.com/entrepreneur/latest",     "Entrepreneur"),
+    ("https://www.shrm.org/rss/hr-resources.xml",            "SHRM"),
+]
+
+@app.get("/news/trending")
+async def get_trending_news(q: str = ""):
+    """
+    Aggregate real-time articles from multiple free RSS feeds.
+    Returns up to 8 shuffled, deduplicated news items.
+    CORS-safe — all fetching happens server-side.
+    """
+    results = []
+    seen_titles: set = set()
+
+    async with httpx.AsyncClient(timeout=6.0, follow_redirects=True) as client:
+        for feed_url, source_name in _NEWS_FEEDS:
+            try:
+                resp = await client.get(feed_url, headers={"User-Agent": "CareerGini/1.0"})
+                if resp.status_code != 200:
+                    continue
+
+                root = ET.fromstring(resp.text)
+
+                # Handle both RSS <item> and Atom <entry> formats
+                items = root.findall(".//item") or root.findall(".//{http://www.w3.org/2005/Atom}entry")
+                for item in items[:5]:
+                    def _txt(tag: str, ns_uri: str = "") -> str:
+                        el = item.find(f"{{{ns_uri}}}{tag}" if ns_uri else tag)
+                        return (el.text or "").strip() if el is not None else ""
+
+                    title = _txt("title") or _txt("title", "http://www.w3.org/2005/Atom")
+                    link  = _txt("link")  or _txt("link",  "http://www.w3.org/2005/Atom")
+                    desc  = _txt("description") or _txt("summary", "http://www.w3.org/2005/Atom")
+
+                    # Atom <link> is an attribute, not text
+                    if not link:
+                        link_el = item.find("{http://www.w3.org/2005/Atom}link")
+                        if link_el is not None:
+                            link = link_el.get("href", "")
+
+                    if not title or not link or title.lower() in seen_titles:
+                        continue
+
+                    seen_titles.add(title.lower())
+                    clean_desc = (desc or "No description available.")[:200].replace("\n", " ").strip()
+                    if clean_desc and not clean_desc.endswith("..."):
+                        clean_desc += "..."
+
+                    results.append({
+                        "title":       title,
+                        "description": clean_desc,
+                        "link":        link,
+                        "source_id":   source_name,
+                    })
+
+                    if len(results) >= 12:
+                        break
+            except Exception as feed_err:
+                logger.warning(f"News feed {source_name} failed: {feed_err}")
+                continue
+
+    if not results:
+        return {"status": "fallback", "results": []}
+
+    random.shuffle(results)
+    return {"status": "success", "results": results[:8]}
+
 
 @app.get("/health")
+
 async def health_check():
     """Health check endpoint"""
     try:
@@ -535,7 +625,7 @@ async def tailor_resume_endpoint(request: ResumeTailorRequest):
             job_description=request.job_description,
             target_industry=request.target_industry,
             focus_area=request.focus_area,
-            template=request.template or "professional"
+            template=request.template or "jakes"  # FIX: default to 'jakes' so new style rules always fire
         )
         
         # Calculate ATS Score on the tailored result
@@ -821,7 +911,23 @@ async def generate_resume_pdf(request: ResumeTailorRequest):
             logger.warning("No cover letter content found. Skipping cover letter generation.")
 
         logger.info(f"Generating documents for {request.user_id} using {request.template} template.")
-        
+
+        # FIX: Run Stage-2 AI polish (finalize_resume) before rendering PDFs
+        # This pass re-polishes summary/skills for the selected template's tone and page density
+        try:
+            ollama = get_ollama_client()
+            agent = ResumeAdvisorAgent(ollama.get_generator("fast"))
+            finalized_persona = await agent.finalize_resume(
+                persona=request.persona,
+                template=request.template or "jakes",
+                page_count=request.page_count or 2,
+                job_description=request.job_description or ""
+            )
+            request.persona.update(finalized_persona)
+            logger.info("Stage-2 finalize_resume polish completed.")
+        except Exception as finalize_err:
+            logger.warning(f"Stage-2 finalize_resume skipped (non-critical): {finalize_err}")
+
         # Run blocking generations in threadpool
         # PDF Resume
         await run_in_threadpool(generate_pdf, output_resume_path, request.persona, request.template, request.profile_pic, request.page_count or 2)

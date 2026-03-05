@@ -1,0 +1,199 @@
+\BLOCK{if not compact}
+\documentclass[letterpaper,11pt]{article}
+\BLOCK{else}
+\documentclass[letterpaper,10pt]{article}
+\BLOCK{endif}
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage[english]{babel}
+\usepackage{tabularx}
+% \input{glyphtounicode} % Unsupported by xelatex
+
+%----------FONT OPTIONS----------
+% sans-serif
+% \usepackage[sfdefault]{FiraSans}
+% \usepackage[sfdefault]{roboto}
+% \usepackage[sfdefault]{noto-sans}
+% \usepackage[default]{sourcesanspro}
+% serif
+% \usepackage{CormorantGaramond}
+\usepackage{charter}
+
+\pagestyle{fancy}
+\fancyhf{} % clear all header and footer fields
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Adjust margins
+\BLOCK{if not compact}
+\addtolength{\oddsidemargin}{-0.5in}
+\addtolength{\evensidemargin}{-0.5in}
+\addtolength{\textwidth}{1in}
+\addtolength{\topmargin}{-.5in}
+\addtolength{\textheight}{1.0in}
+\BLOCK{else}
+\addtolength{\oddsidemargin}{-0.6in}
+\addtolength{\evensidemargin}{-0.6in}
+\addtolength{\textwidth}{1.2in}
+\addtolength{\topmargin}{-.6in}
+\addtolength{\textheight}{1.2in}
+\BLOCK{endif}
+
+\urlstyle{same}
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+% Sections formatting
+\titleformat{\section}{
+  \vspace{-4pt}\scshape\raggedright\large
+}{}{0em}{}[\color{black}\titlerule \vspace{-5pt}]
+
+% Ensure that generate pdf is machine readable/ATS parsable
+% xelatex natively outputs unicode, so \pdfgentounicode is unnecessary and unsupported
+% \pdfgentounicode=1
+
+%-------------------------
+% Custom commands
+\newcommand{\resumeItem}[1]{
+  \item\small{
+    {#1 \vspace{-2pt}}
+  }
+}
+
+\newcommand{\resumeSubheading}[4]{
+  \vspace{-2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeSubSubheading}[2]{
+    \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \textit{\small#1} & \textit{\small #2} \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeProjectHeading}[2]{
+    \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \small#1 & #2 \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeSubItem}[1]{\resumeItem{#1}\vspace{-4pt}}
+
+\renewcommand\labelitemii{$\vcenter{\hbox{\tiny$\bullet$}}$}
+
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+
+%-------------------------------------------
+% ----  RESUME STARTS HERE ----
+
+\begin{document}
+
+%----------HEADING----------
+\begin{center}
+    \textbf{\Huge \scshape \VAR{ full_name|escape_latex }} \\ \vspace{2pt}
+    \BLOCK{if professional_title}\small \textit{\VAR{ professional_title|escape_latex }} \\ \vspace{2pt}\BLOCK{endif}
+    \small \VAR{ phone|escape_latex } $|$
+    \href{mailto:\VAR{ email|escape_latex }}{\underline{\VAR{ email|escape_latex }}} $|$
+    \href{\VAR{ linkedin|escape_latex }}{\underline{LinkedIn}} $|$
+    \BLOCK{if portfolio_url}
+    \href{\VAR{ portfolio_url|escape_latex }}{\underline{Portfolio}} $|$
+    \BLOCK{endif}
+    \VAR{ location|escape_latex }
+\end{center}
+
+%-----------SUMMARY-----------
+\BLOCK{if summary}
+\section{Summary}
+  \small{\VAR{ summary|escape_latex }}
+\BLOCK{endif}
+
+%-----------EXPERIENCE-----------
+\BLOCK{if experience_highlights}
+\section{Experience}
+  \resumeSubHeadingListStart
+    \BLOCK{for exp in experience_highlights}
+    \resumeSubheading
+      {\VAR{ exp.role|escape_latex }}{\VAR{ exp.duration|escape_latex }}
+      {\VAR{ exp.company|escape_latex }}{}
+      \resumeItemListStart
+        \BLOCK{if exp.tailored_bullets}
+          \BLOCK{for bullet in exp.tailored_bullets}
+            \resumeItem{\VAR{ bullet|escape_latex }}
+          \BLOCK{endfor}
+        \BLOCK{elif exp.key_achievement}
+          \resumeItem{\VAR{ exp.key_achievement|escape_latex }}
+        \BLOCK{endif}
+      \resumeItemListEnd
+    \BLOCK{endfor}
+  \resumeSubHeadingListEnd
+\BLOCK{endif}
+
+%-----------PROJECTS-----------
+\BLOCK{if projects}
+\section{Projects}
+    \resumeSubHeadingListStart
+      \BLOCK{for proj in projects}
+      \resumeProjectHeading
+          {\textbf{\VAR{ proj.name|escape_latex }}}{}
+          \resumeItemListStart
+            \resumeItem{\VAR{ proj.description|escape_latex }}
+          \resumeItemListEnd
+      \BLOCK{endfor}
+    \resumeSubHeadingListEnd
+\BLOCK{endif}
+
+%-----------EDUCATION-----------
+\BLOCK{if education}
+\section{Education}
+  \resumeSubHeadingListStart
+    \BLOCK{for edu in education}
+    \resumeSubheading
+      {\VAR{ edu.school|escape_latex }}{\VAR{ edu.year|escape_latex }}
+      {\VAR{ edu.degree|escape_latex }}{}
+    \BLOCK{endfor}
+  \resumeSubHeadingListEnd
+\BLOCK{endif}
+
+%-----------PROGRAMMING SKILLS-----------
+\BLOCK{if top_skills}
+\section{Key Skills}
+ \begin{itemize}[leftmargin=0.15in, label={}]
+    \small{\item{
+     \BLOCK{if top_skills[0] is string}
+        \textbf{Skills}{:
+        \BLOCK{for skill in top_skills}
+            \VAR{ skill|escape_latex }\BLOCK{if not loop.last}, \BLOCK{endif}
+        \BLOCK{endfor}
+        } \\
+     \BLOCK{else}
+        \BLOCK{for top_skill in top_skills}
+           \textbf{\VAR{ top_skill.category|escape_latex }}{:
+           \BLOCK{for skill in top_skill.skills}
+               \VAR{ skill|escape_latex }\BLOCK{if not loop.last}, \BLOCK{endif}
+           \BLOCK{endfor}
+           } \\
+        \BLOCK{endfor}
+     \BLOCK{endif}
+    }}
+ \end{itemize}
+\BLOCK{endif}
+
+%-------------------------------------------
+\end{document}

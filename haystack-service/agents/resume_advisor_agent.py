@@ -194,6 +194,25 @@ class TailorResumeComponent:
 - Experience: write 3-4 bullets framing contributions -> tech used -> outcome (even small metrics).
 - Projects: rich and results-oriented. Mention tools used, scale, and problem solved.
 - Tone: ambitious, enthusiastic, growth-focused."""
+        elif template == "jakes":
+            template_rules = """- Clean, ATS-optimised single-column style. Clarity above all.
+- Summary: 3-4 concise sentences. State the role target, core domain, top strengths, and what you bring. No fluff.
+- Skills: ONLY exact, recognizable technical terms (e.g. Python, React, SQL). NO soft skills, no phrases.
+- Experience: 4-5 strong STAR-format bullets per role. Start every bullet with an action verb. Include quantified results.
+- Tone: confident, crisp, no-nonsense. Prioritise substance over storytelling."""
+        elif template == "faangpath":
+            template_rules = """- Industry-standard structured format used by top tech companies (FAANG). Precision and relevance are paramount.
+- Summary: 3-5 sentences. Be direct: target role, years of relevant experience, biggest technical strength, and key outcome or scale. Match JD keywords closely.
+- Skills: Reflect EXACTLY what is in the JD. Prioritise languages, frameworks, platforms, and tools from the JD first.
+- Experience: 4-6 impact-driven STAR bullets per role. Focus on SCALE (users, requests/sec, $ revenue, team size) and TECH used. Every bullet must pass the 'so what?' test.
+- Tone: precise, data-driven, technical-depth oriented."""
+        elif template == "deedy":
+            template_rules = """- Two-column academic/designer format: left-column skills/education, right-column experience/projects.
+- Summary: 3-4 sentences. Highlight a distinctive skill or specialty, academic or industry pedigree, and 1-2 notable outcomes.
+- Skills: Group by category (e.g. Languages, Frameworks, Tools, Platforms). Keep each category to 4-6 items maximum.
+- Experience: 3-4 visually tight bullets per role. Balance technical depth with clarity — avoid vague verbs.
+- Projects: Give each a crisp 1-2 sentence narrative: what was built, tech used, outcome. Projects carry equal weight to experience in this format.
+- Tone: technical, academic, distinctive — appeal to engineering-focused hiring managers."""
         else:
             template_rules = """- Rich 5-7 sentence professional summary: domain expertise, top strengths, problems solved, and value proposition.
 - NEVER repeat the candidate's name in the summary. Use implied pronouns (e.g., "Experienced engineer with a proven track record...").
@@ -283,17 +302,46 @@ Required JSON (output ALL {len(payload_for_llm)} items):
             
             tailored_bullets_list = llm_res.get("tailored_bullets", [])
             bullets_by_id = {}
-            for item in tailored_bullets_list:
-                if isinstance(item, dict) and "id" in item:
-                    bullets_by_id[item["id"]] = item.get("bullets", [])
+            
+            # ── Robustly extract and sanitize bullets from LLM response ──
+            for index, item in enumerate(tailored_bullets_list):
+                if not isinstance(item, dict):
+                    continue
+                
+                # Determine the logical ID. If the LLM repeats 'id': 0, we fallback to the array index.
+                item_id = item.get("id")
+                if item_id is None or item_id in bullets_by_id:
+                    item_id = index
+                    
+                raw_bullets = item.get("bullets", [])
+                if isinstance(raw_bullets, str):
+                    raw_bullets = [raw_bullets]
+                    
+                # Aggressively split literal \n strings back into an array
+                sanitized_bullets = []
+                for rb in raw_bullets:
+                    if isinstance(rb, str):
+                        split_rb = [s.strip() for s in rb.replace(";", "\n").split("\n") if s.strip()]
+                        sanitized_bullets.extend(split_rb)
+                    else:
+                        sanitized_bullets.append(str(rb).strip())
+                        
+                bullets_by_id[item_id] = sanitized_bullets
 
             for i, exp in enumerate(mapped_exps):
                 llm_bullets = bullets_by_id.get(i)
                 if llm_bullets and isinstance(llm_bullets, list) and len(llm_bullets) > 0:
                      exp["tailored_bullets"] = [str(b) for b in llm_bullets]
                 else:
-                    original = dict(experiences[i]) if i < len(experiences) else {}
-                    exp["tailored_bullets"] = original.get("tailored_bullets") or original.get("highlights") or []
+                    original_exp_list = persona.get("experience_highlights") or []
+                    if i < len(original_exp_list):
+                        orig_dict = original_exp_list[i]
+                        orig_b = orig_dict.get("tailored_bullets") or orig_dict.get("key_achievement") or []
+                        if isinstance(orig_b, str):
+                            orig_b = [x.strip() for x in orig_b.replace(";", "\n").split("\n") if x.strip()]
+                        exp["tailored_bullets"] = orig_b
+                    else:
+                        exp["tailored_bullets"] = []
                     
             return {"tailored_experience": mapped_exps}
 
@@ -474,6 +522,24 @@ class FinalizeResumeComponent:
 - Bullets per role: {'3' if compact else '4'} — frame as learning + tangible delivery + tool used.
 - Emphasize projects heavily — make descriptions specific, 2-3 sentences each.
 - Tone: ambitious, eager, forward-looking."""
+        elif template == "jakes":
+            tone_rules = f"""- Tone: ATS-first, clean, crisp, action-driven. No padding or corporate speak.
+- Summary: {'3-4' if compact else '4-5'} concise sentences. State target role, domain, key strength, and biggest result achieved. No fluffy adjectives.
+- Skills: short recognizable technical names only. No grouped categories — flat list, strictly technical.
+- Bullets: {'3' if compact else '4-5'} per role. Every bullet: action verb + specific contribution + quantified outcome. Every single one.
+- Ensure no section is left with vague or generic language."""
+        elif template == "faangpath":
+            tone_rules = f"""- Tone: precision-engineered, data-heavy, tech-company focused.
+- Summary: {'3-4' if compact else '4-5'} sentences. Lead with years of experience, technical domain, main stack. Reference JD keywords naturally.
+- Skills: mirror JD keywords closely. Group by: Languages, Frameworks, Tools, Cloud — but keep each item short.
+- Bullets: {'3-4' if compact else '5-6'} per role. Every bullet must include: scale metric (e.g., 10M requests/day, 5-person team, 30% improvement) + specific technology used + outcome.
+- Projects: include tech stack used and measurable outcome."""
+        elif template == "deedy":
+            tone_rules = f"""- Tone: technical, academic, distinctive. Suitable for research or senior engineering roles.
+- Summary: {'3' if compact else '3-4'} sentences. Highlight academic/industry pedigree, unique specialisation, and 1-2 specific standout accomplishments.
+- Skills: grouped by category (Languages, Frameworks, Tools, Databases). Max 5-6 items per group.
+- Bullets: {'3' if compact else '3-4'} per role since space is tight. Short, precise, technically deep. Avoid generic verbs like 'worked on'.
+- Projects: short but rich — list tech stack, output, and impact. Projects are given high visual prominence in this layout."""
         else:
             tone_rules = f"""- Tone: clean, confident, professional, ATS-optimised.
 - Summary: {'4-5' if compact else '5-7'} sentences — role, top strengths, problem-solving approach, domain experience, value proposition.
@@ -551,6 +617,9 @@ Output ONLY valid JSON:
 # Main Agent
 # ─────────────────────────────────────────────────────────────────────────────
 
+# ── Max 2 simultaneous persona extractions — prevents Ollama overload ─────────
+_EXTRACT_SEMAPHORE = asyncio.Semaphore(2)
+
 class ResumeAdvisorAgent(BaseAgent):
     def __init__(self, generator):
         super().__init__(generator)
@@ -560,133 +629,129 @@ class ResumeAdvisorAgent(BaseAgent):
 
     async def extract_persona(self, resume_text: str) -> Dict[str, Any]:
         """
-        Extract a structured professional persona from resume text using a Parallel Chunked Architecture.
-        Splits extraction into Core Identity, Experience, and Credentials for maximum quality from local LLMs.
+        Extract a structured professional persona from resume text.
+
+        Architecture: SINGLE-PROMPT (1 LLM call, atomic, no partial-merge corruption).
+        - Pass 1: Full extraction prompt — all sections in one call.
+        - Pass 2 (retry): Simpler minimal-schema prompt if Pass 1 JSON is unparseable.
+        - Defaults applied last for any missing fields.
+
+        Why single-prompt:
+        - All 3 chunks read identical resume_snippet — parallelism gives zero quality gain
+        - Any one chunk failing corrupts the merged persona (e.g. no experience)
+        - 1 Ollama call is faster under load than 3 competing calls
         """
-        # Pass up to 6000 chars to cover full 2-page resumes without missing content
         resume_snippet = str(resume_text).strip()[:6000]
+        loop = asyncio.get_event_loop()
 
-        async def extract_core():
-            prompt = f"""You are a professional resume parser. Extract the CORE IDENTITY from this resume completely and accurately.
-Resume text:
+        # ── Pass 1: Full single-prompt extraction ────────────────────────────
+        FULL_PROMPT = f"""You are an expert resume parser. Extract ALL sections from the resume below into a single JSON object.
+Be thorough: extract every job, every skill, every project. Do NOT skip sections.
+
+Resume:
 {resume_snippet}
 
-Required JSON structure (extract ONLY these fields):
+Return ONLY this JSON object (no markdown, no explanation):
 {{
-  "full_name": "Full name (ONLY the candidate's actual name, NOT their city, location, or contact details)",
-  "professional_title": "Current/most-recent job title",
+  "full_name": "Candidate's full name only — not their city or email",
+  "professional_title": "Most recent job title",
   "years_experience": 0,
-  "email": "email address",
-  "phone": "phone number",
-  "location": "city, country",
-  "linkedin": "full linkedin URL if present, else empty string",
-  "portfolio_url": "portfolio/github URL if present, else empty string",
-  "summary": "Write a detailed 5-7 sentence professional bio covering: (1) career level and domain, (2) top 3 technical strengths, (3) types of problems solved, (4) industries or company types worked in, (5) leadership or collaboration style, (6) most notable career achievement. Be specific and use the candidate's actual experience.",
-  "top_skills": ["List ONLY exact, concise, recognizable technical skills (e.g. Python, SQL). DO NOT extract long phrases, project names, or generic bullet points"],
-  "career_level": "Entry/Mid/Senior/Exec",
-  "suggested_roles": ["Role 1", "Role 2"]
-}}
-
-Return ONLY the JSON object, no other text:"""
-            loop = asyncio.get_event_loop()
-            resp = await loop.run_in_executor(None, lambda: self.generator.run(prompt=prompt))
-            return _parse_json(resp["replies"][0])
-
-        async def extract_experience():
-            prompt = f"""You are a professional resume parser. Extract ONLY the PROFESSIONAL EXPERIENCE from this resume thoroughly and comprehensively. Do NOT merge distinct roles.
-Resume text:
-{resume_snippet}
-
-Required JSON structure:
-{{
+  "email": "email@address.com",
+  "phone": "+1-xxx-xxx-xxxx",
+  "location": "City, Country",
+  "linkedin": "https://linkedin.com/in/... or empty string",
+  "portfolio_url": "https://github.com/... or empty string",
+  "career_level": "Entry|Mid|Senior|Exec",
+  "summary": "4-6 sentence professional summary covering role, top skills, achievements, and impact",
+  "top_skills": ["Python", "SQL", "React"],
+  "suggested_roles": ["Software Engineer", "Backend Developer"],
   "experience_highlights": [
     {{
       "role": "Exact job title",
-      "company": "Exact company name",
-      "duration": "Start date - End date",
+      "company": "Company name",
+      "duration": "Jan 2022 - Present",
       "tailored_bullets": [
-        "3-5 specific, detailed achievement bullets from this role. Each bullet: action verb + what you did + quantified impact. Extract real details from the resume text.",
-        "Include metrics (%, $, team size, scale) wherever the resume mentions them.",
-        "Do NOT generalize. Copy actual achievements from the resume text."
+        "Action verb + what you did + quantified result (e.g. Reduced API latency by 40%)"
       ]
     }}
-  ]
-}}
+  ],
+  "projects": [
+    {{"name": "Project name", "description": "What it does, tech used, impact"}}
+  ],
+  "education": [
+    {{"degree": "B.S. Computer Science", "school": "University Name", "year": "2020"}}
+  ],
+  "certifications": ["AWS Certified Developer", "PMP"],
+  "awards": ["Dean's List 2019"],
+  "languages": ["English", "Spanish"]
+}}"""
 
-DO NOT duplicate entries. Extract each entry exactly once.
+        async def _call_llm(prompt: str, timeout_s: int = 100) -> dict:
+            """Single LLM call with timeout — returns parsed dict or empty dict."""
+            async with _EXTRACT_SEMAPHORE:
+                try:
+                    resp = await asyncio.wait_for(
+                        loop.run_in_executor(None, lambda: self.generator.run(prompt=prompt)),
+                        timeout=timeout_s
+                    )
+                    return _parse_json(resp["replies"][0])
+                except asyncio.TimeoutError:
+                    logger.warning(f"LLM call timed out after {timeout_s}s")
+                    return {}
+                except Exception as e:
+                    logger.warning(f"LLM call failed: {e}")
+                    return {}
 
-Return ONLY the JSON object, no other text:"""
-            loop = asyncio.get_event_loop()
-            resp = await loop.run_in_executor(None, lambda: self.generator.run(prompt=prompt))
-            return _parse_json(resp["replies"][0])
+        def _is_useful(result: dict) -> bool:
+            """Return True if extraction got at least a real name."""
+            name = result.get("full_name", "").strip()
+            return bool(name) and name.lower() not in ("", "candidate", "unknown", "full name")
 
-        async def extract_credentials():
-            prompt = f"""You are a professional resume parser. Extract ONLY the CREDENTIALS (Projects, Education, Certifications, Awards, Languages) completely and accurately. DO NOT drop any items.
-Resume text:
+        # ── Pass 1: full extraction
+        logger.info(f"[extract_persona] Pass 1 — single-prompt extraction")
+        result = await _call_llm(FULL_PROMPT, timeout_s=100)
+
+        # ── Pass 2: retry with a simpler compact prompt if Pass 1 produced nothing useful
+        if not _is_useful(result):
+            logger.warning("[extract_persona] Pass 1 returned no useful data — retrying with compact prompt")
+            COMPACT_PROMPT = f"""Parse this resume into JSON. Return ONLY the JSON, no other text.
+
+Resume:
 {resume_snippet}
 
-Required JSON structure:
-{{
-  "projects": [
-    {{"name": "Project Name", "description": "2-3 sentence description: what was built, technologies used, and impact or outcome"}}
-  ],
-  "education": [{{"degree": "Degree name", "school": "University/College name", "year": "Graduation year"}}],
-  "certifications": ["List all certifications and licenses mentioned. Extract every single one."],
-  "awards": ["List any awards, honours, or recognition mentioned"],
-  "languages": ["List spoken languages if mentioned"]
-}}
+JSON (fill every field):
+{{"full_name":"","professional_title":"","years_experience":0,"email":"","phone":"","location":"","linkedin":"","portfolio_url":"","career_level":"Mid","summary":"","top_skills":[],"suggested_roles":[],"experience_highlights":[{{"role":"","company":"","duration":"","tailored_bullets":[]}}],"projects":[],"education":[{{"degree":"","school":"","year":""}}],"certifications":[],"awards":[],"languages":[]}}"""
+            result = await _call_llm(COMPACT_PROMPT, timeout_s=100)
 
-DO NOT duplicate entries. Extract each entry exactly once.
+        if not _is_useful(result):
+            logger.error("[extract_persona] Both passes failed to extract a real persona")
 
-Return ONLY the JSON object, no other text:"""
-            loop = asyncio.get_event_loop()
-            resp = await loop.run_in_executor(None, lambda: self.generator.run(prompt=prompt))
-            return _parse_json(resp["replies"][0])
+        # ── Apply safe defaults for all required fields ───────────────────────
+        result.setdefault("full_name",             "Candidate")
+        result.setdefault("professional_title",    "Professional")
+        result.setdefault("years_experience",      0)
+        result.setdefault("email",                 "")
+        result.setdefault("phone",                 "")
+        result.setdefault("location",              "")
+        result.setdefault("linkedin",              "")
+        result.setdefault("portfolio_url",         "")
+        result.setdefault("career_level",          "Mid")
+        result.setdefault("summary",               "")
+        result.setdefault("top_skills",            [])
+        result.setdefault("suggested_roles",       [])
+        result.setdefault("experience_highlights", [])
+        result.setdefault("projects",              [])
+        result.setdefault("education",             [])
+        result.setdefault("certifications",        [])
+        result.setdefault("awards",                [])
+        result.setdefault("languages",             [])
 
-        try:
-            # Run all 3 extractions in parallel
-            core_res, exp_res, cred_res = await asyncio.gather(
-                extract_core(),
-                extract_experience(),
-                extract_credentials()
-            )
+        logger.info(f"[extract_persona] Done — name: {result['full_name']}, "
+                    f"skills: {len(result['top_skills'])}, "
+                    f"exp: {len(result['experience_highlights'])}")
+        return result
 
-            # Merge results into a single persona dictionary
-            result = {**core_res, **exp_res, **cred_res}
 
-            # Ensure contact fields exist to prevent UI errors
-            result.setdefault("email", "")
-            result.setdefault("phone", "")
-            result.setdefault("linkedin", "")
-            result.setdefault("portfolio_url", "")
-            result.setdefault("summary", "")
-            result.setdefault("top_skills", [])
-            result.setdefault("experience_highlights", [])
-            result.setdefault("projects", [])
-            result.setdefault("education", [])
-            result.setdefault("certifications", [])
-
-            return result
-        except Exception as e:
-            logger.error(f"Persona parallel extraction failed: {e}")
-            return {
-                "full_name":             "Candidate",
-                "professional_title":    "Professional",
-                "years_experience":      0,
-                "email":                 "",
-                "phone":                 "",
-                "location":              "",
-                "linkedin":              "",
-                "portfolio_url":         "",
-                "summary":               "Resume uploaded. Please review and edit the details below.",
-                "top_skills":            [],
-                "experience_highlights": [],
-                "projects":              [],
-                "education":             [],
-                "certifications":        [],
-                "career_level":          "Unknown",
-                "suggested_roles":       [],
-            }
 
     async def tailor_resume(self, persona: Dict[str, Any], job_description: str, target_industry: str = "", focus_area: str = "", template: str = "professional") -> Dict[str, Any]:
         """Tailor persona to a JD, running components sequentially."""

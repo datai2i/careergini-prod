@@ -1,0 +1,12 @@
+INFO:     172.19.0.10:54432 - "GET /resume/sessions/44455007-6453-4784-a458-5e61838d6346 HTTP/1.1" 200 OK
+INFO:     172.19.0.10:54454 - "GET /resume/persona/44455007-6453-4784-a458-5e61838d6346 HTTP/1.1" 200 OK
+INFO:     172.19.0.10:54466 - "GET /resume/sessions/44455007-6453-4784-a458-5e61838d6346 HTTP/1.1" 200 OK
+Resume Advisor Agent tailoring resume [jakes]...
+INFO:     172.19.0.10:54446 - "GET /resume/gini-guide/44455007-6453-4784-a458-5e61838d6346 HTTP/1.1" 200 OK
+INFO:     172.19.0.10:57806 - "POST /resume/tailor HTTP/1.1" 200 OK
+INFO:     172.19.0.10:55644 - "GET /resume/sessions/44455007-6453-4784-a458-5e61838d6346 HTTP/1.1" 200 OK
+Resume Advisor Agent finalizing resume [deedy, 2p]...
+INFO:     172.19.0.10:54808 - "POST /resume/generate HTTP/1.1" 200 OK
+INFO:     172.19.0.10:51108 - "GET /44455007-6453-4784-a458-5e61838d6346/Chitrada_Sravani_2025_deedy_20260305_062127.pdf HTTP/1.1" 200 OK
+INFO:     172.19.0.10:60458 - "GET /resume/sessions/44455007-6453-4784-a458-5e61838d6346 HTTP/1.1" 200 OK
+INFO:     172.19.0.10:60444 - "GET /resume/gini-guide/44455007-6453-4784-a458-5e61838d6346 HTTP/1.1" 200 OK

@@ -7,8 +7,8 @@ import { PLAN_META } from '../utils/planLimits';
 
 const PLAN_FEATURES: Record<string, string[]> = {
     free: ['1 AI resume build', 'ATS score & feedback', 'PDF export'],
-    basic: ['5 AI resume builds', 'Industry-specific tailoring', 'Cover letter auto-generation', 'ATS score + regeneration'],
-    premium: ['20 AI resume builds', 'Gini Chat AI mentor (unlimited)', 'Hyper-personalised job search', 'Learning Hub', 'All Starter features'],
+    basic: ['5 AI Resume Builds', 'Industry-specific tailoring', 'Cover letter auto-generation', 'ATS score + regeneration'],
+    premium: ['20 AI Resume Builds', 'Gini Chat AI mentor (unlimited)', 'Hyper-personalised job search', 'Learning Hub', 'All Starter features'],
 };
 
 export const HomePage: React.FC = () => {
@@ -20,7 +20,7 @@ export const HomePage: React.FC = () => {
     const plan = user?.plan || 'free';
     const meta = PLAN_META[plan] || PLAN_META.free;
     const buildCount = user?.resume_count || 0;
-    const maxBuilds = meta.maxBuilds;
+    const maxBuilds = Math.max(meta.maxBuilds, buildCount);
     const progressPct = Math.min(100, Math.round((buildCount / maxBuilds) * 100));
 
     useEffect(() => {
@@ -175,7 +175,7 @@ export const HomePage: React.FC = () => {
                     <div className="grid grid-cols-2 gap-3 pt-1 border-t border-gray-100 dark:border-gray-800">
                         <div className="text-center">
                             <div className="text-xl font-black text-gray-900 dark:text-white">{resumesCount}</div>
-                            <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Total Sessions</div>
+                            <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Total Resume Builds</div>
                         </div>
                         <div className="text-center">
                             <div className="text-xl font-black text-gray-900 dark:text-white">{coursesCompleted}</div>

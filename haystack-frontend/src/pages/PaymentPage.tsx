@@ -14,7 +14,7 @@ const PLAN_CONFIG = {
         builds: 5,
         color: 'from-blue-600 to-blue-700',
         features: [
-            '5 AI-tailored resume builds',
+            '5 AI-tailored Resume Builds',
             'Industry-specific tailoring (Tech, Finance, Healthcare & more)',
             'ATS score + 1-click regeneration until you pass',
             'Cover letter auto-generation for every application',
@@ -28,7 +28,7 @@ const PLAN_CONFIG = {
         builds: 20,
         color: 'from-purple-600 to-indigo-700',
         features: [
-            '20 AI-tailored resume builds',
+            '20 AI-tailored Resume Builds',
             'Industry-specific tailoring + advanced tone control',
             'Unlimited Gini Chat AI mentor sessions',
             'Hyper-personalised global job search (150+ countries)',
@@ -222,7 +222,7 @@ const PaymentPage: React.FC = () => {
                         {plan.name} Plan Activated! 🎉
                     </h1>
                     <p className="text-gray-500 dark:text-gray-400 mb-8">
-                        Your account has been upgraded. Your new builds and features are ready to use immediately.
+                        Your account has been upgraded. Your new Resume Builds and features are ready to use immediately.
                     </p>
                     <button
                         onClick={() => navigate('/resume-builder')}
@@ -281,7 +281,7 @@ const PaymentPage: React.FC = () => {
                                 <span className="text-3xl font-black">{symbol}{price}</span>
                                 <span className="text-sm opacity-70">one-time · never expires</span>
                             </div>
-                            <p className="text-xs opacity-80">{plan.builds} resume builds included</p>
+                            <p className="text-xs opacity-80">{plan.builds} Resume Builds included</p>
                         </div>
 
                         {/* Features */}

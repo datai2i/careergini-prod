@@ -67,7 +67,7 @@ export const ResumeBuilderPage: React.FC = () => {
     const [jobDescription, setJobDescription] = useState('');
     const [tailoring, setTailoring] = useState(false);
     const [tailoredContent, setTailoredContent] = useState<any>(null);
-    const [selectedTemplate, setSelectedTemplate] = useState<string>('professional');
+    const [selectedTemplate, setSelectedTemplate] = useState<string>('jakes');
     const [profilePicBase64, setProfilePicBase64] = useState<string | null>(null);
     const [generatingPDF, setGeneratingPDF] = useState(false);
     const [pdfUrl, setPdfUrl] = useState<string | null>(null);
@@ -289,7 +289,8 @@ export const ResumeBuilderPage: React.FC = () => {
                     job_description: jobDescription,
                     persona: persona,
                     target_industry: targetIndustry,
-                    focus_area: focusArea
+                    focus_area: focusArea,
+                    template: selectedTemplate,  // FIX: pass style so LLM uses correct tailoring rules
                 }),
             });
 
@@ -418,13 +419,36 @@ export const ResumeBuilderPage: React.FC = () => {
                             Start Over
                         </button>
                     )}
-                    <div className="absolute opacity-0">
-                        {/* Removed step counter layout per user request */}
-                    </div>
                 </div>
             </div>
 
-            <div className="mx-auto bg-white/80 backdrop-blur-xl rounded-3xl p-8 shadow-xl border border-white mt-8">
+            {/* Visible Step Progress Bar — separate row below header */}
+            <div className="flex items-center justify-center gap-1 overflow-x-auto py-2">
+                {[
+                    { n: 1, label: 'Upload' },
+                    { n: 2, label: 'Review' },
+                    { n: 3, label: 'Style & Tailor' },
+                    { n: 4, label: 'Finalise' },
+                    { n: 5, label: 'Done' },
+                ].map(({ n, label }, idx) => (
+                    <React.Fragment key={n}>
+                        <div
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${step === n ? 'bg-purple-600 text-white shadow-md' :
+                                step > n ? 'bg-purple-100 text-purple-600 cursor-pointer hover:bg-purple-200' :
+                                    'bg-gray-100 text-gray-400'
+                                }`}
+                            onClick={() => step > n && setStep(n)}
+                        >
+                            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-extrabold ${step > n ? 'bg-purple-500 text-white' : step === n ? 'bg-white text-purple-600' : 'bg-gray-300 text-gray-500'
+                                }`}>{step > n ? '✓' : n}</span>
+                            <span className="hidden sm:inline">{label}</span>
+                        </div>
+                        {idx < 4 && <div className={`h-[2px] w-4 sm:w-8 rounded-full flex-shrink-0 ${step > n ? 'bg-purple-400' : 'bg-gray-200'}`} />}
+                    </React.Fragment>
+                ))}
+            </div>
+
+            <div className="mx-auto bg-white/80 backdrop-blur-xl rounded-3xl p-8 shadow-xl border border-white mt-4">
                 {/* Error Message */}
                 {error && (
                     <div className="bg-red-50 text-red-600 p-4 rounded-xl mb-6 flex items-center shadow-sm">
@@ -945,7 +969,7 @@ export const ResumeBuilderPage: React.FC = () => {
                 {/* Step 3: Tailor */}
                 {
                     step === 3 && (
-                        <div className="grid md:grid-cols-2 gap-8 lg:h-[700px]">
+                        <div className="grid md:grid-cols-2 gap-8 min-h-[500px]">
                             {/* Left: Persona Summary (Full Profile Review) */}
                             <div className="bg-white/50 rounded-2xl p-6 border border-white/20 overflow-y-auto flex flex-col gap-6 shadow-sm">
                                 <div>
@@ -1005,7 +1029,9 @@ export const ResumeBuilderPage: React.FC = () => {
 
                             {/* Right: JD Input & Customisation Options */}
                             <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-xl flex flex-col overflow-y-auto">
-                                <h3 className="text-xl font-bold text-gray-800 mb-6">Hyper-Personalisation Engine</h3>
+                                <h3 className="text-xl font-bold text-gray-800 mb-4">Hyper-Personalisation Engine</h3>
+
+
 
                                 <div className="space-y-6 flex-1">
                                     {/* Job Description */}
@@ -1084,7 +1110,7 @@ export const ResumeBuilderPage: React.FC = () => {
                                         ) : (
                                             <>
                                                 <CheckCircle className="w-5 h-5 mr-3 text-purple-200" />
-                                                Generate Hyper-Personalised Resume
+                                                Tailor Resume
                                             </>
                                         )}
                                     </button>
@@ -1218,34 +1244,34 @@ export const ResumeBuilderPage: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* Template Selection — 3 premium templates */}
-                            <h3 className="font-semibold text-gray-800 mb-2">Select Resume Template</h3>
-                            <p className="text-sm text-gray-500 mb-4">Professionally benchmarked templates. Choose based on your career stage.</p>
+                            {/* Style Selection — compact reminder strip in Step 4 */}
+                            <h3 className="font-semibold text-gray-800 mb-2">Visual Style</h3>
+                            <p className="text-sm text-gray-500 mb-4">Confirm your style choice — this controls the final PDF layout and design.</p>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                                 {[
                                     {
-                                        id: 'professional',
-                                        label: 'Professionally Crafted',
-                                        badge: 'Most Popular',
+                                        id: 'jakes',
+                                        label: 'Jake\'s Minimalist',
+                                        badge: 'ATS-Optimised',
                                         badgeColor: 'bg-blue-100 text-blue-800',
-                                        audience: 'Mid-level, career switchers, global seekers',
-                                        features: ['Clean navy single-column', 'ATS-optimised layout', 'Metric-driven prompts', 'Inline skills grid'],
+                                        audience: 'Software Engineers, Tech roles, Academic',
+                                        features: ['Clean single-column', 'Proven ATS readability', 'Content-first approach', 'Minimalist aesthetics'],
                                     },
                                     {
-                                        id: 'executive',
-                                        label: 'Executive Level',
-                                        badge: 'Senior & C-Suite',
-                                        badgeColor: 'bg-amber-100 text-amber-800',
-                                        audience: 'Directors, VPs, C-suite, Board members',
-                                        features: ['Charcoal + gold accents', 'Split header layout', '3-column competency grid', 'Leadership-impact narrative'],
+                                        id: 'faangpath',
+                                        label: 'FAANGPath Clean',
+                                        badge: 'Industry Standard',
+                                        badgeColor: 'bg-emerald-100 text-emerald-800',
+                                        audience: 'Tech professionals, structured corporate roles',
+                                        features: ['High-contrast headers', 'Structured sections', 'Easy parsing readability', 'Tailored for tech giants'],
                                     },
                                     {
-                                        id: 'fresher',
-                                        label: 'Fresher / Student',
-                                        badge: 'Career Starter',
-                                        badgeColor: 'bg-teal-100 text-teal-800',
-                                        audience: 'Students, new grads, bootcampers',
-                                        features: ['Teal modern palette', 'Education-first order', 'Project-focused logic', 'Growth-oriented tone'],
+                                        id: 'deedy',
+                                        label: 'Deedy Two-Column',
+                                        badge: 'Modern & Compact',
+                                        badgeColor: 'bg-purple-100 text-purple-800',
+                                        audience: 'Designers, product managers, early career',
+                                        features: ['Two-column layout', 'Distinct typography', 'High information density', 'Visually striking'],
                                     },
                                 ].map(tpl => (
                                     <button
@@ -1333,7 +1359,7 @@ export const ResumeBuilderPage: React.FC = () => {
 
                         <div>
                             <h2 className="text-3xl font-bold text-gray-900 mb-2">Resume Ready!</h2>
-                            <p className="text-gray-600">Your custom resume has been generated using the <span className="font-semibold capitalize">{selectedTemplate === 'executive' ? 'Executive Level' : 'Professionally Crafted'}</span> template.</p>
+                            <p className="text-gray-600">Your resume has been generated using the <span className="font-semibold capitalize">{selectedTemplate === 'jakes' ? "Jake's Minimalist" : selectedTemplate === 'faangpath' ? 'FAANGPath Clean' : selectedTemplate === 'deedy' ? 'Deedy Two-Column' : selectedTemplate}</span> style.</p>
                         </div>
 
                         <div className="p-6 bg-white rounded-2xl border border-gray-200 shadow-xl">

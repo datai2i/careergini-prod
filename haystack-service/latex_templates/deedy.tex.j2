@@ -1,0 +1,99 @@
+\documentclass[]{deedy-resume-openfont}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\begin{document}
+
+% ------------------------------------
+\namesection{\VAR{ full_name.split(' ')[0]|default('Full')|escape_latex }}{\VAR{ full_name.split(' ')[1:]|join(' ')|default('Name')|escape_latex }}{
+\VAR{ location|escape_latex } | \VAR{ phone|escape_latex } | \href{mailto:\VAR{ email|escape_latex }}{\VAR{ email|escape_latex }} \\
+\BLOCK{if linkedin}\href{\VAR{ linkedin|escape_latex }}{LinkedIn}\BLOCK{endif} \BLOCK{if portfolio_url} | \href{\VAR{ portfolio_url|escape_latex }}{Portfolio}\BLOCK{endif}
+}
+
+% ------------------------------------
+
+\begin{minipage}[t]{0.33\textwidth}
+
+% ------------------------------------
+\BLOCK{if summary}
+\section{Summary}
+\VAR{ summary|escape_latex }
+\sectionsep
+\BLOCK{endif}
+
+% ------------------------------------
+\BLOCK{if education}
+\section{Education}
+\BLOCK{for edu in education}
+\subsection{\VAR{ edu.school|escape_latex }}
+\descript{\VAR{ edu.degree|escape_latex }}
+\location{\VAR{ edu.year|escape_latex }}
+\sectionsep
+\BLOCK{endfor}
+\BLOCK{endif}
+
+% ------------------------------------
+\BLOCK{if top_skills}
+\section{Skills}
+\BLOCK{for top_skill in top_skills}
+    \BLOCK{if top_skill.category}
+    \subsection{\VAR{ top_skill.category|escape_latex }}
+    \location{
+    \BLOCK{for skill in top_skill.skills}
+    \VAR{ skill|escape_latex }\BLOCK{if not loop.last} \textbullet{} \BLOCK{endif}
+    \BLOCK{endfor}
+    }
+    \sectionsep
+    \BLOCK{endif}
+\BLOCK{endfor}
+\BLOCK{if not top_skills[0].category}
+    \subsection{Core Skills}
+    \location{
+    \BLOCK{for skill in top_skills}
+    \VAR{ skill|escape_latex }\BLOCK{if not loop.last} \textbullet{} \BLOCK{endif}
+    \BLOCK{endfor}
+    }
+    \sectionsep
+\BLOCK{endif}
+\BLOCK{endif}
+
+% ------------------------------------
+
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.66\textwidth}
+
+% ------------------------------------
+\BLOCK{if experience_highlights}
+\section{Experience}
+\BLOCK{for exp in experience_highlights}
+\runsubsection{\VAR{ exp.company|escape_latex }}
+\descript{| \VAR{ exp.role|escape_latex } }
+\location{\VAR{ exp.duration|escape_latex }}
+\vspace{\topsep}
+\begin{tightemize}
+    \BLOCK{if exp.tailored_bullets}
+        \BLOCK{for bullet in exp.tailored_bullets}
+        \item \VAR{ bullet|escape_latex }
+        \BLOCK{endfor}
+    \BLOCK{elif exp.key_achievement}
+        \item \VAR{ exp.key_achievement|escape_latex }
+    \BLOCK{endif}
+\end{tightemize}
+\sectionsep
+\BLOCK{endfor}
+\BLOCK{endif}
+
+% ------------------------------------
+\BLOCK{if projects}
+\section{Projects}
+\BLOCK{for proj in projects}
+\runsubsection{\VAR{ proj.name|escape_latex }} \\
+\location{\VAR{ proj.description|escape_latex }}
+\sectionsep
+\BLOCK{endfor}
+\BLOCK{endif}
+
+
+\end{minipage}
+\end{document}

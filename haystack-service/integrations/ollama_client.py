@@ -101,6 +101,55 @@ class OllamaClient:
                 "base_url": self.base_url
             }
 
+    async def ensure_model(self) -> bool:
+        """
+        Ensure the required inference model exists in the Ollama container.
+        If missing (e.g. after a docker-compose down -v), automatically pull it.
+        """
+        try:
+            import httpx
+            import asyncio
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                # Check if model exists
+                response = await client.get(f"{self.base_url}/api/tags")
+                if response.status_code == 200:
+                    models = response.json().get("models", [])
+                    installed_models = [m["name"] for m in models]
+                    
+                    if self.model_name in installed_models or f"{self.model_name}:latest" in installed_models:
+                        logger.info(f"✓ Required model '{self.model_name}' is already installed.")
+                        return True
+                    
+                    # Model is missing, begin pull
+                    logger.warning(f"⚠ Required model '{self.model_name}' is missing from Ollama. Auto-pulling now...")
+                    
+                    pull_payload = {"name": self.model_name}
+                    
+                    # We use a longer timeout for the stream response
+                    async with httpx.AsyncClient(timeout=600.0) as pull_client:
+                        async with pull_client.stream("POST", f"{self.base_url}/api/pull", json=pull_payload) as r:
+                            r.raise_for_status()
+                            async for line in r.aiter_lines():
+                                if line:
+                                    try:
+                                        import json
+                                        data = json.loads(line)
+                                        status = data.get("status", "Downloading")
+                                        # Only log major state changes, skip spammy progress outputs
+                                        if "pulling" not in status.lower() and status:
+                                            logger.info(f"Ollama Pull: {status}")
+                                    except:
+                                        pass
+                    
+                    logger.info(f"✅ Successfully pulled {self.model_name}")
+                    return True
+                else:
+                    logger.error(f"Failed to fetch installed models. Status: {response.status_code}")
+                    return False
+        except Exception as e:
+            logger.error(f"Failed to ensure model {self.model_name}: {e}")
+            return False
+
 # Global singleton instance
 _ollama_client = None
 

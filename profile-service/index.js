@@ -125,10 +125,29 @@ app.get('/me', verifyToken, async (req, res) => {
         try {
             // Get user info
             const userRes = await client.query("SELECT id, email, full_name, avatar_url, role, plan, (SELECT COUNT(*) FROM user_activity WHERE user_id = u.id AND activity_type = 'resume_generated') as resume_count FROM users u WHERE u.id = $1", [req.user.id]);
-            const user = userRes.rows[0];
-            console.log(`[me] Serving user data for ${req.user.id}: name="${user?.full_name}"`);
+            let user = userRes.rows[0];
+            console.log(`[me] Serving user data for ${req.user.id}: name="${user?.full_name}" plan="${user?.plan}" builds=${user?.resume_count}`);
 
             if (!user) return res.status(404).json({ error: 'User not found' });
+
+            // Auto-Downgrade Check if Limit Exceeded
+            let planChanged = false;
+            let currentPlan = user.plan;
+            let resumeCount = parseInt(user.resume_count || '0');
+
+            if (currentPlan === 'basic' && resumeCount >= 5) {
+                currentPlan = 'free';
+                planChanged = true;
+            } else if (currentPlan === 'premium' && resumeCount >= 20) {
+                currentPlan = 'free';
+                planChanged = true;
+            }
+
+            if (planChanged) {
+                console.log(`[me] Auto-downgrading user ${user.id} to free (exceeded limit: ${resumeCount} builds)`);
+                await client.query('UPDATE users SET plan = $1 WHERE id = $2', [currentPlan, user.id]);
+                user.plan = currentPlan; // Update the returned object
+            }
 
             // Get profile info
             const profileRes = await client.query('SELECT * FROM profiles WHERE user_id = $1', [req.user.id]);
@@ -479,16 +498,28 @@ const PLAN_DB_MAP = { starter: 'basic', premium: 'premium' };
 
 async function upgradeUserPlan(userId, planKey, gateway, orderId, amount, currency) {
     const dbPlan = PLAN_DB_MAP[planKey] || planKey;
+
+    // Archive previous generations to reset the count to 0 for the new plan
+    await db.query(
+        `UPDATE user_activity 
+         SET activity_type = 'resume_generated_archived'
+         WHERE user_id = $1 AND activity_type = 'resume_generated'`,
+        [userId]
+    );
+
+    // Update the plan
     await db.query(
         'UPDATE users SET plan = $1, updated_at = NOW() WHERE id = $2',
         [dbPlan, userId]
     );
+
+    // Record the payment
     await db.query(
         `INSERT INTO payments (user_id, gateway, order_id, amount, currency, plan, status)
          VALUES ($1, $2, $3, $4, $5, $6, 'completed')`,
         [userId, gateway, orderId, amount, currency, dbPlan]
     );
-    console.log(`[payments] User ${userId} upgraded to ${dbPlan} via ${gateway}.`);
+    console.log(`[payments] User ${userId} upgraded to ${dbPlan} via ${gateway}. Usage reset.`);
 }
 
 // Routes

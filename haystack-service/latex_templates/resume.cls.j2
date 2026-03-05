@@ -1,0 +1,92 @@
+\ProvidesClass{resume}
+\LoadClass[\VAR{'10pt' if compact else '11pt'},letterpaper]{article}
+
+\usepackage[parfill]{parskip}
+\usepackage{array}
+\usepackage{ifthen}
+\usepackage{enumitem}
+\usepackage{hyperref}
+
+\pagestyle{empty}
+\def \name#1{\def\@name{#1}}
+\def \@name {}
+\def \addressSep {$\diamond$}
+\let \@addressone \relax
+\let \@addresstwo \relax
+\let \@addressthree \relax
+
+\def \address #1{
+  \@ifundefined{@addresstwo}{
+    \def \@addresstwo {#1}
+  }{
+  \@ifundefined{@addressthree}{
+  \def \@addressthree {#1}
+  }{
+     \def \@addressone {#1}
+  }}
+}
+
+\def \printaddress #1{
+  \begingroup
+  \def \\ {\addressSep\ }
+  \centerline{#1}
+  \endgroup
+  \par
+  \addressskip
+}
+
+\def \nameSpace {0.5em}
+\def \addressskip {\smallskip}
+
+\let\ori@document=\document
+\renewcommand{\document}{
+  \ori@document
+  \begin{center}
+    {\Huge \@name} \\
+    \vspace{\nameSpace}
+    \@ifundefined{@addressone}{}{\printaddress{\@addressone}}
+    \@ifundefined{@addresstwo}{}{\printaddress{\@addresstwo}}
+    \@ifundefined{@addressthree}{}{\printaddress{\@addressthree}}
+  \end{center}
+}
+
+\renewenvironment{itemize}{
+  \begin{list}{}{
+    \setlength{\leftmargin}{1.5em}
+    \setlength{\itemsep}{0.25em}
+    \setlength{\parskip}{0pt}
+    \setlength{\parsep}{0.25em}
+  }
+}{
+  \end{list}
+}
+
+\newenvironment{rSection}[1]{
+  \sectionskip
+  \MakeUppercase{\bf #1}
+  \sectionlineskip
+  \hrule
+  \begin{list}{}{
+    \setlength{\leftmargin}{1.5em}
+  }
+  \item[]
+}{
+  \end{list}
+}
+
+\def \sectionskip {\bigskip}
+\def \sectionlineskip {\smallskip}
+
+\newenvironment{rSubsection}[4]{
+  {\bf #1} \hfill {#2}
+  \ifthenelse{\equal{#3}{}}{}{
+    \\
+    {\em #3} \hfill {\em #4}
+  }
+  \smallskip
+  \begin{itemize}
+    \itemsep -0.5em \vspace{-0.5em}
+}{
+  \end{itemize}
+  \vspace{0.5em}
+}

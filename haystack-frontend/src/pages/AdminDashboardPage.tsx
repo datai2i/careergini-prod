@@ -385,7 +385,7 @@ export const AdminDashboardPage: React.FC = () => {
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-col gap-1">
                                                     <button onClick={() => fetchUserResumes(u.id)} className="text-xs font-medium text-slate-700 flex items-center gap-1 hover:text-blue-600 transition-colors cursor-pointer text-left">
-                                                        <FileText className="w-3 h-3 text-amber-500" /> {u.resume_count} Resumes (View)
+                                                        <FileText className="w-3 h-3 text-amber-500" /> {u.resume_count} Resume Builds (View)
                                                     </button>
                                                     {u.latest_resume_path && (
                                                         <a
@@ -579,7 +579,7 @@ export const AdminDashboardPage: React.FC = () => {
                                     <FileText className="w-5 h-5 text-blue-600" />
                                     User Resume History
                                 </h2>
-                                <p className="text-sm text-slate-500 mt-1">Viewing generated resumes for {users.find(u => u.id === viewingUserId)?.email}</p>
+                                <p className="text-sm text-slate-500 mt-1">Viewing Resume Builds for {users.find(u => u.id === viewingUserId)?.email}</p>
                             </div>
                             <button onClick={() => setViewingUserId(null)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors">
                                 <X className="w-5 h-5" />

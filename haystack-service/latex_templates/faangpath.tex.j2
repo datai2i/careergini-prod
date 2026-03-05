@@ -1,0 +1,97 @@
+\documentclass{resume} % Use the custom resume.cls style
+\usepackage[\VAR{'left=0.4in,top=0.4in,right=0.4in,bottom=0.4in' if compact else 'left=0.6in,top=0.6in,right=0.6in,bottom=0.6in'}]{geometry} % Document margins
+\newcommand{\tab}[1]{\hspace{.2667\textwidth}\rlap{#1}}
+\newcommand{\itab}[1]{\hspace{0em}\rlap{#1}}
+
+%----------HEADING----------
+\name{\VAR{ full_name|default('User Name')|escape_latex }} % Your name
+
+\address{
+    \BLOCK{if phone}\VAR{ phone|escape_latex } \\ \BLOCK{endif}
+    \VAR{ location|escape_latex }
+}
+\address{
+    \BLOCK{if email}\href{mailto:\VAR{ email|escape_latex }}{\VAR{ email|escape_latex }} \\ \BLOCK{endif}
+    \BLOCK{if linkedin}\href{\VAR{ linkedin|escape_latex }}{LinkedIn} \\ \BLOCK{endif}
+    \BLOCK{if portfolio_url}\href{\VAR{ portfolio_url|escape_latex }}{Portfolio}\BLOCK{endif}
+}
+
+\begin{document}
+
+%----------------------------------------------------------------------------------------
+%	OBJECTIVE / SUMMARY
+%----------------------------------------------------------------------------------------
+
+\BLOCK{if summary}
+\begin{rSection}{SUMMARY}
+{\VAR{ summary|escape_latex }}
+\end{rSection}
+\BLOCK{endif}
+
+%----------------------------------------------------------------------------------------
+%	WORK EXPERIENCE SECTION
+%----------------------------------------------------------------------------------------
+\BLOCK{if experience_highlights}
+\begin{rSection}{EXPERIENCE}
+
+\BLOCK{for exp in experience_highlights}
+\textbf{\VAR{ exp.role|escape_latex }} \hfill \VAR{ exp.duration|escape_latex }\\
+\VAR{ exp.company|escape_latex } \hfill \textit{\VAR{ exp.location|default('')|escape_latex }}
+\begin{itemize}
+    \itemsep -3pt {}
+    \BLOCK{if exp.tailored_bullets}
+        \BLOCK{for bullet in exp.tailored_bullets}
+         \item \VAR{ bullet|escape_latex }
+        \BLOCK{endfor}
+    \BLOCK{elif exp.key_achievement}
+         \item \VAR{ exp.key_achievement|escape_latex }
+    \BLOCK{endif}
+\end{itemize}
+\BLOCK{endfor}
+
+\end{rSection}
+\BLOCK{endif}
+
+%----------------------------------------------------------------------------------------
+%	PROJECTS
+%----------------------------------------------------------------------------------------
+\BLOCK{if projects}
+\begin{rSection}{PROJECTS}
+\vspace{-1.25em}
+    \BLOCK{for proj in projects}
+    \item \textbf{\VAR{ proj.name|escape_latex }.} {\VAR{ proj.description|escape_latex }}
+    \BLOCK{endfor}
+\end{rSection}
+\BLOCK{endif}
+
+
+%----------------------------------------------------------------------------------------
+%	EDUCATION SECTION
+%----------------------------------------------------------------------------------------
+\BLOCK{if education}
+\begin{rSection}{Education}
+\BLOCK{for edu in education}
+{\bf \VAR{ edu.degree|escape_latex }}, \VAR{ edu.school|escape_latex } \hfill {\VAR{ edu.year|escape_latex }}\\
+\smallskip
+\BLOCK{endfor}
+\end{rSection}
+\BLOCK{endif}
+
+%----------------------------------------------------------------------------------------
+%	TECHINICAL STRENGTHS
+%----------------------------------------------------------------------------------------
+\BLOCK{if top_skills}
+\begin{rSection}{SKILLS}
+\begin{tabular}{ @{} >{\bfseries}l @{\hspace{6ex}} l }
+    \BLOCK{for top_skill in top_skills}
+        \BLOCK{if top_skill.category}
+        \VAR{ top_skill.category|escape_latex } & \BLOCK{for skill in top_skill.skills}\VAR{ skill|escape_latex }\BLOCK{if not loop.last}, \BLOCK{endif}\BLOCK{endfor} \\
+        \BLOCK{else}
+            Skills & \BLOCK{for skill in top_skills}\VAR{ skill|escape_latex }\BLOCK{if not loop.last}, \BLOCK{endif}\BLOCK{endfor} \\
+        \BLOCK{endif}
+     \BLOCK{endfor}
+\end{tabular}
+\end{rSection}
+\BLOCK{endif}
+
+\end{document}
