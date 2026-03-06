@@ -188,86 +188,158 @@ export const NewLoginPage: React.FC = () => {
                                 ))}
                             </div>
                             {/* Content panels */}
-                            <div className="p-6 min-h-[280px]">
+                            <div className="p-6 min-h-[400px]">
                                 {activeFeature === 0 && (
-                                    <div className="space-y-3">
-                                        <div className="flex items-center justify-between mb-3">
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between mb-1">
                                             <h3 className="font-bold text-gray-900 dark:text-white text-sm">AI Resume Builder — 5-Step Journey</h3>
                                             <span className="text-xs bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full">ATS: 94%</span>
                                         </div>
-                                        {/* Step 1: 3 entry options */}
-                                        <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <span className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-black flex-shrink-0">1</span>
-                                                <span className="text-xs font-bold text-blue-800 dark:text-blue-300">Upload</span>
+                                        {/* Step 1 */}
+                                        <div className="p-2.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                                            <div className="flex items-center gap-2 mb-1.5">
+                                                <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-black flex-shrink-0">1</span>
+                                                <span className="text-xs font-bold text-blue-800 dark:text-blue-300">Upload — Choose your starting point</span>
+                                                <Check className="w-3 h-3 ml-auto text-blue-500 flex-shrink-0" />
                                             </div>
-                                            <div className="flex gap-2 ml-8">
+                                            <div className="flex gap-1.5 ml-7">
                                                 {['📄 Upload CV', '✏️ Draft Manually', '⚡ Fast Track'].map((opt, j) => (
                                                     <span key={j} className="text-[10px] font-semibold px-2 py-1 bg-white dark:bg-gray-800 text-blue-700 dark:text-blue-300 rounded-md border border-blue-200 dark:border-blue-700">{opt}</span>
                                                 ))}
                                             </div>
                                         </div>
-                                        {[{ label: 'Review', note: 'Edit & confirm your AI-parsed profile' }, { label: 'Style & Tailor', note: 'Choose template + paste job description' }, { label: 'Finalise', note: 'Review AI-tailored content, ATS score' }, { label: 'Done', note: 'Download PDF + Cover Letter' }].map(({ label, note }, idx) => (
-                                            <div key={idx} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium ${idx < 2 ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300' : 'bg-gray-50 dark:bg-gray-800/50 text-gray-400'}`}>
-                                                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${idx < 2 ? 'bg-blue-600 text-white' : 'bg-gray-300 dark:bg-gray-600 text-gray-500'}`}>{idx + 2}</span>
-                                                <div>
-                                                    <p className="text-xs font-bold leading-none">{label}</p>
-                                                    <p className="text-[10px] mt-0.5 opacity-70">{note}</p>
-                                                </div>
-                                                {idx < 2 && <Check className="w-3.5 h-3.5 ml-auto text-blue-500 flex-shrink-0" />}
+                                        {/* Step 2 */}
+                                        <div className="flex items-center gap-2.5 p-2.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                                            <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-black flex-shrink-0">2</span>
+                                            <div className="flex-1">
+                                                <p className="text-xs font-bold text-blue-800 dark:text-blue-300 leading-none">Review</p>
+                                                <p className="text-[10px] text-blue-600/70 dark:text-blue-400/70 mt-0.5">Edit & verify AI-parsed profile, skills, experience</p>
                                             </div>
-                                        ))}
+                                            <Check className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                                        </div>
+                                        {/* Step 3 */}
+                                        <div className="p-2.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800">
+                                            <div className="flex items-start gap-2.5 mb-1.5">
+                                                <span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black flex-shrink-0 mt-0.5">3</span>
+                                                <div>
+                                                    <p className="text-xs font-bold text-indigo-800 dark:text-indigo-300 leading-none">Tailor to Job</p>
+                                                    <p className="text-[10px] text-indigo-500/80 mt-0.5">Paste JD · Select Industry · Set Tone for hyper-personalisation</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-1.5 ml-7">
+                                                {['📋 Paste JD', '🏭 Industry', '🎯 Tone'].map((opt, j) => (
+                                                    <span key={j} className="text-[10px] font-semibold px-2 py-1 bg-white dark:bg-gray-800 text-indigo-700 dark:text-indigo-300 rounded-md border border-indigo-200 dark:border-indigo-700">{opt}</span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        {/* Step 4 */}
+                                        <div className="p-2.5 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
+                                            <div className="flex items-start gap-2.5 mb-1.5">
+                                                <span className="w-5 h-5 rounded-full bg-gray-400 dark:bg-gray-600 text-white flex items-center justify-center text-[10px] font-black flex-shrink-0 mt-0.5">4</span>
+                                                <div>
+                                                    <p className="text-xs font-bold text-gray-500 dark:text-gray-400 leading-none">Finalise</p>
+                                                    <p className="text-[10px] text-gray-400 mt-0.5">Review & edit resume + cover letter · ATS score · Pick style</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-1.5 ml-7">
+                                                {["Jake's", 'Modern', 'Executive'].map((style, j) => (
+                                                    <span key={j} className={`text-[10px] font-semibold px-2 py-1 rounded-md border ${j === 0 ? 'bg-purple-100 border-purple-300 text-purple-700 dark:bg-purple-900/30 dark:border-purple-700 dark:text-purple-300' : 'bg-gray-100 border-gray-200 text-gray-500 dark:bg-gray-800 dark:border-gray-700'}`}>{style}</span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        {/* Step 5 */}
+                                        <div className="flex items-center gap-2.5 p-2.5 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
+                                            <span className="w-5 h-5 rounded-full bg-gray-400 dark:bg-gray-600 text-white flex items-center justify-center text-[10px] font-black flex-shrink-0">5</span>
+                                            <div className="flex-1">
+                                                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 leading-none">Done — Download</p>
+                                                <p className="text-[10px] text-gray-400 mt-0.5">Resume + Cover Letter in PDF &amp; DOCX formats</p>
+                                            </div>
+                                            <div className="flex gap-1">
+                                                <span className="text-[9px] font-bold px-1.5 py-0.5 bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 rounded">PDF</span>
+                                                <span className="text-[9px] font-bold px-1.5 py-0.5 bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 rounded">DOC</span>
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
                                 {activeFeature === 1 && (
-                                    <div className="space-y-3">
-                                        <h3 className="font-bold text-gray-900 dark:text-white text-sm mb-4">Gini Chat — Your AI Mentor</h3>
-                                        <div className="flex gap-3">
-                                            <div className="w-7 h-7 rounded-full bg-blue-600 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold">U</div>
-                                            <div className="bg-blue-600 text-white text-xs rounded-xl rounded-tl-none p-3 max-w-[80%] font-medium">"How do I negotiate salary based on my 6 years of Python experience?"</div>
+                                    <div className="space-y-2.5">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="font-bold text-gray-900 dark:text-white text-sm">Gini Chat — Your AI Mentor</h3>
+                                            <span className="text-[10px] font-bold bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full">Knows your history</span>
                                         </div>
-                                        <div className="flex gap-3">
-                                            <div className="w-7 h-7 rounded-full bg-purple-600 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold">G</div>
-                                            <div className="bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white text-xs rounded-xl rounded-tl-none p-3 font-medium leading-relaxed">Based on your 6 years as a Senior Python Developer and your AWS + ML stack, market data puts you in the $145K–$175K band for Staff roles at FAANG. Here's a 3-step script to anchor high...</div>
+                                        <div className="flex gap-2">
+                                            <div className="w-6 h-6 rounded-full bg-blue-600 flex-shrink-0 flex items-center justify-center text-white text-[10px] font-bold">U</div>
+                                            <div className="bg-blue-600 text-white text-xs rounded-xl rounded-tl-none p-2.5 font-medium max-w-[85%]">"How do I negotiate salary with my 6 years of Python + AWS experience?"</div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <div className="w-6 h-6 rounded-full bg-purple-600 flex-shrink-0 flex items-center justify-center text-white text-[10px] font-bold">G</div>
+                                            <div className="bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white text-xs rounded-xl rounded-tl-none p-2.5 font-medium leading-relaxed">Based on your 6yrs (Infosys → fintech) + AWS/ML stack, FAANG Staff roles sit at $145K–$175K. Anchor at $170K. Cite your ML pipeline that saved $2M at Wipro as your opening leverage...</div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <div className="w-6 h-6 rounded-full bg-blue-600 flex-shrink-0 flex items-center justify-center text-white text-[10px] font-bold">U</div>
+                                            <div className="bg-blue-600 text-white text-xs rounded-xl rounded-tl-none p-2.5 font-medium max-w-[85%]">"Write me a cover letter for this Stripe Staff Engineer role."</div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <div className="w-6 h-6 rounded-full bg-purple-600 flex-shrink-0 flex items-center justify-center text-white text-[10px] font-bold">G</div>
+                                            <div className="bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white text-xs rounded-xl rounded-tl-none p-2.5 font-medium leading-relaxed">Using your real projects + Stripe's engineering values, here's a tailored cover letter that leads with your ML pipeline ROI and signals culture-fit from your open-source work...</div>
                                         </div>
                                     </div>
                                 )}
                                 {activeFeature === 2 && (
-                                    <div className="space-y-3">
-                                        <h3 className="font-bold text-gray-900 dark:text-white text-sm mb-4">AI Job Matching — Closest Remote Roles</h3>
+                                    <div className="space-y-2.5">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="font-bold text-gray-900 dark:text-white text-sm">Job Search — Matched to Your Profile</h3>
+                                            <span className="text-[10px] font-bold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full">Remote-first</span>
+                                        </div>
+                                        <div className="flex gap-1.5 flex-wrap">
+                                            <span className="text-[10px] font-semibold px-2 py-1 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 rounded-md">🔍 Senior Python Dev</span>
+                                            <span className="text-[10px] font-semibold px-2 py-1 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 rounded-md">🌐 Remote ON</span>
+                                            <span className="text-[10px] font-semibold px-2 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 rounded-md">150+ countries</span>
+                                        </div>
                                         {[
-                                            { title: 'Senior ML Engineer', company: 'Stripe (Remote)', match: '96%', color: 'text-green-600' },
-                                            { title: 'Full Stack Architect', company: 'Notion (Remote)', match: '91%', color: 'text-green-600' },
-                                            { title: 'Platform Engineer', company: 'Atlassian (Remote)', match: '87%', color: 'text-amber-500' }
+                                            { title: 'Staff ML Engineer', company: 'Stripe', loc: 'Remote · USA', match: '96%', salary: '$170K', color: 'text-green-600', hi: true },
+                                            { title: 'Full Stack Architect', company: 'Notion', loc: 'Remote · Global', match: '91%', salary: '$155K', color: 'text-green-600', hi: false },
+                                            { title: 'Platform Engineer', company: 'Atlassian', loc: 'Remote · APAC', match: '87%', salary: '$130K', color: 'text-amber-500', hi: false },
+                                            { title: 'Backend Engineer III', company: 'Shopify', loc: 'Remote · Canada', match: '84%', salary: '$125K', color: 'text-amber-500', hi: false },
                                         ].map((job, i) => (
-                                            <div key={i} className="flex items-center gap-4 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-700">
-                                                <div className="w-8 h-8 rounded bg-slate-200 dark:bg-slate-700 flex-shrink-0"></div>
+                                            <div key={i} className={`flex items-center gap-2.5 p-2.5 rounded-lg border ${job.hi ? 'bg-green-50/50 dark:bg-green-900/10 border-green-200 dark:border-green-800' : 'bg-gray-50 dark:bg-gray-800/50 border-gray-100 dark:border-gray-700'}`}>
+                                                <div className="w-7 h-7 rounded-md bg-slate-200 dark:bg-slate-700 flex-shrink-0 flex items-center justify-center text-[10px] font-black text-slate-500">{job.company[0]}</div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{job.title}</p>
-                                                    <p className="text-xs text-gray-500">{job.company}</p>
+                                                    <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{job.title}</p>
+                                                    <p className="text-[10px] text-gray-500">{job.company} · {job.loc}</p>
                                                 </div>
-                                                <span className={`text-sm font-black ${job.color}`}>{job.match}</span>
+                                                <div className="text-right flex-shrink-0">
+                                                    <p className={`text-xs font-black ${job.color}`}>{job.match}</p>
+                                                    <p className="text-[10px] text-gray-400">{job.salary}/yr</p>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
                                 )}
                                 {activeFeature === 3 && (
-                                    <div className="space-y-3">
-                                        <h3 className="font-bold text-gray-900 dark:text-white text-sm mb-4">Learning Hub — Gini's Recommended Plan</h3>
+                                    <div className="space-y-2.5">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="font-bold text-gray-900 dark:text-white text-sm">Learning Hub — Gini's Plan for You</h3>
+                                            <span className="text-[10px] font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full">Gap-based</span>
+                                        </div>
+                                        <p className="text-[10px] text-gray-500 dark:text-gray-400 italic">Gini found 3 skill gaps vs. your target roles. Auto-curated from YouTube, Coursera &amp; edX — resumes where you left off.</p>
                                         {[
-                                            { title: 'AWS Solutions Architect', platform: 'Coursera', progress: 65, level: 'Intermediate' },
-                                            { title: 'System Design Interviews', platform: 'YouTube', progress: 30, level: 'Advanced' },
-                                            { title: 'Docker & Kubernetes', platform: 'edX', progress: 0, level: 'Beginner' },
+                                            { title: 'AWS Solutions Architect Pro', platform: 'Coursera', progress: 65, tag: '🔴 High-priority gap', tagColor: 'text-red-500' },
+                                            { title: 'System Design for Interviews', platform: 'YouTube', progress: 30, tag: '🟡 Frequently asked', tagColor: 'text-yellow-600' },
+                                            { title: 'Docker & Kubernetes Mastery', platform: 'edX', progress: 0, tag: '🟠 Emerging demand', tagColor: 'text-orange-500' },
                                         ].map((c, i) => (
-                                            <div key={i} className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-700">
-                                                <div className="flex justify-between mb-1">
-                                                    <p className="text-xs font-bold text-gray-900 dark:text-white">{c.title}</p>
-                                                    <span className="text-xs text-gray-400">{c.platform}</span>
+                                            <div key={i} className="p-2.5 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-700">
+                                                <div className="flex justify-between mb-1 gap-2">
+                                                    <p className="text-xs font-bold text-gray-900 dark:text-white leading-tight flex-1">{c.title}</p>
+                                                    <span className="text-[10px] text-gray-400 flex-shrink-0">{c.platform}</span>
                                                 </div>
-                                                <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                                                    <div className="h-full bg-blue-500 rounded-full" style={{ width: `${c.progress}%` }}></div>
+                                                <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-1">
+                                                    <div className="h-full bg-blue-500 rounded-full" style={{ width: `${c.progress || 3}%` }}></div>
                                                 </div>
-                                                <p className="text-[10px] text-gray-400 mt-1">{c.progress}% complete</p>
+                                                <div className="flex justify-between">
+                                                    <span className="text-[10px] text-gray-400">{c.progress}% complete</span>
+                                                    <span className={`text-[10px] font-medium ${c.tagColor}`}>{c.tag}</span>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
@@ -296,7 +368,7 @@ export const NewLoginPage: React.FC = () => {
                 <div className="max-w-7xl mx-auto px-6">
                     <div className="text-center mb-12">
                         <span className="inline-block px-4 py-1.5 rounded-full text-xs font-bold tracking-widest uppercase bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800 mb-4">What CareerGini Does</span>
-                        <h2 className="text-4xl md:text-5xl font-extrabold mb-4 tracking-tight">9 AI Tools. One Mission: <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">Get You Hired.</span></h2>
+                        <h2 className="text-4xl md:text-5xl font-extrabold mb-4 tracking-tight">6 AI Tools. One Mission: <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">Get You Hired.</span></h2>
                         <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">Built from the ground up around hyper-personalization. Every tool knows who you are and what you want before you open it.</p>
                     </div>
 
@@ -442,7 +514,7 @@ export const NewLoginPage: React.FC = () => {
                 <div className="absolute top-0 left-1/4 w-64 h-64 bg-blue-600/20 rounded-full filter blur-[80px]"></div>
                 <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-purple-600/20 rounded-full filter blur-[80px]"></div>
                 <div className="max-w-3xl mx-auto px-6 relative z-10">
-                    <h2 className="text-4xl md:text-5xl font-extrabold text-white mb-6">9 AI Tools.<br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">Start for $0 Today.</span></h2>
+                    <h2 className="text-4xl md:text-5xl font-extrabold text-white mb-6">6 AI Tools.<br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">Start for $0 Today.</span></h2>
                     <p className="text-gray-300 text-xl mb-10 font-medium">Join thousands of job seekers who stopped applying into the void and started landing real interviews.</p>
                     <button onClick={handleLogin} className="px-10 py-5 bg-white text-gray-900 rounded-xl font-bold text-lg hover:shadow-2xl hover:-translate-y-1 transition-all flex items-center justify-center gap-3 w-full sm:w-auto mx-auto shadow-xl">
                         <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-6 h-6 bg-white rounded-full p-0.5" alt="G" />

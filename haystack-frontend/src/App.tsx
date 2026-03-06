@@ -7,7 +7,6 @@ import { ResumePage } from './pages/ResumePage';
 import { JobsPage } from './pages/JobsPage';
 import { LearningPage } from './pages/LearningPage';
 import { LoginPage } from './pages/LoginPage';
-import { NewLoginPage } from './pages/NewLoginPage';
 import { AuthCallback } from './pages/AuthCallback';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { PlaceholderPage } from './pages/PlaceholderPage';
@@ -35,7 +34,6 @@ function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/new-login" element={<NewLoginPage />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/onboarding" element={
             <ProtectedRoute>

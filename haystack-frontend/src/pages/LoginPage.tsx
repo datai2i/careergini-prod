@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Sparkles, ArrowRight, BrainCircuit, Target, MessageSquare, Star, ShieldCheck, Zap, Check, X, Globe, BookOpen, Compass, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { Sparkles, BrainCircuit, Target, MessageSquare, Star, ShieldCheck, Zap, Check, X, Globe, BookOpen, TrendingUp, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Navigate } from 'react-router-dom';
 
@@ -8,17 +8,14 @@ export const LoginPage: React.FC = () => {
     const { isAuthenticated, loading } = useAuth();
     const [scrolled, setScrolled] = useState(false);
     const [openFaq, setOpenFaq] = useState<number | null>(null);
+    const [activeFeature, setActiveFeature] = useState(0);
 
     useEffect(() => {
-        const handleScroll = () => {
-            setScrolled(window.scrollY > 20);
-        };
+        const handleScroll = () => setScrolled(window.scrollY > 20);
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
-    // If auth is still loading AND we have a token, show a blank loading screen
-    // so the full login page never flashes for already-authenticated users
     if (loading && localStorage.getItem('auth_token')) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -29,467 +26,525 @@ export const LoginPage: React.FC = () => {
             </div>
         );
     }
-
-    // Already authenticated — let RootRedirect handle where they go next
     if (isAuthenticated) return <Navigate to="/" replace />;
 
-    const handleLogin = (provider: string) => {
-        window.location.href = `${AUTH_URL}/${provider}?source=haystack`;
-    };
+    const handleLogin = () => { window.location.href = `${AUTH_URL}/google?source=haystack`; };
 
+    // 6 unique CareerGini features, properly named from the codebase
     const features = [
         {
-            icon: <BrainCircuit className="w-8 h-8 text-blue-500" />,
-            title: "Simplicity First: Instant AI Parsing",
-            description: "Simply upload your existing resume. Our mature AI engine instantly parses your history, extracting deep technical capabilities without missing a beat, to establish your master profile."
+            icon: <BrainCircuit className="w-6 h-6" />,
+            name: "AI Resume Builder",
+            badge: "Core",
+            badgeColor: "bg-blue-100 text-blue-700",
+            iconBg: "bg-blue-500",
+            headline: "Hyper-Personalized Résumés in Under 5 Minutes",
+            body: "Upload your existing CV or draft from scratch. Our 5-step AI flow parses your full history, lets you pick a professional template, and tailors every bullet point to your target job description — producing an ATS-ready PDF automatically.",
+            highlights: ["5-step guided AI flow", "Multiple professional templates", "Industry-specific tailoring", "ATS-optimized PDF download"]
         },
         {
-            icon: <Target className="w-8 h-8 text-purple-500" />,
-            title: "Hyper-Personalized Tailoring",
-            description: "Paste your target job description. Advanced, highly-tailored LLMs immediately cross-reference your skills, intelligently rewriting every bullet point to perfectly mirror the employer's exact vocabulary."
+            icon: <MessageSquare className="w-6 h-6" />,
+            name: "Gini Chat",
+            badge: "Premium",
+            badgeColor: "bg-purple-100 text-purple-700",
+            iconBg: "bg-purple-500",
+            headline: "Your Personal AI Career Mentor — Always On",
+            body: "Gini Chat is not a generic chatbot. It reads your complete resume, work history, and career goals before your first message. Ask for salary negotiation scripts specific to your role, interview prep based on your actual experience, or a cover letter that references your projects by name.",
+            highlights: ["Knows your full career history", "Streaming real-time responses", "Interview prep & salary coaching", "Tailored cover letter writing"]
         },
         {
-            icon: <MessageSquare className="w-8 h-8 text-indigo-500" />,
-            title: "Gini Chat: Dedicated AI Mentor",
-            description: "Unlock our flagship Premium feature. Gini Chat knows your entire career history contextually. It provides bespoke interview strategies, salary negotiation tactics, and cover letters that generic bots simply cannot match."
+            icon: <Target className="w-6 h-6" />,
+            name: "Gini Guide",
+            badge: "Premium",
+            badgeColor: "bg-indigo-100 text-indigo-700",
+            iconBg: "bg-indigo-500",
+            headline: "Proactive Career Nudges — Gini Guides You",
+            body: "Gini Guide is your proactive advisor. It monitors your job search activity and sends smart, priority-ranked nudges: 'Follow up on your Google application', 'Your Amazon interview is in 2 days — practice now', or 'Docker is a critical skill gap for your target role'. It keeps your momentum going automatically.",
+            highlights: ["Priority-ranked smart nudges", "Interview & application reminders", "Skill gap alerts", "Networking & follow-up prompts"]
         },
         {
-            icon: <Globe className="w-8 h-8 text-emerald-500" />,
-            title: "Smart Learning Hub (Premium)",
-            description: "Identify precisely why ATS systems reject you. Our AI maps your skill gaps against the market and auto-recommends targeted courses from YouTube and Coursera to rapidly accelerate your upskilling journey."
+            icon: <Globe className="w-6 h-6" />,
+            name: "Global Job Matching",
+            badge: "Premium",
+            badgeColor: "bg-emerald-100 text-emerald-700",
+            iconBg: "bg-emerald-500",
+            headline: "Closest Remote Jobs — Matched to Your Profile",
+            body: "Gini reads your resume profile and immediately surfaces the closest-matching remote and local jobs across 150+ countries. Your skills, title, and location are automatically used to find you roles before you even search. India-based users get remote-first results automatically.",
+            highlights: ["Profile-based automatic matching", "Remote-first for global users", "Keyword chip filters", "150+ countries coverage"]
         },
         {
-            icon: <Star className="w-8 h-8 text-pink-500" />,
-            title: "Your Arsenal, Saved Forever",
-            description: "Every hyper-tailored ATS PDF you craft is stored securely on your dashboard. Download your historical documents anytime, seamlessly tracking your professional progression over the years."
+            icon: <BookOpen className="w-6 h-6" />,
+            name: "Smart Learning Hub",
+            badge: "Premium",
+            badgeColor: "bg-amber-100 text-amber-700",
+            iconBg: "bg-amber-500",
+            headline: "Gini Designs Your Tailored Learning Plan",
+            body: "The Learning Hub is not just a course list — Gini maps your skill gaps against the job market and automatically surfaces the most relevant YouTube videos, Coursera, and edX courses. It tracks your progress in real time, picks up right where you left off, and updates your skill roadmap as your goals evolve.",
+            highlights: ["Gap-Based course recommendations", "YouTube, Coursera & edX integrated", "Real-time progress tracking", "Resume-aware curation"]
         },
         {
-            icon: <Zap className="w-8 h-8 text-amber-500" />,
-            title: "Exceptional Value, Guaranteed",
-            description: "Build your first game-changing resume absolutely free. When you're ready, unlock the full Premium suite for a single, low one-time cost. Pay once, use forever."
-        }
+            icon: <TrendingUp className="w-6 h-6" />,
+            name: "ATS Scoring & Gap Analysis",
+            badge: "Core",
+            badgeColor: "bg-pink-100 text-pink-700",
+            iconBg: "bg-pink-500",
+            headline: "Beat the Bots Before a Human Sees Your Name",
+            body: "CareerGini calculates a live ATS match score between your resume and any job description. Below the threshold? Gini pinpoints exactly what's missing — skills, keywords, certifications — and lets you regenerate until you pass with a single click.",
+            highlights: ["Live ATS match scoring", "Keyword gap identification", "1-click ATS regeneration", "Certification & skill gap hints"]
+        },
+    ];
+
+    const stats = [
+        { value: '98%', label: 'Fortune 500s use ATS', sub: 'Beat the bots, guaranteed.' },
+        { value: '3×', label: 'More interview callbacks', sub: 'vs. untailored resumes.' },
+        { value: '< 5m', label: 'To a polished ATS PDF', sub: 'From upload to complete.' },
+        { value: '6', label: 'Unique AI-powered tools', sub: 'All in one $0 login.' }
     ];
 
     const reviews = [
-        {
-            name: "Sarah Jenkins",
-            role: "Senior Product Designer, EMEA",
-            content: "I applied for 12 roles. 9 got back to me within 48 hours. The ATS score feature changed everything — I knew my resume would be seen before a human even touched it.",
-            rating: 5
-        },
-        {
-            name: "David Chen",
-            role: "Full-Stack Software Engineer",
-            content: "Gini Chat is unlike any chatbot I've used. It read my entire work history and gave me specific talking points for my salary negotiation. I got $18k more than the initial offer.",
-            rating: 5
-        },
-        {
-            name: "Adesola Okafor",
-            role: "Healthcare Project Manager, Lagos",
-            content: "I had no updated resume at all. Within 10 minutes of uploading my old CV, I had a professionally formatted, industry-tailored resume ready to go. CareerGini is genuinely magic.",
-            rating: 5
-        }
+        { name: "Sarah Jenkins", role: "Senior Product Designer", content: "I applied for 12 roles. 9 got back to me within 48 hours. The ATS score feature changed everything — I knew my resume would be seen before a human even touched it.", rating: 5 },
+        { name: "David Chen", role: "Full-Stack Software Engineer", content: "Gini Chat is unlike any chatbot I've used. It read my entire work history and gave me specific talking points for my salary negotiation. I got $18k more than the initial offer.", rating: 5 },
+        { name: "Adesola Okafor", role: "Healthcare Project Manager", content: "Within 10 minutes of uploading my old CV, I had a professionally formatted, industry-tailored resume ready. Gini Guide reminded me to follow up exactly when I needed to.", rating: 5 }
     ];
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-sans selection:bg-blue-500/30">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-sans selection:bg-blue-500/30 overflow-x-hidden">
 
             {/* --- Sticky Navbar --- */}
-            <nav className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 py-3 shadow-sm' : 'bg-transparent py-5'}`}>
-                <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+            <nav className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 py-3 shadow-sm' : 'bg-transparent py-5'}`}>
+                <div className="max-w-7xl mx-auto px-6 flex items-center justify-between h-16">
+                    {/* Dual Logo */}
                     <div className="flex items-center gap-4">
-                        <img src="/logo.png" alt="CareerGini Logo" className="h-14 md:h-18 w-auto mix-blend-multiply dark:mix-blend-normal" />
-                        <span className="hidden sm:flex items-center gap-2.5 border-l border-gray-300 dark:border-gray-600 pl-4">
-                            <span className="text-xs text-gray-400 dark:text-gray-500 font-semibold tracking-wide">by</span>
-                            <img src="/datai2i-logo.png" alt="DATAi2i" className="h-8 w-auto opacity-80 hover:opacity-100 transition-opacity mix-blend-multiply dark:mix-blend-normal" />
+                        <img src="/logo.png" alt="CareerGini" className="h-10 md:h-12 w-auto mix-blend-multiply dark:mix-blend-normal" />
+                        <span className="hidden sm:flex items-center gap-2 border-l border-gray-300 dark:border-gray-700 pl-4">
+                            <span className="text-xs font-semibold text-gray-400 tracking-wide">by</span>
+                            <img src="/datai2i-logo.png" alt="DATAi2i" className="h-6 w-auto opacity-80 mix-blend-multiply dark:mix-blend-normal" />
                         </span>
                     </div>
 
-                    <div>
-                        <button
-                            onClick={() => handleLogin('google')}
-                            className="group relative flex items-center gap-3 px-6 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-full font-semibold hover:border-blue-500 dark:hover:border-blue-400 hover:shadow-lg hover:-translate-y-0.5 transition-all"
-                        >
-                            <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-4 h-4" alt="Google" />
-                            <span>Sign In</span>
-                            <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
-                        </button>
+                    {/* Nav links */}
+                    <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-gray-600 dark:text-gray-300">
+                        <a href="#features" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Features</a>
+                        <a href="#pricing" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Pricing</a>
+                        <a href="#faq" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">FAQ</a>
                     </div>
+
+                    {/* CTA */}
+                    <button onClick={handleLogin} className="flex items-center gap-2.5 px-5 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg font-bold text-sm shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all">
+                        <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-4 h-4 bg-white rounded-full p-[1px]" alt="G" />
+                        Sign In
+                    </button>
                 </div>
             </nav>
 
-            {/* --- Hero Section --- */}
-            <div className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
+            {/* --- Hero --- */}
+            <div className="relative overflow-hidden pt-32 pb-24 lg:pt-48 lg:pb-36">
                 {/* Animated Background Orbs */}
-                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute inset-0 pointer-events-none overflow-hidden">
                     <div className="absolute -top-40 -left-40 w-96 h-96 bg-blue-500/20 dark:bg-blue-600/20 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-[100px] animate-blob"></div>
                     <div className="absolute top-20 -right-20 w-[500px] h-[500px] bg-purple-500/20 dark:bg-purple-600/20 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-[100px] animate-blob animation-delay-2000"></div>
-                    <div className="absolute -bottom-40 left-1/2 w-[600px] h-[600px] bg-indigo-500/20 dark:bg-indigo-600/20 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-[100px] animate-blob animation-delay-4000"></div>
-
-                    {/* Grid Pattern */}
+                    <div className="absolute -bottom-40 left-1/3 w-[600px] h-[600px] bg-indigo-500/20 dark:bg-indigo-600/20 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-[100px] animate-blob animation-delay-4000"></div>
                     <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]"></div>
                 </div>
 
-                <div className="relative max-w-7xl mx-auto px-6 text-center z-10">
-                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium text-sm mb-8 border border-blue-200 dark:border-blue-800/50 shadow-sm animate-fade-in-up">
-                        <Zap className="w-4 h-4" />
-                        <span>Your AI Career Coach — Free to Try. Built to Accelerate.</span>
+                <div className="relative max-w-7xl mx-auto px-6 z-10 grid lg:grid-cols-2 gap-12 items-center">
+                    <div className="space-y-8 text-center lg:text-left">
+                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white dark:bg-gray-800 text-blue-700 dark:text-blue-300 font-semibold text-sm border border-gray-200 dark:border-gray-700 shadow-sm">
+                            <Sparkles className="w-4 h-4 text-amber-500" />
+                            6 AI Career Tools — One Platform
+                        </div>
+
+                        <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight leading-tight">
+                            Your Complete<br />
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 dark:from-blue-400 dark:via-purple-400 dark:to-indigo-400">AI Career Engine.</span>
+                        </h1>
+
+                        <p className="text-xl text-gray-600 dark:text-gray-300 max-w-xl mx-auto lg:mx-0 leading-relaxed">
+                            From a hyper-tailored ATS résumé to Gini Chat mentorship, smart job matching, and a personalized learning plan — CareerGini handles your entire job search under one roof, powered by 100% AI automation.
+                        </p>
+
+                        <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
+                            <button onClick={handleLogin} className="w-full sm:w-auto px-8 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl font-bold text-lg hover:bg-gray-800 dark:hover:bg-gray-100 transition-all flex items-center justify-center gap-3 shadow-xl hover:shadow-2xl hover:-translate-y-1">
+                                <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5 bg-white rounded-full p-0.5" alt="G" />
+                                Start Free with Google
+                            </button>
+                        </div>
+                        <div className="flex flex-wrap items-center justify-center lg:justify-start gap-5 text-sm font-semibold text-gray-500 dark:text-gray-400">
+                            <span className="flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-green-500" /> No card ever</span>
+                            <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-blue-500" /> 1 full free build</span>
+                            <span className="flex items-center gap-1.5"><Globe className="w-4 h-4 text-indigo-500" /> 150+ countries</span>
+                        </div>
                     </div>
 
-                    <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6 leading-tight animate-fade-in-up animation-delay-100">
-                        Build a <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 animate-gradient-x">Hyper-Personalized</span> Résumé <br className="hidden md:block" />
-                        Using Advanced AI.
-                    </h1>
-
-                    <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 mb-12 max-w-3xl mx-auto leading-relaxed animate-fade-in-up animation-delay-200">
-                        Stop sending generic resumes. CareerGini's highly-tailored LLMs instantly map your entire professional history to the exact job you want, rewriting bullets to match industry keywords perfectly. <strong>Fast, simple, and mature intelligence. Start for free.</strong>
-                    </p>
-
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up animation-delay-300">
-                        <button
-                            onClick={() => handleLogin('google')}
-                            className="w-full sm:w-auto px-8 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl font-bold text-lg hover:shadow-xl hover:shadow-blue-500/20 hover:-translate-y-1 transition-all flex items-center justify-center gap-3"
-                        >
-                            <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5 bg-white rounded-full p-0.5" alt="Google" />
-                            <span>Try CareerGini Free →</span>
-                        </button>
-
-                        <div className="flex items-center gap-2 text-sm font-medium text-gray-500 dark:text-gray-400 ml-0 sm:ml-4">
-                            <ShieldCheck className="w-5 h-5 text-green-500" />
-                            <span>1 full resume build included. No credit card, ever.</span>
+                    {/* Right: Feature preview card */}
+                    <div className="hidden lg:block relative">
+                        <div className="w-full rounded-2xl bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-gray-700 shadow-2xl overflow-hidden">
+                            {/* Tab bar */}
+                            <div className="flex border-b border-gray-100 dark:border-gray-700 overflow-x-auto">
+                                {['Resume AI', 'Gini Chat', 'Jobs', 'Learning'].map((tab, i) => (
+                                    <button key={i} onClick={() => setActiveFeature(i)} className={`flex-1 py-3 text-xs font-bold whitespace-nowrap transition-colors ${activeFeature === i ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-900/20' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>
+                                        {tab}
+                                    </button>
+                                ))}
+                            </div>
+                            {/* Content panels */}
+                            <div className="p-6 min-h-[400px]">
+                                {activeFeature === 0 && (
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between mb-1">
+                                            <h3 className="font-bold text-gray-900 dark:text-white text-sm">AI Resume Builder — 5-Step Journey</h3>
+                                            <span className="text-xs bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full">ATS: 94%</span>
+                                        </div>
+                                        {/* Step 1 */}
+                                        <div className="p-2.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                                            <div className="flex items-center gap-2 mb-1.5">
+                                                <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-black flex-shrink-0">1</span>
+                                                <span className="text-xs font-bold text-blue-800 dark:text-blue-300">Upload — Choose your starting point</span>
+                                                <Check className="w-3 h-3 ml-auto text-blue-500 flex-shrink-0" />
+                                            </div>
+                                            <div className="flex gap-1.5 ml-7">
+                                                {['📄 Upload CV', '✏️ Draft Manually', '⚡ Fast Track'].map((opt, j) => (
+                                                    <span key={j} className="text-[10px] font-semibold px-2 py-1 bg-white dark:bg-gray-800 text-blue-700 dark:text-blue-300 rounded-md border border-blue-200 dark:border-blue-700">{opt}</span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        {/* Step 2 */}
+                                        <div className="flex items-center gap-2.5 p-2.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                                            <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-black flex-shrink-0">2</span>
+                                            <div className="flex-1">
+                                                <p className="text-xs font-bold text-blue-800 dark:text-blue-300 leading-none">Review</p>
+                                                <p className="text-[10px] text-blue-600/70 dark:text-blue-400/70 mt-0.5">Edit & verify AI-parsed profile, skills, experience</p>
+                                            </div>
+                                            <Check className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                                        </div>
+                                        {/* Step 3 */}
+                                        <div className="p-2.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800">
+                                            <div className="flex items-start gap-2.5 mb-1.5">
+                                                <span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black flex-shrink-0 mt-0.5">3</span>
+                                                <div>
+                                                    <p className="text-xs font-bold text-indigo-800 dark:text-indigo-300 leading-none">Tailor to Job</p>
+                                                    <p className="text-[10px] text-indigo-500/80 mt-0.5">Paste JD · Select Industry · Set Tone for hyper-personalisation</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-1.5 ml-7">
+                                                {['📋 Paste JD', '🏭 Industry', '🎯 Tone'].map((opt, j) => (
+                                                    <span key={j} className="text-[10px] font-semibold px-2 py-1 bg-white dark:bg-gray-800 text-indigo-700 dark:text-indigo-300 rounded-md border border-indigo-200 dark:border-indigo-700">{opt}</span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        {/* Step 4 */}
+                                        <div className="p-2.5 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
+                                            <div className="flex items-start gap-2.5 mb-1.5">
+                                                <span className="w-5 h-5 rounded-full bg-gray-400 dark:bg-gray-600 text-white flex items-center justify-center text-[10px] font-black flex-shrink-0 mt-0.5">4</span>
+                                                <div>
+                                                    <p className="text-xs font-bold text-gray-500 dark:text-gray-400 leading-none">Finalise</p>
+                                                    <p className="text-[10px] text-gray-400 mt-0.5">Review & edit resume + cover letter · ATS score · Pick style</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-1.5 ml-7">
+                                                {["Jake's", 'Modern', 'Executive'].map((style, j) => (
+                                                    <span key={j} className={`text-[10px] font-semibold px-2 py-1 rounded-md border ${j === 0 ? 'bg-purple-100 border-purple-300 text-purple-700 dark:bg-purple-900/30 dark:border-purple-700 dark:text-purple-300' : 'bg-gray-100 border-gray-200 text-gray-500 dark:bg-gray-800 dark:border-gray-700'}`}>{style}</span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        {/* Step 5 */}
+                                        <div className="flex items-center gap-2.5 p-2.5 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
+                                            <span className="w-5 h-5 rounded-full bg-gray-400 dark:bg-gray-600 text-white flex items-center justify-center text-[10px] font-black flex-shrink-0">5</span>
+                                            <div className="flex-1">
+                                                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 leading-none">Done — Download</p>
+                                                <p className="text-[10px] text-gray-400 mt-0.5">Resume + Cover Letter in PDF &amp; DOCX formats</p>
+                                            </div>
+                                            <div className="flex gap-1">
+                                                <span className="text-[9px] font-bold px-1.5 py-0.5 bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 rounded">PDF</span>
+                                                <span className="text-[9px] font-bold px-1.5 py-0.5 bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 rounded">DOC</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                                {activeFeature === 1 && (
+                                    <div className="space-y-2.5">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="font-bold text-gray-900 dark:text-white text-sm">Gini Chat — Your AI Mentor</h3>
+                                            <span className="text-[10px] font-bold bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full">Knows your history</span>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <div className="w-6 h-6 rounded-full bg-blue-600 flex-shrink-0 flex items-center justify-center text-white text-[10px] font-bold">U</div>
+                                            <div className="bg-blue-600 text-white text-xs rounded-xl rounded-tl-none p-2.5 font-medium max-w-[85%]">"How do I negotiate salary with my 6 years of Python + AWS experience?"</div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <div className="w-6 h-6 rounded-full bg-purple-600 flex-shrink-0 flex items-center justify-center text-white text-[10px] font-bold">G</div>
+                                            <div className="bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white text-xs rounded-xl rounded-tl-none p-2.5 font-medium leading-relaxed">Based on your 6yrs (Infosys → fintech) + AWS/ML stack, FAANG Staff roles sit at $145K–$175K. Anchor at $170K. Cite your ML pipeline that saved $2M at Wipro as your opening leverage...</div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <div className="w-6 h-6 rounded-full bg-blue-600 flex-shrink-0 flex items-center justify-center text-white text-[10px] font-bold">U</div>
+                                            <div className="bg-blue-600 text-white text-xs rounded-xl rounded-tl-none p-2.5 font-medium max-w-[85%]">"Write me a cover letter for this Stripe Staff Engineer role."</div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <div className="w-6 h-6 rounded-full bg-purple-600 flex-shrink-0 flex items-center justify-center text-white text-[10px] font-bold">G</div>
+                                            <div className="bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white text-xs rounded-xl rounded-tl-none p-2.5 font-medium leading-relaxed">Using your real projects + Stripe's engineering values, here's a tailored cover letter that leads with your ML pipeline ROI and signals culture-fit from your open-source work...</div>
+                                        </div>
+                                    </div>
+                                )}
+                                {activeFeature === 2 && (
+                                    <div className="space-y-2.5">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="font-bold text-gray-900 dark:text-white text-sm">Job Search — Matched to Your Profile</h3>
+                                            <span className="text-[10px] font-bold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full">Remote-first</span>
+                                        </div>
+                                        <div className="flex gap-1.5 flex-wrap">
+                                            <span className="text-[10px] font-semibold px-2 py-1 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 rounded-md">🔍 Senior Python Dev</span>
+                                            <span className="text-[10px] font-semibold px-2 py-1 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 rounded-md">🌐 Remote ON</span>
+                                            <span className="text-[10px] font-semibold px-2 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 rounded-md">150+ countries</span>
+                                        </div>
+                                        {[
+                                            { title: 'Staff ML Engineer', company: 'Stripe', loc: 'Remote · USA', match: '96%', salary: '$170K', color: 'text-green-600', hi: true },
+                                            { title: 'Full Stack Architect', company: 'Notion', loc: 'Remote · Global', match: '91%', salary: '$155K', color: 'text-green-600', hi: false },
+                                            { title: 'Platform Engineer', company: 'Atlassian', loc: 'Remote · APAC', match: '87%', salary: '$130K', color: 'text-amber-500', hi: false },
+                                            { title: 'Backend Engineer III', company: 'Shopify', loc: 'Remote · Canada', match: '84%', salary: '$125K', color: 'text-amber-500', hi: false },
+                                        ].map((job, i) => (
+                                            <div key={i} className={`flex items-center gap-2.5 p-2.5 rounded-lg border ${job.hi ? 'bg-green-50/50 dark:bg-green-900/10 border-green-200 dark:border-green-800' : 'bg-gray-50 dark:bg-gray-800/50 border-gray-100 dark:border-gray-700'}`}>
+                                                <div className="w-7 h-7 rounded-md bg-slate-200 dark:bg-slate-700 flex-shrink-0 flex items-center justify-center text-[10px] font-black text-slate-500">{job.company[0]}</div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{job.title}</p>
+                                                    <p className="text-[10px] text-gray-500">{job.company} · {job.loc}</p>
+                                                </div>
+                                                <div className="text-right flex-shrink-0">
+                                                    <p className={`text-xs font-black ${job.color}`}>{job.match}</p>
+                                                    <p className="text-[10px] text-gray-400">{job.salary}/yr</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                {activeFeature === 3 && (
+                                    <div className="space-y-2.5">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="font-bold text-gray-900 dark:text-white text-sm">Learning Hub — Gini's Plan for You</h3>
+                                            <span className="text-[10px] font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full">Gap-based</span>
+                                        </div>
+                                        <p className="text-[10px] text-gray-500 dark:text-gray-400 italic">Gini found 3 skill gaps vs. your target roles. Auto-curated from YouTube, Coursera &amp; edX — resumes where you left off.</p>
+                                        {[
+                                            { title: 'AWS Solutions Architect Pro', platform: 'Coursera', progress: 65, tag: '🔴 High-priority gap', tagColor: 'text-red-500' },
+                                            { title: 'System Design for Interviews', platform: 'YouTube', progress: 30, tag: '🟡 Frequently asked', tagColor: 'text-yellow-600' },
+                                            { title: 'Docker & Kubernetes Mastery', platform: 'edX', progress: 0, tag: '🟠 Emerging demand', tagColor: 'text-orange-500' },
+                                        ].map((c, i) => (
+                                            <div key={i} className="p-2.5 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-700">
+                                                <div className="flex justify-between mb-1 gap-2">
+                                                    <p className="text-xs font-bold text-gray-900 dark:text-white leading-tight flex-1">{c.title}</p>
+                                                    <span className="text-[10px] text-gray-400 flex-shrink-0">{c.platform}</span>
+                                                </div>
+                                                <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-1">
+                                                    <div className="h-full bg-blue-500 rounded-full" style={{ width: `${c.progress || 3}%` }}></div>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-[10px] text-gray-400">{c.progress}% complete</span>
+                                                    <span className={`text-[10px] font-medium ${c.tagColor}`}>{c.tag}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* --- Features Section --- */}
-            <div className="py-24 bg-white/50 dark:bg-slate-800/50 border-y border-gray-200 dark:border-gray-800">
-                <div className="max-w-7xl mx-auto px-6">
-                    <div className="text-center mb-16">
-                        <h2 className="text-3xl md:text-4xl font-bold mb-4">Built for Job Seekers Who Refuse to Settle</h2>
-                        <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-                            Every feature built around one goal: helping you get more interviews, faster — no matter where you are in the world.
-                        </p>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                        {features.map((feature, idx) => (
-                            <div key={idx} className="group p-8 rounded-3xl bg-white dark:bg-slate-900 border border-gray-100 dark:border-gray-800 shadow-lg hover:shadow-xl hover:border-blue-500/30 transition-all duration-300 hover:-translate-y-2">
-                                <div className="w-16 h-16 rounded-2xl bg-gray-50 dark:bg-slate-800 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
-                                    {feature.icon}
-                                </div>
-                                <h3 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">{feature.title}</h3>
-                                <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-                                    {feature.description}
-                                </p>
-                            </div>
-                        ))}
-                    </div>
+            {/* --- Stats Bar --- */}
+            <div className="border-y border-gray-200/60 dark:border-gray-800 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm">
+                <div className="max-w-7xl mx-auto px-6 py-10 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+                    {stats.map((s, i) => (
+                        <div key={i} className="space-y-1">
+                            <p className="text-4xl lg:text-5xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">{s.value}</p>
+                            <p className="text-sm font-bold text-gray-900 dark:text-white">{s.label}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">{s.sub}</p>
+                        </div>
+                    ))}
                 </div>
             </div>
 
-            {/* --- Social Proof / Reviews Section --- */}
-            <div className="py-24 relative overflow-hidden">
-                <div className="absolute inset-0 bg-blue-50 dark:bg-blue-900/10 -skew-y-3 transform origin-top-left -z-10 border-y border-blue-100 dark:border-blue-900/30"></div>
-
-                <div className="max-w-7xl mx-auto px-6 relative z-10">
-                    <div className="text-center mb-16">
-                        <h2 className="text-3xl md:text-4xl font-bold mb-4">Loved by Professionals</h2>
-                        <p className="text-lg text-gray-600 dark:text-gray-400">Join thousands of others who accelerated their careers with CareerGini.</p>
+            {/* --- Features Deep Dive --- */}
+            <div id="features" className="py-24 bg-white dark:bg-slate-900">
+                <div className="max-w-7xl mx-auto px-6">
+                    <div className="text-center mb-12">
+                        <span className="inline-block px-4 py-1.5 rounded-full text-xs font-bold tracking-widest uppercase bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800 mb-4">What CareerGini Does</span>
+                        <h2 className="text-4xl md:text-5xl font-extrabold mb-4 tracking-tight">6 AI Tools. One Mission: <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">Get You Hired.</span></h2>
+                        <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">Built from the ground up around hyper-personalization. Every tool knows who you are and what you want before you open it.</p>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {reviews.map((review, idx) => (
-                            <div key={idx} className="p-8 rounded-3xl bg-white dark:bg-slate-800 shadow-md border border-gray-100 dark:border-gray-700/50">
-                                <div className="flex items-center gap-1 mb-6">
-                                    {[...Array(review.rating)].map((_, i) => (
-                                        <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {features.map((feat, idx) => (
+                            <div key={idx} className="group p-6 rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col">
+                                <div className="flex items-start justify-between mb-5">
+                                    <div className={`w-12 h-12 rounded-xl ${feat.iconBg} text-white flex items-center justify-center flex-shrink-0 shadow-sm group-hover:scale-110 transition-transform`}>
+                                        {feat.icon}
+                                    </div>
+                                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${feat.badgeColor}`}>{feat.badge}</span>
+                                </div>
+                                <h3 className="text-lg font-extrabold text-gray-900 dark:text-white mb-2">{feat.name}</h3>
+                                <p className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-4 leading-relaxed">{feat.headline}</p>
+                                <ul className="space-y-2 mt-auto">
+                                    {feat.highlights.map((h, j) => (
+                                        <li key={j} className="flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+                                            <Check className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" /> {h}
+                                        </li>
                                     ))}
-                                </div>
-                                <p className="text-gray-700 dark:text-gray-300 text-lg mb-6 leading-relaxed italic">
-                                    "{review.content}"
-                                </p>
-                                <div className="flex items-center gap-4 border-t border-gray-100 dark:border-gray-700 pt-6">
-                                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold text-lg shadow-inner">
-                                        {review.name.charAt(0)}
-                                    </div>
-                                    <div>
-                                        <h4 className="font-bold text-gray-900 dark:text-white">{review.name}</h4>
-                                        <span className="text-sm text-gray-500 dark:text-gray-400">{review.role}</span>
-                                    </div>
-                                </div>
+                                </ul>
                             </div>
                         ))}
                     </div>
                 </div>
             </div>
 
-            {/* --- Global Stats Bar --- */}
-            <div className="py-12 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600">
+            {/* --- Reviews --- */}
+            <div className="py-24 bg-slate-50 dark:bg-slate-800/30 border-y border-slate-100 dark:border-gray-800">
                 <div className="max-w-7xl mx-auto px-6">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center text-white">
-                        {[
-                            { value: '98%', label: 'Fortune 500s filter with ATS', sub: 'Gini helps you beat the bots.' },
-                            { value: '3x', label: 'More interview callbacks', sub: 'vs. untailored resumes' },
-                            { value: '< 5 min', label: 'Upload to polished PDF', sub: 'From raw resume to ATS-ready' },
-                            { value: '$0', label: 'To start — forever free', sub: 'No card. No lock-in. No risk.' }
-                        ].map((stat, i) => (
-                            <div key={i} className="space-y-1">
-                                <p className="text-4xl font-extrabold tracking-tight">{stat.value}</p>
-                                <p className="text-sm font-semibold text-white/90">{stat.label}</p>
-                                <p className="text-xs text-white/60">{stat.sub}</p>
+                    <div className="text-center mb-16">
+                        <h2 className="text-3xl md:text-4xl font-bold mb-3 tracking-tight">Real People. Real Offers. Real Money.</h2>
+                        <p className="text-lg text-gray-500 dark:text-gray-400">Professionals from 150+ countries trust CareerGini to run their job search.</p>
+                    </div>
+                    <div className="grid md:grid-cols-3 gap-6">
+                        {reviews.map((r, i) => (
+                            <div key={i} className="p-8 rounded-2xl bg-white dark:bg-slate-800 shadow border border-gray-100 dark:border-gray-700 flex flex-col">
+                                <div className="flex gap-1 mb-5">{[...Array(r.rating)].map((_, j) => <Star key={j} className="w-5 h-5 fill-yellow-400 text-yellow-400" />)}</div>
+                                <p className="text-gray-700 dark:text-gray-300 italic mb-8 flex-1">"{r.content}"</p>
+                                <div className="flex items-center gap-3 mt-auto pt-5 border-t border-gray-100 dark:border-gray-700">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-black text-sm">{r.name.charAt(0)}</div>
+                                    <div>
+                                        <p className="font-bold text-sm text-gray-900 dark:text-white">{r.name}</p>
+                                        <p className="text-xs text-gray-500">{r.role}</p>
+                                    </div>
+                                </div>
                             </div>
                         ))}
                     </div>
                 </div>
             </div>
 
-            {/* --- Pricing Section --- */}
+            {/* --- Pricing --- */}
             <div id="pricing" className="py-24 bg-white dark:bg-slate-900">
                 <div className="max-w-7xl mx-auto px-6">
-                    <div className="text-center mb-6">
-                        <span className="inline-block px-4 py-1.5 rounded-full text-xs font-bold tracking-widest uppercase bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-800 mb-6">Simple, Transparent Pricing</span>
-                        <h2 className="text-4xl md:text-5xl font-extrabold mb-4 tracking-tight">Pay Once. Use Forever.<br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">Your Credits Never Expire.</span></h2>
-                        <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto leading-relaxed">
-                            Start completely free — no card, no trial, no catch. When you're ready to do more, pay once for a bundle of AI resume build credits that <strong>never expire</strong>. Whether you're a fresh grad in Nairobi, a senior engineer in Berlin, or pivoting careers in Toronto — use them at your own pace.
-                        </p>
+                    <div className="text-center mb-16">
+                        <h2 className="text-4xl font-extrabold mb-4 tracking-tight">Clear Pricing.<br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">Your Credits Never Expire.</span></h2>
+                        <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">Start free — the full experience, not a teaser. Pay once for credits that last forever. No lock-in, no subscription, no risk.</p>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-16 items-stretch">
-
-                        {/* Free Plan */}
-                        <div className="relative flex flex-col p-5 rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                            <div className="mb-3">
-                                <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center mb-2">
-                                    <Globe className="w-5 h-5 text-gray-500" />
-                                </div>
-                                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Free</h3>
-                                <div className="flex items-end gap-1 mt-1">
-                                    <span className="text-3xl font-extrabold text-gray-900 dark:text-white">$0</span>
-                                    <span className="text-gray-500 dark:text-gray-400 mb-1">forever</span>
-                                </div>
-                                <div className="mt-3 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg inline-block">
-                                    <span className="text-xs font-bold text-gray-600 dark:text-gray-300">1 full AI resume build · No card ever</span>
-                                </div>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-3 leading-relaxed">Experience the full power of AI resume tailoring — from uploading to downloading a beautiful, hyperlinked PDF — completely free. Not a preview. The real thing.</p>
-                            </div>
-
-                            <ul className="space-y-2 mb-6 flex-1 text-sm">
-                                {[
-                                    { text: '1 complete AI-tailored resume build', included: true },
-                                    { text: 'ATS score & real-time feedback', included: true },
-                                    { text: 'Professional PDF with clickable hyperlinks', included: true },
-                                    { text: 'Upload resume or draft your profile manually', included: true },
-                                    { text: 'Industry-specific tailoring engine', included: false },
-                                    { text: 'Cover letter auto-generation', included: false },
-                                    { text: 'Gini Chat AI career mentor', included: false },
-                                ].map((item, i) => (
-                                    <li key={i} className="flex items-start gap-3">
-                                        {item.included ? <Check className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" /> : <X className="w-5 h-5 text-gray-300 dark:text-gray-600 flex-shrink-0 mt-0.5" />}
-                                        <span className={`text-sm ${item.included ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-500 line-through'}`}>{item.text}</span>
-                                    </li>
+                    <div className="grid md:grid-cols-3 gap-8 items-stretch max-w-6xl mx-auto">
+                        {/* Free */}
+                        <div className="flex flex-col p-8 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 shadow-sm hover:shadow-lg transition-all">
+                            <h3 className="text-2xl font-bold mb-2">Free Proof</h3>
+                            <div className="flex items-baseline gap-1 mb-6"><span className="text-5xl font-black">$0</span><span className="text-gray-400 font-medium">forever</span></div>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-8 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">1 complete AI resume build from upload to PDF download — at zero cost forever, no card required.</p>
+                            <ul className="space-y-3 mb-8 flex-1 text-sm">
+                                {['1 AI-tailored resume build', 'ATS job scoring', 'PDF download', 'Gini Resume Parser', 'Gini Guide (basic nudges)'].map((item, i) => (
+                                    <li key={i} className="flex items-center gap-3"><Check className="w-4 h-4 text-green-500 flex-shrink-0" /><span className="text-gray-700 dark:text-gray-300 font-medium">{item}</span></li>
+                                ))}
+                                {['Gini Chat mentor', 'Global Job Matching', 'Learning Hub'].map((item, i) => (
+                                    <li key={i} className="flex items-center gap-3"><X className="w-4 h-4 text-gray-300 flex-shrink-0" /><span className="text-gray-400 line-through text-xs">{item}</span></li>
                                 ))}
                             </ul>
-
-                            <button onClick={() => handleLogin('google')} className="w-full py-2.5 px-4 rounded-xl border-2 border-gray-900 dark:border-white text-gray-900 dark:text-white font-bold hover:bg-gray-900 hover:text-white dark:hover:bg-white dark:hover:text-gray-900 transition-all duration-200">
-                                Start Free — No Card Needed
-                            </button>
+                            <button onClick={handleLogin} className="w-full py-3.5 rounded-xl border-2 border-gray-900 dark:border-white text-gray-900 dark:text-white font-bold hover:bg-gray-900 hover:text-white dark:hover:bg-white dark:hover:text-gray-900 transition-colors">Start Free</button>
                         </div>
-
-                        {/* Starter Plan */}
-                        <div className="relative flex flex-col p-5 rounded-2xl border-2 border-blue-500 bg-white dark:bg-slate-800 shadow-2xl shadow-blue-500/20 hover:shadow-blue-500/30 transition-all duration-300 hover:-translate-y-1">
-                            <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-blue-600 text-white shadow-lg shadow-blue-500/40">
-                                    <Zap className="w-3 h-3" /> Most Popular
-                                </span>
+                        {/* Starter */}
+                        <div className="relative flex flex-col p-8 rounded-2xl border-2 border-blue-500 bg-white dark:bg-slate-800 shadow-xl shadow-blue-500/10 md:-translate-y-4 md:h-[calc(100%+2rem)]">
+                            <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
+                                <span className="px-4 py-1 rounded-full text-xs font-black bg-blue-600 text-white shadow-md uppercase tracking-wider">Most Popular</span>
                             </div>
-                            <div className="mb-3">
-                                <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center mb-2">
-                                    <BookOpen className="w-5 h-5 text-blue-600" />
-                                </div>
-                                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Starter</h3>
-                                <div className="flex items-end gap-2 mt-1">
-                                    <span className="text-3xl font-extrabold text-blue-600">$5</span>
-                                    <span className="text-gray-500 dark:text-gray-400 mb-1">one-time</span>
-                                </div>
-                                <div className="mt-3 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 rounded-lg inline-flex items-center gap-2">
-                                    <span className="text-xs font-bold text-blue-700 dark:text-blue-300">5 builds · just $1.00 each</span>
-                                    <span className="text-[10px] font-semibold text-green-600 bg-green-50 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded-full">Credits Never Expire</span>
-                                </div>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-3 leading-relaxed">You loved the free build — now go further. Unlock industry-specific tailoring that restructures your resume for the exact sector you're targeting. Cover letters included. Pay once, use at your pace.</p>
-                            </div>
-
-                            <ul className="space-y-2 mb-6 flex-1 text-sm">
-                                {[
-                                    { text: '5 AI-tailored resume builds', included: true },
-                                    { text: 'Industry-specific tailoring (Tech, Finance, Healthcare & more)', included: true },
-                                    { text: 'ATS score + 1-click regeneration until you pass', included: true },
-                                    { text: 'Professional PDF with clickable hyperlinks', included: true },
-                                    { text: 'Cover letter auto-generation for every application', included: true },
-                                    { text: 'Credits never expire — use whenever you need', included: true },
-                                    { text: 'Gini Chat AI career mentor', included: false },
-                                    { text: 'Hyper-personalised job search & Learning Hub', included: false },
-                                ].map((item, i) => (
-                                    <li key={i} className="flex items-start gap-3">
-                                        {item.included ? <Check className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" /> : <X className="w-5 h-5 text-gray-300 dark:text-gray-600 flex-shrink-0 mt-0.5" />}
-                                        <span className={`text-sm ${item.included ? 'text-gray-700 dark:text-gray-300 font-medium' : 'text-gray-400 dark:text-gray-500 line-through'}`}>{item.text}</span>
-                                    </li>
+                            <h3 className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-2">Starter</h3>
+                            <div className="flex items-baseline gap-1 mb-6"><span className="text-5xl font-black">$5</span><span className="text-gray-400 font-medium">one-time</span></div>
+                            <p className="text-sm text-blue-700 dark:text-blue-200 mb-8 p-4 bg-blue-50 dark:bg-blue-900/30 rounded-xl font-medium">5 AI builds at $1.00 each. Credits never expire. Unlock covers, industry tailoring, and job matching.</p>
+                            <ul className="space-y-3 mb-8 flex-1 text-sm">
+                                {['5 AI-tailored resume builds', 'Industry-specific tailoring', 'ATS + 1-click regeneration', 'Cover letter generation', 'Global Job Matching', 'Credits never expire'].map((item, i) => (
+                                    <li key={i} className="flex items-center gap-3"><Check className="w-4 h-4 text-blue-500 flex-shrink-0" /><span className="text-gray-700 dark:text-gray-300 font-medium">{item}</span></li>
+                                ))}
+                                {['Gini Chat AI mentor', 'Learning Hub'].map((item, i) => (
+                                    <li key={i} className="flex items-center gap-3"><X className="w-4 h-4 text-blue-300/50 flex-shrink-0" /><span className="text-gray-400 line-through text-xs">{item}</span></li>
                                 ))}
                             </ul>
-
-                            <button onClick={() => handleLogin('google')} className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:-translate-y-0.5 transition-all duration-200">
-                                Get 5 Builds for $5 →
-                            </button>
+                            <button onClick={handleLogin} className="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-lg transition-colors">Get 5 Builds →</button>
                         </div>
-
-                        {/* Premium Plan */}
-                        <div className="relative flex flex-col p-5 rounded-2xl border-2 border-purple-500 bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 dark:bg-slate-800 shadow-lg hover:shadow-purple-500/20 transition-all duration-300 hover:-translate-y-1">
-                            <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-500/40">
-                                    <Star className="w-3 h-3" /> Full Power Unlocked
-                                </span>
-                            </div>
-                            <div className="mb-3">
-                                <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center mb-2">
-                                    <Compass className="w-5 h-5 text-purple-600" />
-                                </div>
-                                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Premium</h3>
-                                <div className="flex items-end gap-2 mt-1">
-                                    <span className="text-3xl font-extrabold text-purple-600">$20</span>
-                                    <span className="text-gray-500 dark:text-gray-400 mb-1">one-time</span>
-                                </div>
-                                <div className="mt-3 px-3 py-1.5 bg-purple-50 dark:bg-purple-900/30 rounded-lg inline-flex items-center gap-2">
-                                    <span className="text-xs font-bold text-purple-700 dark:text-blue-300">20 builds · just $1.00 each</span>
-                                    <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 dark:text-indigo-400 px-2 py-0.5 rounded-full">Gini Chat Unlocked</span>
-                                </div>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-3 leading-relaxed">The complete career acceleration engine. Get Gini Chat mentorship that knows your full history, hyper-personalized global job search, and the Learning Hub to keep your skills ahead of the market — all for a single one-time payment.</p>
-                            </div>
-
-                            <ul className="space-y-2 mb-6 flex-1 text-sm">
-                                {[
-                                    { text: '20 AI-tailored resume builds', included: true },
-                                    { text: 'Industry-specific tailoring + advanced tone control', included: true },
-                                    { text: 'ATS score + unlimited 1-click regeneration', included: true },
-                                    { text: 'Professional PDF with clickable hyperlinks', included: true },
-                                    { text: 'Gini Chat — unlimited sessions with your personal AI mentor', included: true },
-                                    { text: 'Hyper-personalised global job search across 150+ countries', included: true },
-                                    { text: 'Learning Hub — curated skills, courses & career roadmap', included: true },
-                                    { text: 'Credits never expire — use them at your pace', included: true },
-                                ].map((item, i) => (
-                                    <li key={i} className="flex items-start gap-3">
-                                        <Check className="w-5 h-5 text-purple-500 flex-shrink-0 mt-0.5" />
-                                        <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">{item.text}</span>
-                                    </li>
+                        {/* Premium */}
+                        <div className="flex flex-col p-8 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800/80 shadow-sm hover:shadow-lg transition-all">
+                            <div className="absolute hidden"><span className="px-4 py-1 rounded-full text-xs font-black bg-purple-600 text-white shadow-md">Full Power</span></div>
+                            <h3 className="text-2xl font-bold mb-2">Premium Unlocked</h3>
+                            <div className="flex items-baseline gap-1 mb-6"><span className="text-5xl font-black">$20</span><span className="text-gray-400 font-medium">one-time</span></div>
+                            <p className="text-sm text-gray-700 dark:text-gray-300 mb-8 p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 font-medium">20 builds + Gini Chat mentor + Learning Hub + Career Roadmap. The complete engine. All unlocked.</p>
+                            <ul className="space-y-3 mb-8 flex-1 text-sm">
+                                {['20 AI-tailored builds', 'Gini Chat mentor (unlimited)', 'Smart Learning Hub', 'Career Roadmap', 'Interview Practice', 'Gini Guide (full nudges)', 'Global Job Matching', 'Credits never expire'].map((item, i) => (
+                                    <li key={i} className="flex items-center gap-3"><Check className="w-4 h-4 text-purple-500 flex-shrink-0" /><span className="text-gray-700 dark:text-gray-300 font-medium">{item}</span></li>
                                 ))}
                             </ul>
-
-                            <button onClick={() => handleLogin('google')} className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 hover:-translate-y-0.5 transition-all duration-200">
-                                Unlock Full Power — $20 One-Time
-                            </button>
+                            <button onClick={handleLogin} className="w-full py-3.5 rounded-xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors">Unlock Everything</button>
                         </div>
-
                     </div>
 
-                    {/* Pay-as-you-go callout */}
-                    <div className="mt-12 p-5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl text-center max-w-2xl mx-auto">
-                        <p className="text-sm font-semibold text-amber-800 dark:text-amber-300 flex items-center justify-center gap-2 flex-wrap">
-                            <Zap className="w-4 h-4 flex-shrink-0" />
-                            <span>Already have credits? Top up anytime. Each additional resume build is just <strong className="text-amber-900 dark:text-amber-200">$1</strong> — no subscription, no commitment, no expiry.</span>
-                        </p>
-                    </div>
-
-                    {/* Global trust note */}
-                    <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
-                        <span className="flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-green-500" /> No credit card to start</span>
-                        <span className="flex items-center gap-1.5"><Globe className="w-4 h-4 text-blue-500" /> Available worldwide — 150+ countries</span>
+                    <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-10 flex flex-wrap justify-center gap-x-6 gap-y-2">
+                        <span className="flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-green-500" /> No card to start</span>
+                        <span className="flex items-center gap-1.5"><Globe className="w-4 h-4 text-blue-500" /> 150+ countries</span>
                         <span className="flex items-center gap-1.5"><Zap className="w-4 h-4 text-amber-500" /> Credits never expire</span>
                     </p>
                 </div>
             </div>
 
-            {/* --- FAQ Section --- */}
-            <div className="py-20 bg-gray-50 dark:bg-slate-800/50 border-y border-gray-100 dark:border-gray-800">
+            {/* --- FAQ --- */}
+            <div id="faq" className="py-20 bg-slate-50 dark:bg-slate-800/50 border-t border-gray-100 dark:border-gray-800">
                 <div className="max-w-3xl mx-auto px-6">
-                    <h2 className="text-3xl font-extrabold text-center mb-12">Frequently Asked Questions</h2>
+                    <h2 className="text-3xl font-extrabold text-center mb-12 tracking-tight">Frequently Asked Questions</h2>
                     {([
-                        {
-                            q: 'Can I really build a full resume for free?',
-                            a: 'Absolutely. The Free plan gives you one complete AI-tailored resume build — from uploading your profile to downloading a beautiful, hyperlinked PDF — at zero cost and with no credit card required ever. This is not a preview or a teaser; it is the full end-to-end experience.'
-                        },
-                        {
-                            q: 'What does "one-time" mean? Is there a subscription?',
-                            a: 'There is no subscription, no monthly charge, and no auto-renewal — ever. You pay once for a bundle of resume build credits. Those credits never expire. Use them today, next month, or next year — whenever your career journey demands it.'
-                        },
-                        {
-                            q: 'How much does each resume build actually cost?',
-                            a: 'Free: $0 for your very first full build. Starter ($5): 5 builds at $1.00 each. Premium ($20): 20 builds at $1.00 each, with your full Gini Chat mentor and global job search unlocked. After using your credits, top up at $1 per build — no plan required.'
-                        },
-                        {
-                            q: 'What makes the Industry-Specific Tailoring different from just adding keywords?',
-                            a: 'When you choose a target industry (e.g., Finance/Banking vs. Healthcare/MedTech vs. Creative/Design), the AI doesn\'t just add buzzwords. It restructures your entire resume — vocabulary, metrics, bullet order, and emphasis — to match what ATS systems and hiring managers in that specific industry are trained to look for.'
-                        },
-                        {
-                            q: 'What is the ATS Score and why does it matter?',
-                            a: 'Over 98% of Fortune 500 companies and a growing number of SMEs use Applicant Tracking Systems that auto-reject resumes before a human ever reads them. Our live ATS score shows how closely your tailored resume matches the target job description. Too low? Hit Regenerate and watch it improve instantly.'
-                        },
-                        {
-                            q: 'What is Gini Chat and what can it actually help me with?',
-                            a: 'Gini Chat is your personal AI career mentor — and unlike generic chatbots, it has already read your full resume, job history, skills, and goals before you even say hello. Ask for a tailored cover letter paragraph, salary negotiation scripts, advice on pivoting industries, or which skills to prioritize for your next role. Gini gives specific, contextual answers — not templates.'
-                        },
-                        {
-                            q: 'Can I upgrade or downgrade my plan at any time?',
-                            a: 'Yes — no lock-in, no long-term contracts. Upgrade when your job search intensifies, or simply use your existing credits at your own pace. It\'s your career, your timeline.'
-                        },
+                        { q: "What is a 'Resume Build' credit?", a: "One credit = one complete AI tailoring session. Your resume is rewritten to match a specific job description, and the result is a ready-to-download, ATS-optimized PDF. You only consume a credit when you finalize and download." },
+                        { q: "How is Gini Chat different from ChatGPT?", a: "Gini Chat has already read your full resume, your skills, your work history, and your job goals before you type your first message. So instead of generic advice, you get answers like: 'Based on your 6 years in AWS and your experience at Infosys, here's how to negotiate...' — impossible with ChatGPT." },
+                        { q: "What is Gini Guide?", a: "Gini Guide is your proactive career advisor. It monitors your search status and sends smart nudges — reminding you to follow up on applications, practice before interviews, or fix skill gaps for a target role. Think of it as a career coach that watches your back 24/7." },
+                        { q: "Do my credits expire?", a: "Never. Whether you buy Starter or Premium, the credits you purchase remain in your account indefinitely. Use them today, next month, or next year — your timeline, your pace." },
+                        { q: "What makes the Learning Hub different?", a: "Gini reads your ATS gap analysis and career goals, then curates a learning plan from YouTube, Coursera, and edX — not a generic list, but resources specifically matched to your missing skills. It tracks your watch progress in real time and updates recommendations as you grow." },
                     ] as { q: string, a: string }[]).map((item, i) => (
                         <div key={i} className="border-b border-gray-200 dark:border-gray-700">
-                            <button
-                                onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                                className="w-full py-5 flex items-center justify-between text-left gap-4 group"
-                            >
-                                <span className="font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{item.q}</span>
+                            <button onClick={() => setOpenFaq(openFaq === i ? null : i)} className="w-full py-5 flex items-center justify-between text-left gap-4 group">
+                                <span className="font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{item.q}</span>
                                 {openFaq === i ? <ChevronUp className="w-5 h-5 text-blue-500 flex-shrink-0" /> : <ChevronDown className="w-5 h-5 text-gray-400 flex-shrink-0" />}
                             </button>
-                            {openFaq === i && (
-                                <p className="pb-5 text-gray-600 dark:text-gray-400 leading-relaxed animate-in fade-in slide-in-from-top-2 duration-200">{item.a}</p>
-                            )}
+                            {openFaq === i && <p className="pb-5 text-gray-600 dark:text-gray-400 text-sm leading-relaxed">{item.a}</p>}
                         </div>
                     ))}
                 </div>
             </div>
-            <footer className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-slate-900">
-                {/* Top footer row: product nav */}
+
+            {/* --- Bottom CTA --- */}
+            <div className="relative bg-gradient-to-br from-gray-900 to-gray-800 py-24 text-center overflow-hidden">
+                <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff08_1px,transparent_1px),linear-gradient(to_bottom,#ffffff08_1px,transparent_1px)] bg-[size:32px_32px]"></div>
+                <div className="absolute top-0 left-1/4 w-64 h-64 bg-blue-600/20 rounded-full filter blur-[80px]"></div>
+                <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-purple-600/20 rounded-full filter blur-[80px]"></div>
+                <div className="max-w-3xl mx-auto px-6 relative z-10">
+                    <h2 className="text-4xl md:text-5xl font-extrabold text-white mb-6">6 AI Tools.<br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">Start for $0 Today.</span></h2>
+                    <p className="text-gray-300 text-xl mb-10 font-medium">Join thousands of job seekers who stopped applying into the void and started landing real interviews.</p>
+                    <button onClick={handleLogin} className="px-10 py-5 bg-white text-gray-900 rounded-xl font-bold text-lg hover:shadow-2xl hover:-translate-y-1 transition-all flex items-center justify-center gap-3 w-full sm:w-auto mx-auto shadow-xl">
+                        <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-6 h-6 bg-white rounded-full p-0.5" alt="G" />
+                        Sign In Free with Google
+                    </button>
+                    <p className="text-sm text-gray-400 mt-5">No credit card. No trial period. The full product, free.</p>
+                </div>
+            </div>
+
+            {/* --- Footer --- */}
+            <footer className="bg-white dark:bg-slate-900 border-t border-gray-100 dark:border-gray-800">
                 <div className="max-w-7xl mx-auto px-6 py-10 flex flex-col md:flex-row items-center justify-between gap-6">
-                    <div className="flex items-center gap-2">
-                        <Sparkles className="w-5 h-5 text-blue-500" />
-                        <span className="font-bold text-lg text-gray-900 dark:text-white">CareerGini</span>
-                        <span className="text-gray-400 dark:text-gray-600 text-xs ml-1">by DATAi2i</span>
+                    <div className="flex items-center gap-4">
+                        <img src="/logo.png" alt="CareerGini" className="h-8 w-auto mix-blend-multiply dark:mix-blend-normal" />
+                        <span className="border-l border-gray-200 dark:border-gray-700 pl-4 flex items-center gap-2">
+                            <span className="text-xs font-semibold text-gray-400">by</span>
+                            <img src="/datai2i-logo.png" alt="DATAi2i" className="h-5 w-auto opacity-70 mix-blend-multiply dark:mix-blend-normal" />
+                        </span>
                     </div>
-
-                    <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-gray-500 dark:text-gray-400">
-                        <a href="#pricing" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Pricing</a>
-                        <a href="#" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Terms of Service</a>
-                        <a href="#" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Privacy Policy</a>
-                        <a href="#" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Contact</a>
-                    </div>
-
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                        By signing in, you agree to our{' '}
-                        <a href="#" className="font-medium text-blue-600 dark:text-blue-400 hover:underline">Terms</a>
-                        {' & '}
-                        <a href="#" className="font-medium text-blue-600 dark:text-blue-400 hover:underline">Privacy Policy</a>.
+                    <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm font-medium text-gray-500 dark:text-gray-400">
+                        <a href="#features" className="hover:text-blue-600 transition-colors">Features</a>
+                        <a href="#pricing" className="hover:text-blue-600 transition-colors">Pricing</a>
+                        <a href="#faq" className="hover:text-blue-600 transition-colors">FAQ</a>
+                        <a href="#" className="hover:text-blue-600 transition-colors">Terms</a>
+                        <a href="#" className="hover:text-blue-600 transition-colors">Privacy</a>
                     </div>
                 </div>
-
-                {/* Bottom footer row: DATAi2i brand + copyright */}
                 <div className="border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-slate-950">
-                    <div className="max-w-7xl mx-auto px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                            <img src="/datai2i-logo.png" alt="DATAi2i Private Limited" className="h-7 w-auto mix-blend-multiply dark:mix-blend-normal opacity-80" />
-                            <span className="text-xs text-gray-400 dark:text-gray-500 font-medium">DATAi2i Private Limited</span>
-                        </div>
-                        <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
-                            © {new Date().getFullYear()} DATAi2i Private Limited. All rights reserved. CareerGini is a product of DATAi2i Private Limited.
-                        </p>
+                    <div className="max-w-7xl mx-auto px-6 py-5 text-center">
+                        <p className="text-xs text-gray-400">© {new Date().getFullYear()} DATAi2i Private Limited. All rights reserved. CareerGini is a product of DATAi2i Private Limited.</p>
                     </div>
                 </div>
             </footer>
