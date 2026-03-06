@@ -44,7 +44,7 @@ function App() {
           <Route path="/" element={<MainLayout />}>
             <Route index element={<RootRedirect />} />
             <Route path="admin" element={
-              <ProtectedRoute>
+              <ProtectedRoute allowAdmin>
                 <AdminDashboardPage />
               </ProtectedRoute>
             } />
@@ -61,7 +61,7 @@ function App() {
               </ProtectedRoute>
             } />
             <Route path="profile" element={
-              <ProtectedRoute>
+              <ProtectedRoute allowAdmin>
                 <ProfilePage />
               </ProtectedRoute>
             } />
@@ -85,7 +85,7 @@ function App() {
               </ProtectedRoute>
             } />
             <Route path="settings" element={
-              <ProtectedRoute>
+              <ProtectedRoute allowAdmin>
                 <SettingsPage />
               </ProtectedRoute>
             } />

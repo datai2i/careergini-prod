@@ -11,13 +11,19 @@ import {
     X,
     FileText,
     Check,
-    Download
+    Download,
+    Calendar,
+    BrainCircuit,
+    Filter,
+    AlertTriangle
 } from 'lucide-react';
 
 interface Stats {
     total_users: number;
     activity_breakdown: { activity_type: string; count: string }[];
     plans: { plan: string; count: string }[];
+    timeseries?: { date: string; count: string }[];
+    revenue?: { total_revenue: string; currency: string }[];
 }
 
 interface AdminUser {
@@ -60,8 +66,9 @@ interface PaymentTransaction {
 
 export const AdminDashboardPage: React.FC = () => {
     const { showToast } = useToast();
-    const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'chats' | 'payments'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'chats' | 'payments' | 'intelligence'>('overview');
     const [stats, setStats] = useState<Stats | null>(null);
+    const [advancedStats, setAdvancedStats] = useState<any>(null);
     const [adminResumes, setAdminResumes] = useState<any[]>([]);
     const [viewingUserId, setViewingUserId] = useState<string | null>(null);
     const [loadingResumes, setLoadingResumes] = useState(false);
@@ -78,6 +85,11 @@ export const AdminDashboardPage: React.FC = () => {
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
             });
             if (resp.ok) setStats(await resp.json());
+
+            const advResp = await fetch('/api/profile/admin/stats/advanced', {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+            });
+            if (advResp.ok) setAdvancedStats(await advResp.json());
         } catch (e) { console.error(e); }
     };
 
@@ -248,9 +260,10 @@ export const AdminDashboardPage: React.FC = () => {
 
             {/* Tabs */}
             <div className="border-b border-slate-200">
-                <div className="flex gap-8">
+                <div className="flex gap-8 overflow-x-auto px-4">
                     {[
                         { id: 'overview', icon: Download, label: 'Overview' },
+                        { id: 'intelligence', icon: Shield, label: 'Advanced Intelligence' },
                         { id: 'users', icon: Check, label: 'User Management' },
                         { id: 'chats', icon: MessageSquare, label: 'Chat Audit' },
                         { id: 'payments', icon: Star, label: 'Payment Transactions' }
@@ -258,7 +271,7 @@ export const AdminDashboardPage: React.FC = () => {
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id as any)}
-                            className={`flex items-center gap-2 py-4 border-b-2 font-medium text-sm transition-all ${activeTab === tab.id
+                            className={`flex items-center gap-2 py-4 border-b-2 font-medium text-sm transition-all whitespace-nowrap ${activeTab === tab.id
                                 ? 'border-blue-600 text-blue-600'
                                 : 'border-transparent text-slate-500 hover:text-slate-700'
                                 }`}
@@ -275,21 +288,62 @@ export const AdminDashboardPage: React.FC = () => {
 
                 {activeTab === 'overview' && (
                     <div className="p-8 space-y-8">
+                        {/* Revenue Overview */}
+                        {stats?.revenue && stats.revenue.length > 0 && (
+                            <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-6 text-white shadow-lg">
+                                <h3 className="text-lg font-medium text-emerald-50 mb-2">Total Processed Revenue</h3>
+                                <div className="flex gap-6 items-baseline">
+                                    {stats.revenue.map(r => (
+                                        <div key={r.currency} className="flex items-baseline gap-2">
+                                            <span className="text-4xl font-bold">{r.currency === 'USD' ? '$' : r.currency === 'INR' ? '₹' : '€'}{parseFloat(r.total_revenue).toLocaleString()}</span>
+                                            <span className="text-emerald-200 text-sm font-medium uppercase">{r.currency}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Timeseries Chart (Resume Generations over last 30 days) */}
+                        {stats?.timeseries && stats.timeseries.length > 0 && (
+                            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+                                <h3 className="text-lg font-semibold text-slate-900 mb-6">Resume Builds (Last 30 Days)</h3>
+                                <div className="flex items-end gap-2 h-48 w-full overflow-x-auto pb-2">
+                                    {stats.timeseries.map((day, i) => {
+                                        const count = parseInt(day.count);
+                                        const maxCount = Math.max(...stats.timeseries!.map(t => parseInt(t.count)), 1);
+                                        const heightPct = Math.max((count / maxCount) * 100, 2);
+
+                                        return (
+                                            <div key={i} className="flex flex-col items-center justify-end group relative flex-1 min-w-[20px] h-full">
+                                                <div
+                                                    className="w-full bg-blue-100 hover:bg-blue-500 rounded-t-sm transition-all duration-300"
+                                                    style={{ height: `${heightPct}%` }}
+                                                />
+                                                <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 bg-slate-800 text-white text-[10px] py-1 px-2 rounded pointer-events-none transition-opacity whitespace-nowrap z-10">
+                                                    {new Date(day.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}: {count} builds
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div className="space-y-4">
+                            <div className="space-y-4 bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
                                 <h3 className="text-lg font-semibold text-slate-900">Subscription Mix</h3>
-                                <div className="space-y-3">
+                                <div className="space-y-3 pt-2">
                                     {stats?.plans?.map(p => (
                                         <div key={p.plan} className="space-y-1">
                                             <div className="flex justify-between text-sm">
-                                                <span className="capitalize text-slate-600">
+                                                <span className="capitalize text-slate-600 font-medium">
                                                     {p.plan === 'basic' ? 'Starter' : p.plan === 'ultra_premium' ? 'Ultra Premium' : p.plan}
                                                 </span>
-                                                <span className="font-semibold">{p.count} users</span>
+                                                <span className="font-bold text-slate-900">{p.count} users</span>
                                             </div>
-                                            <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                                            <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
                                                 <div
-                                                    className={`h-full ${p.plan === 'premium' ? 'bg-purple-600' : p.plan === 'basic' ? 'bg-blue-600' : p.plan === 'ultra_premium' ? 'bg-amber-500' : 'bg-slate-400'}`}
+                                                    className={`h-full transition-all duration-1000 ${p.plan === 'premium' ? 'bg-gradient-to-r from-purple-500 to-purple-600' : p.plan === 'basic' ? 'bg-gradient-to-r from-blue-500 to-blue-600' : p.plan === 'ultra_premium' ? 'bg-gradient-to-r from-amber-400 to-amber-500' : 'bg-slate-300'}`}
                                                     style={{ width: `${stats?.total_users ? (parseInt(p.count) / stats.total_users) * 100 : 0}%` }}
                                                 />
                                             </div>
@@ -298,22 +352,183 @@ export const AdminDashboardPage: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="bg-slate-50 rounded-xl p-6 border border-slate-100">
+                            <div className="bg-slate-50 rounded-xl p-6 border border-slate-100 shadow-inner">
                                 <h3 className="text-lg font-semibold text-slate-900 mb-4">Admin Best Practices</h3>
-                                <ul className="space-y-3 text-sm text-slate-600">
-                                    <li className="flex gap-2">
-                                        <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                                        Monitor Gini interactions for quality of advice.
+                                <ul className="space-y-4 text-sm text-slate-600">
+                                    <li className="flex gap-3 items-start">
+                                        <div className="bg-emerald-100 p-1 rounded">
+                                            <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                                        </div>
+                                        <span>Monitor <strong>Gini interactions</strong> for quality. Ensure responses are concise and accurate.</span>
                                     </li>
-                                    <li className="flex gap-2">
-                                        <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                                        Review "Free" user activity to identify upsell opportunities.
+                                    <li className="flex gap-3 items-start">
+                                        <div className="bg-blue-100 p-1 rounded">
+                                            <Shield className="w-4 h-4 text-blue-600 shrink-0" />
+                                        </div>
+                                        <span>Review "Free" user activity to identify upsell opportunities and grant test quotas.</span>
                                     </li>
-                                    <li className="flex gap-2">
-                                        <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                                        Ensure Premium users have generated at least one resume.
+                                    <li className="flex gap-3 items-start">
+                                        <div className="bg-amber-100 p-1 rounded">
+                                            <Users className="w-4 h-4 text-amber-600 shrink-0" />
+                                        </div>
+                                        <span>Ensure Premium users have generated at least one resume. Offer proactive support if they haven't.</span>
                                     </li>
                                 </ul>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'intelligence' && (
+                    <div className="p-8 space-y-8 bg-slate-50/50">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                                    <BrainCircuit className="w-6 h-6 text-indigo-600" />
+                                    Advanced Intelligence & Behavior
+                                </h2>
+                                <p className="text-sm text-slate-500 mt-1">AI-driven insights to monitor user adoption and predict churn.</p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            {/* Feature Adoption Funnel */}
+                            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+                                <h3 className="text-lg font-semibold text-slate-900 mb-6 flex items-center gap-2">
+                                    <Filter className="w-5 h-5 text-slate-400" />
+                                    30-Day Feature Adoption Funnel
+                                </h3>
+                                {advancedStats?.funnel && (
+                                    <div className="space-y-6">
+                                        {[
+                                            { label: 'Total Signups', value: advancedStats.funnel.signups, color: 'bg-slate-800' },
+                                            { label: 'Built a Resume', value: advancedStats.funnel.built_resume, color: 'bg-blue-600' },
+                                            { label: 'Used Gini Chat', value: advancedStats.funnel.used_chat, color: 'bg-indigo-600' },
+                                            { label: 'Upgraded to Premium', value: advancedStats.funnel.total_premium, color: 'bg-purple-600' }
+                                        ].map((step, idx, arr) => {
+                                            const pct = arr[0].value > 0 ? (step.value / arr[0].value) * 100 : 0;
+                                            return (
+                                                <div key={idx} className="relative">
+                                                    <div className="flex justify-between text-sm mb-1">
+                                                        <span className="font-medium text-slate-700">{step.label}</span>
+                                                        <span className="font-bold text-slate-900">{step.value.toLocaleString()} <span className="text-slate-400 font-normal">({pct.toFixed(1)}%)</span></span>
+                                                    </div>
+                                                    <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+                                                        <div className={`h-full ${step.color} transition-all duration-1000`} style={{ width: `${pct}%` }} />
+                                                    </div>
+                                                    {idx < arr.length - 1 && (
+                                                        <div className="absolute left-4 top-8 w-px h-6 bg-slate-200" />
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Advanced Monitoring (Heatmap + Sentiment) */}
+                            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm flex flex-col justify-between">
+                                <div className="space-y-4">
+                                    <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                                        <MessageSquare className="w-5 h-5 text-slate-400" />
+                                        7-Day Gini Sentiment Analysis
+                                    </h3>
+                                    <p className="text-sm text-slate-500">
+                                        NLP scan of recent Gini AI chat logs to identify frustrated users for proactive support.
+                                    </p>
+
+                                    {advancedStats?.sentiment && (
+                                        <div className="pt-4 space-y-4">
+                                            {(() => {
+                                                const total = advancedStats.sentiment.reduce((acc: number, curr: any) => acc + curr.count, 0) || 1;
+                                                const getPct = (type: string) => {
+                                                    const match = advancedStats.sentiment.find((s: any) => s.sentiment === type);
+                                                    return ((match?.count || 0) / total) * 100;
+                                                };
+
+                                                return (
+                                                    <>
+                                                        <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden flex">
+                                                            <div className="bg-emerald-500 h-full transition-all duration-1000" style={{ width: `${getPct('Positive')}%` }} title="Positive" />
+                                                            <div className="bg-slate-300 h-full transition-all duration-1000" style={{ width: `${getPct('Neutral')}%` }} title="Neutral" />
+                                                            <div className="bg-red-500 h-full transition-all duration-1000" style={{ width: `${getPct('Negative')}%` }} title="Negative" />
+                                                        </div>
+                                                        <div className="flex justify-between text-xs font-medium">
+                                                            <span className="text-emerald-600">{getPct('Positive').toFixed(0)}% Positive</span>
+                                                            <span className="text-slate-500">{getPct('Neutral').toFixed(0)}% Neutral</span>
+                                                            <span className="text-red-600">{getPct('Negative').toFixed(0)}% Negative</span>
+                                                        </div>
+                                                    </>
+                                                );
+                                            })()}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600">
+                                            <Calendar className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <div className="text-sm font-semibold text-slate-900">Activity Heatmap Sync</div>
+                                            <div className="text-xs text-slate-500">Marketing automation active.</div>
+                                        </div>
+                                    </div>
+                                    <div className="text-[10px] font-bold px-2 py-1 bg-indigo-100 text-indigo-700 rounded-full uppercase tracking-widest">
+                                        Active
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* At-Risk Premium Users */}
+                        <div className="bg-white rounded-xl border border-red-200 shadow-sm overflow-hidden">
+                            <div className="bg-red-50 border-b border-red-100 p-6">
+                                <h3 className="text-lg font-semibold text-red-900 mb-1 flex items-center gap-2">
+                                    <AlertTriangle className="w-5 h-5 text-red-600" />
+                                    At-Risk Premium Accounts
+                                </h3>
+                                <p className="text-sm text-red-700">Premium users who haven't logged in for 14+ days or haven't generated a resume.</p>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left text-sm">
+                                    <thead className="bg-white border-b border-slate-200">
+                                        <tr>
+                                            <th className="px-6 py-3 font-semibold text-slate-500">User</th>
+                                            <th className="px-6 py-3 font-semibold text-slate-500">Plan</th>
+                                            <th className="px-6 py-3 font-semibold text-slate-500">Last Login</th>
+                                            <th className="px-6 py-3 font-semibold text-slate-500">Resumes Made</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {advancedStats?.at_risk?.length > 0 ? (
+                                            advancedStats.at_risk.map((user: any) => (
+                                                <tr key={user.id} className="hover:bg-red-50/50 transition-colors">
+                                                    <td className="px-6 py-4">
+                                                        <div className="font-medium text-slate-900">{user.full_name || 'No Name'}</div>
+                                                        <div className="text-xs text-slate-500">{user.email}</div>
+                                                    </td>
+                                                    <td className="px-6 py-4 capitalize font-medium text-slate-700">{user.plan.replace('_', ' ')}</td>
+                                                    <td className="px-6 py-4 text-red-600 font-medium">
+                                                        {user.last_login_at ? new Date(user.last_login_at).toLocaleDateString() : 'Never'}
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${user.resume_count === '0' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'}`}>
+                                                            {user.resume_count} Resumes
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan={4} className="px-6 py-8 text-center text-slate-500">
+                                                    No at-risk premium users found. Excellent!
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
@@ -425,6 +640,31 @@ export const AdminDashboardPage: React.FC = () => {
                                                             onClick={() => setOpenActionId(null)}
                                                         ></div>
                                                         <div className="absolute right-6 top-12 w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-20 py-2 text-left animate-in fade-in zoom-in-95 duration-200">
+                                                            <button
+                                                                onClick={async () => {
+                                                                    setOpenActionId(null);
+                                                                    try {
+                                                                        const resp = await fetch(`/api/profile/admin/users/${u.id}/masquerade`, {
+                                                                            method: 'POST',
+                                                                            headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+                                                                        });
+                                                                        if (resp.ok) {
+                                                                            const data = await resp.json();
+                                                                            localStorage.setItem('auth_token', data.token);
+                                                                            window.location.href = '/home'; // Force full reload to reset auth state
+                                                                        } else {
+                                                                            const err = await resp.json();
+                                                                            showToast(err.error || 'Masquerade fail', 'error');
+                                                                        }
+                                                                    } catch (e) {
+                                                                        showToast('Network error', 'error');
+                                                                    }
+                                                                }}
+                                                                className="w-full px-4 py-2 text-sm text-indigo-700 hover:bg-indigo-50 flex items-center gap-2 font-medium"
+                                                            >
+                                                                <Users className="w-4 h-4 text-indigo-600" /> Masquerade as User
+                                                            </button>
+                                                            <div className="h-px bg-slate-100 my-1"></div>
                                                             <button
                                                                 onClick={() => {
                                                                     updateUser(u.id, { plan: 'premium' });

@@ -365,9 +365,95 @@ app.get('/admin/stats', verifyAdmin, async (req, res) => {
         const planLabels = await db.query('SELECT plan, COUNT(*) FROM users GROUP BY plan');
         stats.plans = planLabels.rows;
 
+        const timeseries = await db.query(`
+            SELECT DATE(created_at) as date, COUNT(*) as count 
+            FROM user_activity 
+            WHERE activity_type IN ('resume_generated', 'resume_generated_archived')
+            AND created_at >= NOW() - INTERVAL '30 days'
+            GROUP BY DATE(created_at)
+            ORDER BY date ASC
+        `);
+        stats.timeseries = timeseries.rows;
+
+        const revenue = await db.query(`SELECT SUM(amount) as total_revenue, currency FROM payments WHERE status = 'completed' GROUP BY currency`);
+        stats.revenue = revenue.rows;
+
         res.json(stats);
     } catch (err) {
+        console.error(err);
         res.status(500).json({ error: 'Failed to fetch admin stats' });
+    }
+});
+
+/**
+ * GET /admin/stats/advanced
+ * Advanced insights for user behavior & intelligence
+ */
+app.get('/admin/stats/advanced', verifyAdmin, async (req, res) => {
+    try {
+        const advanced = {};
+
+        // 1. Activity Heatmap (Day of Week & Hour)
+        const heatmapQuery = await db.query(`
+            SELECT 
+                EXTRACT(ISODOW FROM created_at) as day_of_week,
+                EXTRACT(HOUR FROM created_at) as hour_of_day,
+                COUNT(*) as count
+            FROM user_activity
+            WHERE created_at >= NOW() - INTERVAL '30 days'
+            GROUP BY day_of_week, hour_of_day
+            ORDER BY day_of_week, hour_of_day
+        `);
+        advanced.heatmap = heatmapQuery.rows;
+
+        // 2. Feature Adoption Funnel (Signups -> Resumes -> Chat)
+        const signupsQuery = await db.query(`SELECT COUNT(*) as count FROM users WHERE created_at >= NOW() - INTERVAL '30 days'`);
+        const resumesQuery = await db.query(`SELECT COUNT(DISTINCT user_id) as count FROM user_activity WHERE activity_type IN ('resume_generated', 'resume_generated_archived') AND created_at >= NOW() - INTERVAL '30 days'`);
+        const chatQuery = await db.query(`SELECT COUNT(DISTINCT user_id) as count FROM chat_logs WHERE created_at >= NOW() - INTERVAL '30 days'`);
+        const totalPremiumQuery = await db.query(`SELECT COUNT(*) as count FROM users WHERE plan IN ('premium', 'ultra_premium')`);
+
+        advanced.funnel = {
+            signups: parseInt(signupsQuery.rows[0].count),
+            built_resume: parseInt(resumesQuery.rows[0].count),
+            used_chat: parseInt(chatQuery.rows[0].count),
+            total_premium: parseInt(totalPremiumQuery.rows[0].count)
+        };
+
+        // 3. At-Risk Premium Users (Premium, no logins in 14 days OR 0 resumes generated)
+        const atRiskQuery = await db.query(`
+            SELECT u.id, u.email, u.full_name, u.plan, u.last_login_at,
+                   (SELECT COUNT(*) FROM user_activity WHERE user_id = u.id AND activity_type = 'resume_generated') as resume_count
+            FROM users u
+            WHERE u.plan IN ('premium', 'ultra_premium')
+            AND (u.last_login_at < NOW() - INTERVAL '14 days' OR u.last_login_at IS NULL OR
+                 (SELECT COUNT(*) FROM user_activity WHERE user_id = u.id AND activity_type = 'resume_generated') = 0)
+            ORDER BY u.last_login_at ASC NULLS FIRST
+            LIMIT 50
+        `);
+        advanced.at_risk = atRiskQuery.rows;
+
+        // 4. Sentiment Analysis (Basic Keyword Heuristics on Chat Logs)
+        // In a real production system this would be a Python ML service or LLM call.
+        // For dashboard visualization, we use a heuristic approach on recent chats.
+        const sentimentQuery = await db.query(`
+            WITH scored_chats AS (
+                SELECT 
+                    CASE 
+                        WHEN user_message ILIKE '%frustrated%' OR user_message ILIKE '%stuck%' OR user_message ILIKE '%bad%' OR user_message ILIKE '%hate%' THEN 'Negative'
+                        WHEN user_message ILIKE '%thanks%' OR user_message ILIKE '%great%' OR user_message ILIKE '%awesome%' OR user_message ILIKE '%love%' THEN 'Positive'
+                        ELSE 'Neutral'
+                    END as sentiment
+                FROM chat_logs
+                WHERE created_at >= NOW() - INTERVAL '7 days'
+            )
+            SELECT sentiment, COUNT(*) as count FROM scored_chats GROUP BY sentiment
+        `);
+        advanced.sentiment = sentimentQuery.rows.map(r => ({ sentiment: r.sentiment, count: parseInt(r.count) }));
+
+        res.json(advanced);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to fetch advanced admin stats' });
     }
 });
 
@@ -391,6 +477,39 @@ app.get('/admin/users', verifyAdmin, async (req, res) => {
         res.json(result.rows);
     } catch (err) {
         res.status(500).json({ error: 'Failed to fetch users' });
+    }
+});
+
+/**
+ * POST /admin/users/:id/masquerade
+ * Generate an auth token for a specific user to impersonate them
+ */
+app.post('/admin/users/:id/masquerade', verifyAdmin, async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const userQuery = await db.query('SELECT id, email, role, plan FROM users WHERE id = $1', [userId]);
+
+        if (userQuery.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const user = userQuery.rows[0];
+
+        // Ensure admins don't accidentally masquerade as other admins
+        if (user.role === 'admin') {
+            return res.status(400).json({ error: 'Cannot masquerade as another admin' });
+        }
+
+        const token = jwt.sign(
+            { id: user.id, email: user.email, role: user.role, plan: user.plan },
+            process.env.JWT_SECRET || 'fallback_secret',
+            { expiresIn: '1h' }
+        );
+
+        res.json({ token, user });
+    } catch (err) {
+        console.error('Masquerade error:', err);
+        res.status(500).json({ error: 'Failed to generate masquerade session' });
     }
 });
 

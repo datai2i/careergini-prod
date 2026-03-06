@@ -12,7 +12,9 @@ export const RootRedirect: React.FC = () => {
 
         hasNavigated.current = true;
         if (isAuthenticated) {
-            if (user && !user.onboarding_completed) {
+            if (user?.role === 'admin') {
+                navigate('/admin', { replace: true });
+            } else if (user && !user.onboarding_completed) {
                 navigate('/onboarding', { replace: true });
             } else {
                 navigate('/home', { replace: true });
