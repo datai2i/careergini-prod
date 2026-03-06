@@ -81,6 +81,8 @@ export const ResumeBuilderPage: React.FC = () => {
     const [loadingSession, setLoadingSession] = useState(false);
     const [targetIndustry, setTargetIndustry] = useState<string>('');
     const [focusArea, setFocusArea] = useState<string>('');
+    const [reparseMessage, setReparseMessage] = useState('');
+    const [isReparsing, setIsReparsing] = useState(false);
 
     // Load existing persona on mount — keyed on user.id only to avoid re-fetching
     // when AuthContext re-renders and creates a new `user` object reference
@@ -203,6 +205,59 @@ export const ResumeBuilderPage: React.FC = () => {
             setError(err.message || 'Could not save drafted resume.');
         } finally {
             setUploading(false);
+        }
+    };
+
+    const handleReparse = async () => {
+        setIsReparsing(true);
+        setError(null);
+        try {
+            const token = localStorage.getItem('auth_token');
+            const response = await fetch('/api/resume/reparse', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
+                body: JSON.stringify({
+                    user_id: user?.id || 'default',
+                    message: reparseMessage
+                })
+            });
+            const data = await response.json();
+            if (response.ok && data.persona) {
+                setPersona(data.persona);
+                setReparseMessage('');
+
+                // Construct rich toast message based on diff
+                let toastMsg = 'Resume re-parsed successfully.';
+                if (data.changes) {
+                    const parts = [];
+                    if (data.changes.skills > 0) parts.push(`${data.changes.skills} skills`);
+                    if (data.changes.experience > 0) parts.push(`${data.changes.experience} roles`);
+                    if (data.changes.projects > 0) parts.push(`${data.changes.projects} projects`);
+                    if (data.changes.education > 0) parts.push(`${data.changes.education} degrees`);
+                    if (data.changes.certifications > 0) parts.push(`${data.changes.certifications} certs`);
+
+                    if (parts.length > 0) {
+                        toastMsg = `✨ Added ${parts.join(', ')}!`;
+                    } else if (data.changes.summary_updated) {
+                        toastMsg = `✨ Updated professional summary!`;
+                    } else {
+                        toastMsg = `✨ Re-parse complete (No new missing details found).`;
+                    }
+                }
+
+                showToast(toastMsg, 'success');
+                notifyStep('✅ Resume Re-parsed', toastMsg);
+            } else {
+                setError(data.detail || 'Re-parse failed');
+            }
+        } catch (err: any) {
+            console.error('Reparse failed:', err);
+            setError('An error occurred during re-parsing.');
+        } finally {
+            setIsReparsing(false);
         }
     };
 
@@ -617,6 +672,38 @@ export const ResumeBuilderPage: React.FC = () => {
                 {step === 2 && persona && (
                     <div className="space-y-6">
                         <div className="bg-white/70 backdrop-blur-md rounded-2xl p-8 border border-white/20 shadow-xl">
+                            {/* Re-parse Section */}
+                            <div className="mb-6 bg-purple-50 border border-purple-200 rounded-xl p-5 shadow-sm relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-purple-200/30 rounded-full blur-2xl -mr-10 -mt-10"></div>
+                                <div className="relative z-10">
+                                    <div className="flex items-start gap-3 mb-3">
+                                        <SparklesIcon className="w-5 h-5 text-purple-600 mt-0.5" />
+                                        <div>
+                                            <h4 className="text-sm font-bold text-purple-900">Missing details? Let Gini take a deeper look</h4>
+                                            <p className="text-xs text-purple-700 mt-1">If the parser missed something (like a specific job or skill), tell Gini what to look for and re-parse the original resume.</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col sm:flex-row gap-3">
+                                        <input
+                                            type="text"
+                                            value={reparseMessage}
+                                            onChange={(e) => setReparseMessage(e.target.value)}
+                                            placeholder="Optional: e.g., 'Make sure to include my Python project' or leave blank for a general retry"
+                                            className="flex-1 text-sm px-4 py-2 rounded-lg border border-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent bg-white shadow-inner"
+                                            disabled={isReparsing}
+                                        />
+                                        <button
+                                            onClick={handleReparse}
+                                            disabled={isReparsing || uploading}
+                                            className="whitespace-nowrap flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white px-5 py-2 rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg"
+                                        >
+                                            {isReparsing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                                            Re-parse
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
                             {(!persona.email || !persona.phone || !persona.linkedin) && (
                                 <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start shadow-sm">
                                     <AlertCircle className="w-5 h-5 text-amber-500 mt-0.5 mr-3 flex-shrink-0" />
@@ -1557,7 +1644,7 @@ export const ResumeBuilderPage: React.FC = () => {
             </div >
 
             {
-                (uploading || tailoring || generatingPDF) && (
+                (uploading || tailoring || generatingPDF || isReparsing) && (
                     <ProcessingOverlay
                         isOpen={true}
                         headline={persona?.professional_title}

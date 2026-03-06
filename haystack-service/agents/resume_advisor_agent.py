@@ -882,6 +882,162 @@ JSON (fill every field):
                     f"exp: {len(result['experience_highlights'])}")
         return result
 
+    async def reparse_persona(self, resume_text: str, current_persona: Dict[str, Any], user_message: str = "") -> Dict[str, Any]:
+        """
+        Re-evaluates the resume text against the current persona to extract missing details.
+        Uses Smart Delta Merging (JSON Patching) and Deeper Context Chunking.
+        """
+        logger.info(f"[reparse_persona] Reparsing persona with message: {user_message}")
+        cleaned_text = _clean_resume_text(str(resume_text).strip())
+        
+        # 1. Deeper Document Context Window (Chunking)
+        MAX_CHUNK_SIZE = 12000
+        resume_snippet = cleaned_text
+        if len(cleaned_text) > MAX_CHUNK_SIZE and user_message:
+            # Simple keyword scoring to find the best chunk
+            keywords = [w.lower() for w in user_message.split() if len(w) > 3]
+            best_chunk = cleaned_text[:MAX_CHUNK_SIZE]
+            best_score = -1
+            
+            # Slide window by 8000 chars (4000 char overlap)
+            for i in range(0, len(cleaned_text), 8000):
+                chunk = cleaned_text[i:i+MAX_CHUNK_SIZE]
+                chunk_lower = chunk.lower()
+                score = sum(chunk_lower.count(k) for k in keywords)
+                if score > best_score:
+                    best_score = score
+                    best_chunk = chunk
+            resume_snippet = best_chunk
+            logger.info(f"[reparse_persona] Selected chunk with score {best_score} based on keywords: {keywords}")
+        else:
+            resume_snippet = cleaned_text[:MAX_CHUNK_SIZE]
+
+        loop = asyncio.get_event_loop()
+        import json
+        current_persona_json = json.dumps(current_persona, indent=2)
+        
+        msg_instruction = f"The user specifically noted the following is missing or incorrect:\n\"{user_message}\"\n\nPlease find these missing details in the Raw Resume Text and return them as a JSON Patch." if user_message else "Please deeply re-read the resume and extract any missing experience, skills, side projects, or education that were missed. Return them as a JSON Patch."
+        
+        # 2. Smart Delta Merging Prompt
+        REPARSE_PROMPT = f"""You are an expert resume parser. A previous extraction attempted to parse the candidate's resume, but some details were missed.
+        
+{msg_instruction}
+
+Raw Resume Text Chunk:
+{resume_snippet}
+
+Current Persona State:
+{current_persona_json}
+
+INSTRUCTIONS:
+1. Examine the 'Current Persona State' and the 'Raw Resume Text Chunk'.
+2. Identify specifically what is MISSING from the Current Persona State that exists in the Raw Resume Text, focusing on the user's instructions.
+3. Output ONLY a JSON Patch containing the NEW items to be ADDED. 
+4. DO NOT output the entire persona. Only output the arrays/fields containing the NEW additions.
+5. If the user wants to update a string field (like summary), output the full new string.
+
+Return ONLY this JSON structure exactly:
+{{
+  "add_skills": ["new skill 1", "new skill 2"],
+  "add_experience": [
+    {{
+      "role": "...",
+      "company": "...",
+      "duration": "...",
+      "tailored_bullets": ["..."]
+    }}
+  ],
+  "add_projects": [
+    {{"name": "...", "description": "..."}}
+  ],
+  "add_education": [
+    {{"degree": "...", "school": "...", "year": "..."}}
+  ],
+  "add_certifications": [
+    {{"name": "...", "issuer": "...", "year": "..."}}
+  ],
+  "update_summary": "Leave empty string if unchanged, otherwise provide new summary"
+}}"""
+
+        async def _call_llm(prompt: str, timeout_s: int = 150) -> dict:
+            async with _EXTRACT_SEMAPHORE:
+                try:
+                    resp = await asyncio.wait_for(
+                        loop.run_in_executor(None, lambda: self.generator.run(prompt=prompt)),
+                        timeout=timeout_s
+                    )
+                    return _parse_json(resp["replies"][0])
+                except asyncio.TimeoutError:
+                    logger.warning(f"LLM call timed out after {timeout_s}s in reparse")
+                    return {}
+                except Exception as e:
+                    logger.warning(f"LLM call failed in reparse: {e}")
+                    return {}
+                    
+        patch = await _call_llm(REPARSE_PROMPT, timeout_s=150)
+        
+        if not patch:
+            logger.warning("[reparse_persona] Reparse failed or returned empty patch. Returning current persona.")
+            return current_persona
+            
+        # 3. Apply the JSON Patch (Deep Merge)
+        updated_persona = dict(current_persona) # Create a copy
+        
+        # Safe append helper with deduplication
+        def _safe_extend(key: str, patch_key: str):
+            if patch.get(patch_key) and isinstance(patch.get(patch_key), list):
+                if not updated_persona.get(key):
+                    updated_persona[key] = []
+                    
+                if isinstance(updated_persona[key], list):
+                    existing_items = updated_persona[key]
+                    new_items = patch[patch_key]
+                    
+                    for new_item in new_items:
+                        is_duplicate = False
+                        
+                        # Skill Deduplication (String comparison)
+                        if isinstance(new_item, str):
+                            if any(isinstance(ex, str) and ex.lower().strip() == new_item.lower().strip() for ex in existing_items):
+                                is_duplicate = True
+                                
+                        # Object Deduplication (Dict comparison by primary keys)
+                        elif isinstance(new_item, dict):
+                            for ex in existing_items:
+                                if not isinstance(ex, dict):
+                                    continue
+                                    
+                                # Check roles
+                                if "role" in new_item and "role" in ex:
+                                    if new_item["role"].lower().strip() == ex["role"].lower().strip() and new_item.get("company", "").lower().strip() == ex.get("company", "").lower().strip():
+                                        is_duplicate = True
+                                        break
+                                # Check projects/certs
+                                elif "name" in new_item and "name" in ex:
+                                    if new_item["name"].lower().strip() == ex["name"].lower().strip():
+                                        is_duplicate = True
+                                        break
+                                # Check education
+                                elif "degree" in new_item and "degree" in ex:
+                                    if new_item["degree"].lower().strip() == ex["degree"].lower().strip():
+                                        is_duplicate = True
+                                        break
+                                        
+                        if not is_duplicate:
+                            updated_persona[key].append(new_item)
+        
+        _safe_extend("top_skills", "add_skills")
+        _safe_extend("experience_highlights", "add_experience")
+        _safe_extend("projects", "add_projects")
+        _safe_extend("education", "add_education")
+        _safe_extend("certifications", "add_certifications")
+        
+        if patch.get("update_summary") and isinstance(patch.get("update_summary"), str):
+            updated_persona["summary"] = patch["update_summary"]
+                
+        logger.info(f"[reparse_persona] Patch applied successfully.")
+        return updated_persona
+
 
 
     async def tailor_resume(self, persona: Dict[str, Any], job_description: str, target_industry: str = "", focus_area: str = "", template: str = "professional") -> Dict[str, Any]:

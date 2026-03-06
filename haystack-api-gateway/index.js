@@ -54,6 +54,15 @@ app.use('/api/applications', proxy(APPLICATION_SERVICE_URL, {
     }
 }));
 
+// Resume Reparse route — must come BEFORE /api/resume to avoid parseReqBody: false blocking JSON
+app.use('/api/resume/reparse', proxy(AI_SERVICE_URL, {
+    timeout: 1800000,
+    parseReqBody: true, // JSON body needs to be parsed
+    proxyReqPathResolver: function (req) {
+        return '/resume/reparse';
+    }
+}));
+
 // Resume routes (handled by AI Service)
 app.use('/api/resume', proxy(AI_SERVICE_URL, {
     timeout: 1800000, // 30 minutes

@@ -249,6 +249,10 @@ class ResumeTailorRequest(BaseModel):
     target_industry: Optional[str] = None
     focus_area: Optional[str] = None
 
+class ResumeReparseRequest(BaseModel):
+    user_id: str
+    message: Optional[str] = ""
+
 @app.post("/resume/upload")
 async def upload_resume(
     file: UploadFile = File(...),
@@ -313,6 +317,11 @@ async def upload_resume(
         agent = ResumeAdvisorAgent(ollama.get_generator("fast"))
         persona = await agent.extract_persona(text)
         
+        # Save raw text to disk for potential re-parsing
+        text_path = f"{upload_dir}/latest_resume_text.txt"
+        with open(text_path, "w", encoding="utf-8") as f:
+            f.write(text)
+
         # Save Persona to disk
         persona_path = f"{upload_dir}/persona.json"
         with open(persona_path, "w") as f:
@@ -361,6 +370,89 @@ async def upload_resume(
     except Exception as e:
         logger.error(f"Error processing resume: {e}")
         raise HTTPException(status_code=500, detail=f"Error processing resume: {str(e)}")
+
+@app.post("/resume/reparse")
+async def reparse_resume(request: ResumeReparseRequest):
+    """
+    Re-parse the latest uploaded resume with optional user instructions to catch missing details.
+    """
+    user_id = request.user_id
+    upload_dir = f"uploads/{user_id}"
+    
+    text_path = f"{upload_dir}/latest_resume_text.txt"
+    persona_path = f"{upload_dir}/persona.json"
+    
+    if not os.path.exists(text_path) or not os.path.exists(persona_path):
+        raise HTTPException(status_code=400, detail="No previous resume upload found to re-parse.")
+        
+    try:
+        with open(text_path, "r", encoding="utf-8") as f:
+            text = f.read()
+            
+        with open(persona_path, "r") as f:
+            current_persona = json.load(f)
+            
+        # Call the new reparse logic in ResumeAdvisorAgent
+        ollama = get_ollama_client()
+        from agents.resume_advisor_agent import ResumeAdvisorAgent
+        agent = ResumeAdvisorAgent(ollama.get_generator("fast"))
+        updated_persona = await agent.reparse_persona(text, current_persona, request.message)
+        
+        # Save updated Persona to disk
+        with open(persona_path, "w") as f:
+            json.dump(updated_persona, f, indent=2)
+            
+        # Update Unified Persona
+        from persona_manager import PersonaManager
+        pm = PersonaManager(user_id)
+        pm.ingest_resume_data(updated_persona)
+        
+        profile_service_url = os.getenv("PROFILE_SERVICE_URL", "http://profile-service:3001")
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                sync_payload = {
+                    "user_id": user_id,
+                    "full_name": updated_persona.get("full_name") or updated_persona.get("name", ""),
+                    "headline": updated_persona.get("professional_title") or updated_persona.get("title", ""),
+                    "summary": updated_persona.get("summary", ""),
+                    "location": updated_persona.get("location", ""),
+                    "skills": updated_persona.get("top_skills") or updated_persona.get("skills") or [],
+                    "experience": updated_persona.get("experience_highlights") or updated_persona.get("experience") or [],
+                    "education": updated_persona.get("education") or [],
+                    "latest_resume_filename": "reparsed.txt",
+                    "latest_resume_path": text_path
+                }
+                resp = await client.post(f"{profile_service_url}/sync-resume", json=sync_payload)
+                if resp.status_code == 200:
+                    logger.info(f"[resume-reparse] Profile synced to DB for user {user_id}")
+        except Exception as sync_err:
+            logger.warning(f"[resume-reparse] Profile sync to DB failed (non-fatal): {sync_err}")
+
+        # Compute changes for the UI
+        added_skills = len(updated_persona.get("top_skills", [])) - len(current_persona.get("top_skills", []))
+        added_exp = len(updated_persona.get("experience_highlights", [])) - len(current_persona.get("experience_highlights", []))
+        added_edu = len(updated_persona.get("education", [])) - len(current_persona.get("education", []))
+        added_proj = len(updated_persona.get("projects", [])) - len(current_persona.get("projects", []))
+        added_cert = len(updated_persona.get("certifications", [])) - len(current_persona.get("certifications", []))
+        summary_updated = updated_persona.get("summary") != current_persona.get("summary")
+
+        changes = {
+            "skills": max(0, added_skills),
+            "experience": max(0, added_exp),
+            "education": max(0, added_edu),
+            "projects": max(0, added_proj),
+            "certifications": max(0, added_cert),
+            "summary_updated": summary_updated
+        }
+
+        return {
+            "status": "success",
+            "persona": updated_persona,
+            "changes": changes
+        }
+    except Exception as e:
+        logger.error(f"Error re-parsing resume: {e}")
+        raise HTTPException(status_code=500, detail=f"Error re-parsing resume: {str(e)}")
 
 @app.post("/resume/draft")
 async def draft_resume(request: DraftResumeRequest):
