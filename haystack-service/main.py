@@ -912,21 +912,8 @@ async def generate_resume_pdf(request: ResumeTailorRequest):
 
         logger.info(f"Generating documents for {request.user_id} using {request.template} template.")
 
-        # FIX: Run Stage-2 AI polish (finalize_resume) before rendering PDFs
-        # This pass re-polishes summary/skills for the selected template's tone and page density
-        try:
-            ollama = get_ollama_client()
-            agent = ResumeAdvisorAgent(ollama.get_generator("fast"))
-            finalized_persona = await agent.finalize_resume(
-                persona=request.persona,
-                template=request.template or "jakes",
-                page_count=request.page_count or 2,
-                job_description=request.job_description or ""
-            )
-            request.persona.update(finalized_persona)
-            logger.info("Stage-2 finalize_resume polish completed.")
-        except Exception as finalize_err:
-            logger.warning(f"Stage-2 finalize_resume skipped (non-critical): {finalize_err}")
+        # (Removed Stage-2 finalize_resume polish here to preserve user's manual edits
+        # and avoid truncating bullets or hallucinating new summaries.)
 
         # Run blocking generations in threadpool
         # PDF Resume
@@ -1075,7 +1062,9 @@ Return ONLY the JSON object, no other text."""
         {{"school": "University Name", "degree": "Degree Name", "year": "2020"}}
     ],
     "projects": [],
-    "certifications": ["cert 1", "cert 2"]
+    "certifications": [
+        {{"name": "Certification Name", "issuer": "Issuing Org", "year": "2023"}}
+    ]
 }}
 
 Resume text:

@@ -171,6 +171,17 @@
   \resumeSubHeadingListEnd
 \BLOCK{endif}
 
+%-----------CERTIFICATIONS-----------
+\BLOCK{if certifications}
+\section{Certifications}
+  \resumeSubHeadingListStart
+    \BLOCK{for cert in certifications}
+    \resumeSubSubheading
+      {\textbf{\VAR{ cert.name|escape_latex }} \BLOCK{if cert.issuer} | \textit{\VAR{ cert.issuer|escape_latex }}\BLOCK{endif}}{\VAR{ cert.year|escape_latex }}
+    \BLOCK{endfor}
+  \resumeSubHeadingListEnd
+\BLOCK{endif}
+
 %-----------PROGRAMMING SKILLS-----------
 \BLOCK{if top_skills}
 \section{Key Skills}

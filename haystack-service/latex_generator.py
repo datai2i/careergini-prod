@@ -104,15 +104,15 @@ def generate_pdf_latex(
             raw_skills = data.get("top_skills", [])
             if raw_skills and isinstance(raw_skills[0], str):
                 # LLM gave flat list — wrap it in a single category
-                data["top_skills"] = [{"category": "Core Skills", "skills": raw_skills[:14]}]
-            data["projects"] = (data.get("projects") or [])[:3 if compact else 5]
+                data["top_skills"] = [{"category": "Core Skills", "skills": raw_skills[:30]}]
+            data["projects"] = (data.get("projects") or [])[:3 if compact else 10]
 
         elif template == "faangpath":
             # FAANGPath: group skills only if LLM returned plain list (fallback)
             raw_skills = data.get("top_skills", [])
             if raw_skills and isinstance(raw_skills[0], str):
-                data["top_skills"] = [{"category": "Technical Skills", "skills": raw_skills[:20]}]
-            data["projects"] = (data.get("projects") or [])[:3 if compact else 4]
+                data["top_skills"] = [{"category": "Technical Skills", "skills": raw_skills[:40]}]
+            data["projects"] = (data.get("projects") or [])[:3 if compact else 8]
 
         elif template == "jakes":
             # Jake's: flat skill list only, max 15 items; flatten grouped skills
@@ -123,21 +123,21 @@ def generate_pdf_latex(
                     flat_skills.extend(group.get("skills", []))
             else:
                 flat_skills = raw_skills
-            data["top_skills"] = flat_skills[:15]
-            data["projects"] = (data.get("projects") or [])[:2 if compact else 3]
+            data["top_skills"] = flat_skills[:30]
+            data["projects"] = (data.get("projects") or [])[:3 if compact else 8]
 
         else:
             # Legacy templates: wrap flat skills in a category if needed
             raw_skills = data.get("top_skills", [])
             if raw_skills and isinstance(raw_skills[0], str):
-                data["top_skills"] = [{"category": None, "skills": raw_skills[:15]}]
+                data["top_skills"] = [{"category": None, "skills": raw_skills[:30]}]
 
         # ── Compact mode bullet trimming ─────────────────────────────────────
         if compact:
             exps = data.get("experience_highlights", [])
             trimmed = []
-            bullet_limit = {"deedy": 2, "jakes": 3, "faangpath": 4}.get(template, 2)
-            role_limit   = {"faangpath": 4, "executive": 4}.get(template, 3)
+            bullet_limit = {"deedy": 3, "jakes": 3, "faangpath": 4}.get(template, 3)
+            role_limit   = {"faangpath": 5, "executive": 5}.get(template, 4)
 
             for exp in exps[:role_limit]:
                 exp_copy = dict(exp)

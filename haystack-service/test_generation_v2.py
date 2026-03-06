@@ -10,7 +10,7 @@ from pdf_generator import generate_pdf
 async def main():
     agent = ResumeAdvisorAgent(OllamaGenerator(model="qwen2.5:1.5b", url="http://careergini-ollama:11434"))
     
-    file_path = "/app/Bugs_Resumes/Orginal_Bheemeswararao_Aika_Profile.pdf"
+    file_path = "/app/Orginal_Sravani_SDE_Resume-2.pdf"
     
     jd = """
     We are looking for a Senior Software Engineer with strong experience in software development and full stack technologies.
@@ -54,11 +54,11 @@ async def main():
             template="professional"
         )
         
-        tailored = result.get("tailored_result", {})
+        tailored = result
         print("Cover Letter snippet:", tailored.get("cover_letter", "")[:100])
         print("Tailored Skills:", len(tailored.get("tailored_skills", [])))
         
-        out_pdf = "/app/Bugs_Resumes/Bheemeswararao_Patched_2Page.pdf"
+        out_pdf = "test_out_sravani.pdf"
         print(f"\\nGenerating 2-page PDF: {out_pdf}")
         generate_pdf(out_pdf, tailored, template="professional", page_count=2)
         print("PDF Generation complete!")

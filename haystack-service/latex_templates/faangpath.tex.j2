@@ -78,6 +78,18 @@
 \BLOCK{endif}
 
 %----------------------------------------------------------------------------------------
+%	CERTIFICATIONS
+%----------------------------------------------------------------------------------------
+\BLOCK{if certifications}
+\begin{rSection}{CERTIFICATIONS}
+\vspace{-1.25em}
+    \BLOCK{for cert in certifications}
+    \item \textbf{\VAR{ cert.name|escape_latex }.} \BLOCK{if cert.issuer}{\VAR{ cert.issuer|escape_latex }}\BLOCK{endif} \hfill {\VAR{ cert.year|escape_latex }}
+    \BLOCK{endfor}
+\end{rSection}
+\BLOCK{endif}
+
+%----------------------------------------------------------------------------------------
 %	TECHINICAL STRENGTHS
 %----------------------------------------------------------------------------------------
 \BLOCK{if top_skills}

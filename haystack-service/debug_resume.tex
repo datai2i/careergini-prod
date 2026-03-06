@@ -9,11 +9,11 @@
 \usepackage{titlesec}
 \usepackage{enumitem}
 \usepackage[hidelinks]{hyperref}
-\usepackage{multicol}
 
 % Colors
-\definecolor{primary}{RGB}{0, 0, 0}
+\definecolor{primary}{RGB}{18, 18, 18}
 \definecolor{secondary}{RGB}{85, 85, 85}
+\definecolor{accent}{RGB}{0, 0, 238}
 
 % Formatting
 \pagenumbering{gobble}
@@ -24,69 +24,31 @@
 \begin{document}
 % Header
 \begin{center}
-    {\huge\bfseries\color{primary} Chitrada Sravani} \\ \vspace{0.3em}
-    \ifx\relaxJava Full Stack Developer\relax\else
-    {\large\color{secondary} Java Full Stack Developer} \\ \vspace{0.3em}
+    {\huge\bfseries\color{primary} } \\ \vspace{0.3em}
+    \ifx\relax\relax\else
+    {\large\color{secondary} } \\ \vspace{0.3em}
     \fi
     {\small\color{secondary}
-    \ifx\relaxsravani.chitrada@example.com\relax\else\href{mailto:sravani.chitrada@example.com}{sravani.chitrada@example.com}\fi
-    \ifx\relax+91 98765 43210\relax\else\ |\ +91 98765 43210\fi
-    \ifx\relaxHyderabad, India\relax\else\ |\ Hyderabad, India\fi
-    \ifx\relaxhttps://linkedin.com/in/sravani-chitrada\relax\else\ |\ \href{https://linkedin.com/in/sravani-chitrada}{LinkedIn}\fi
+    \ifx\relax\relax\else\href{mailto:}{}\fi
+    \ifx\relax\relax\else\ |\ \fi
+    \ifx\relax\relax\else\ |\ \fi
+    \ifx\relax\relax\else\ |\ \href{}{LinkedIn}\fi
     \ifx\relax\relax\else\ |\ \href{}{Portfolio}\fi
     }
 \end{center}
 
 % Summary
-\ifx\relaxMotivated Java Full Stack Developer with hands-on internship experience in building robust web applications using Java, Spring Boot, and React. Adept at designing RESTful APIs and collaborating within agile teams to deliver scalable software solutions.\relax\else
-\section*{Career Objective}
-Motivated Java Full Stack Developer with hands-on internship experience in building robust web applications using Java, Spring Boot, and React. Adept at designing RESTful APIs and collaborating within agile teams to deliver scalable software solutions.
+\ifx\relax\relax\else
+\section*{Professional Summary}
+
 \fi
 
-% Education (First for freshers)
-\section*{Education}
-\textbf{B.Tech in Computer Science and Engineering} \hfill \textit{2020 – 2024} \\
-\textit{JNTU Hyderabad}
-\vspace{0.5em}
-
 % Skills
-\section*{Technical Skills}
-\begin{multicols}{3}
-\begin{itemize}[label=•, leftmargin=*, noitemsep]
-    \item {'category': None, 'skills': ['Java', 'Python', 'SQL', 'JavaScript', 'HTML/CSS', 'Spring Boot', 'React', 'Node.js', 'Hibernate', 'Git', 'Docker', 'Maven', 'PostgreSQL', 'AWS']}
-\end{itemize}
-\end{multicols}
-\vspace{-1.5em} 
-
-% Projects (Prominent for freshers)
-\section*{Projects \& Academic Work}
-\textbf{Online Food Ordering System} \\
-Full-stack food ordering app with Spring Boot backend and React frontend. Integrated Stripe payments and real-time order tracking via WebSockets.
-\vspace{0.5em}
-\textbf{Employee Management Portal} \\
-CRUD-based portal with role-based access control using Spring Security. Deployed on AWS EC2 with CI/CD via GitHub Actions.
-\vspace{0.5em}
 
 % Experience
-\section*{Work Experience \& Internships}
-\textbf{Java Full Stack Intern} \hfill \textit{Jun 2024 – Dec 2024} \\
-\textit{\color{secondary}Skilldzire}
-\vspace{-0.5em}
-\begin{itemize}[leftmargin=*, noitemsep]
-    \item Built RESTful APIs with Spring Boot, reducing backend response latency by 30\%.
-    \item Developed React-based dashboards consumed by 500+ daily active users.
-    \item Integrated PostgreSQL with Hibernate ORM, improving query efficiency by 25\%.
-    \item Collaborated with a 4-person agile team, delivering 3 sprint features ahead of schedule.
-\end{itemize}
-\vspace{0.5em}
-\textbf{Java Full Stack Intern} \hfill \textit{Jan 2024 – May 2024} \\
-\textit{\color{secondary}Brain O Vision Pvt Ltd}
-\vspace{-0.5em}
-\begin{itemize}[leftmargin=*, noitemsep]
-    \item Designed user authentication module using JWT and Spring Security.
-    \item Created reusable React components that cut front-end development time by 40\%.
-    \item Wrote 50+ unit tests using JUnit and Mockito, achieving 85\% code coverage.
-\end{itemize}
-\vspace{0.5em}
+
+% Education
+
+% Projects
 
 \end{document}

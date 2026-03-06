@@ -33,6 +33,16 @@
 \BLOCK{endif}
 
 % ------------------------------------
+\BLOCK{if certifications}
+\section{Certifications}
+\BLOCK{for cert in certifications}
+\subsection{\VAR{ cert.name|escape_latex }}
+\location{\BLOCK{if cert.issuer}\VAR{ cert.issuer|escape_latex } | \BLOCK{endif}\VAR{ cert.year|escape_latex }}
+\sectionsep
+\BLOCK{endfor}
+\BLOCK{endif}
+
+% ------------------------------------
 \BLOCK{if top_skills}
 \section{Skills}
 \BLOCK{for top_skill in top_skills}

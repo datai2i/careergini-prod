@@ -124,6 +124,7 @@ export const ResumeBuilderPage: React.FC = () => {
                     experience_highlights: tc.tailored_experience || persona?.experience_highlights,
                     cover_letter: tc.cover_letter || persona?.cover_letter,
                     gap_analysis: tc.gap_analysis || [],
+                    certifications: tc.certifications || persona?.certifications,
                 };
                 setPersona(persona);
                 setJobDescription(s.job_description || '');
@@ -242,7 +243,8 @@ export const ResumeBuilderPage: React.FC = () => {
                         top_skills: persona.top_skills,
                         experience_highlights: persona.experience_highlights,
                         projects: persona.projects,
-                        education: persona.education
+                        education: persona.education,
+                        certifications: persona.certifications
                     }
                 })
             });
@@ -306,7 +308,8 @@ export const ResumeBuilderPage: React.FC = () => {
                     top_skills: data.tailored_content.tailored_skills || persona?.top_skills,
                     experience_highlights: data.tailored_content.tailored_experience || persona?.experience_highlights,
                     projects: data.tailored_content.tailored_projects || persona?.projects,
-                    gap_analysis: data.tailored_content.gap_analysis || persona?.gap_analysis || []
+                    gap_analysis: data.tailored_content.gap_analysis || persona?.gap_analysis || [],
+                    certifications: data.tailored_content.certifications || persona?.certifications
                 };
 
                 setTailoredContent(completeTailoredPersona);
@@ -825,15 +828,21 @@ export const ResumeBuilderPage: React.FC = () => {
                                                     />
                                                 </div>
                                                 <textarea
-                                                    value={exp.key_achievement}
+                                                    value={
+                                                        typeof exp.key_achievement === 'string' ? exp.key_achievement :
+                                                            Array.isArray(exp.tailored_bullets) ? exp.tailored_bullets.join('\n') :
+                                                                Array.isArray(exp.key_achievement) ? exp.key_achievement.join('\n') :
+                                                                    exp.key_achievement || ''
+                                                    }
                                                     onChange={(e) => {
                                                         const newExp = [...persona.experience_highlights];
                                                         newExp[i].key_achievement = e.target.value;
+                                                        delete newExp[i].tailored_bullets;
                                                         setPersona({ ...persona, experience_highlights: newExp });
                                                     }}
                                                     className="w-full text-gray-500 leading-snug bg-transparent border border-transparent hover:border-gray-200 focus:border-purple-300 focus:ring-0 rounded p-1 resize-none h-16"
                                                     placeholder="Key Achievements..."
-                                                />
+                                                ></textarea>
                                             </li>
                                         ))}
                                     </ul>
@@ -949,6 +958,69 @@ export const ResumeBuilderPage: React.FC = () => {
                                         ))}
                                     </ul>
                                 </div>
+
+                                {/* Certifications */}
+                                <div>
+                                    <div className="flex justify-between items-center mb-3">
+                                        <h3 className="font-semibold text-gray-800 flex items-center">
+                                            <svg className="w-4 h-4 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                                            </svg>
+                                            Certifications
+                                        </h3>
+                                        <button
+                                            onClick={() => setPersona({ ...persona, certifications: [...(persona.certifications || []), { name: "New Certification", issuer: "Issuer", year: "YYYY" }] })}
+                                            className="text-xs text-purple-600 hover:text-purple-800 font-medium bg-purple-50 px-2 py-1 rounded"
+                                        >
+                                            + Add Certification
+                                        </button>
+                                    </div>
+                                    <ul className="space-y-4 max-h-[200px] overflow-y-auto pr-2 mb-6">
+                                        {(persona.certifications || []).map((cert: any, i: number) => (
+                                            <li key={i} className="text-sm bg-gray-50 p-3 rounded-xl border border-gray-100 relative group">
+                                                <button
+                                                    onClick={() => {
+                                                        const newCerts = persona.certifications!.filter((_: any, idx: number) => idx !== i);
+                                                        setPersona({ ...persona, certifications: newCerts });
+                                                    }}
+                                                    className="absolute top-2 right-2 text-gray-300 hover:text-red-500 hidden group-hover:block"
+                                                >×</button>
+                                                <div className="flex flex-wrap gap-2">
+                                                    <input
+                                                        value={cert.name}
+                                                        onChange={(e) => {
+                                                            const newCerts = [...persona.certifications!];
+                                                            newCerts[i].name = e.target.value;
+                                                            setPersona({ ...persona, certifications: newCerts });
+                                                        }}
+                                                        className="font-medium text-gray-800 bg-transparent border-b border-dashed border-gray-300 focus:border-purple-500 outline-none w-full md:w-5/12"
+                                                        placeholder="Certification Name"
+                                                    />
+                                                    <input
+                                                        value={cert.issuer}
+                                                        onChange={(e) => {
+                                                            const newCerts = [...persona.certifications!];
+                                                            newCerts[i].issuer = e.target.value;
+                                                            setPersona({ ...persona, certifications: newCerts });
+                                                        }}
+                                                        className="font-medium text-gray-800 bg-transparent border-b border-dashed border-gray-300 focus:border-purple-500 outline-none w-full md:w-4/12"
+                                                        placeholder="Issuer"
+                                                    />
+                                                    <input
+                                                        value={cert.year}
+                                                        onChange={(e) => {
+                                                            const newCerts = [...persona.certifications!];
+                                                            newCerts[i].year = e.target.value;
+                                                            setPersona({ ...persona, certifications: newCerts });
+                                                        }}
+                                                        className="font-medium text-gray-800 bg-transparent border-b border-dashed border-gray-300 focus:border-purple-500 outline-none w-full md:w-2/12"
+                                                        placeholder="Year"
+                                                    />
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
                             </div>
 
                             <div className="flex justify-end mt-8">
@@ -1020,6 +1092,23 @@ export const ResumeBuilderPage: React.FC = () => {
                                                         <p className="text-xs text-gray-500">{edu.school}</p>
                                                     </div>
                                                     <span className="text-xs font-medium text-gray-400">{edu.year}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {persona?.certifications && persona.certifications.length > 0 && (
+                                    <div>
+                                        <h4 className="font-semibold text-gray-800 border-b pb-1 mb-3">Certifications</h4>
+                                        <div className="space-y-2">
+                                            {persona.certifications.map((cert: any, i: number) => (
+                                                <div key={i} className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-gray-100 shadow-sm">
+                                                    <div>
+                                                        <h5 className="font-medium text-xs text-gray-800">{cert.name}</h5>
+                                                        <p className="text-xs text-gray-500">{cert.issuer}</p>
+                                                    </div>
+                                                    <span className="text-xs font-medium text-gray-400">{cert.year}</span>
                                                 </div>
                                             ))}
                                         </div>
@@ -1224,6 +1313,7 @@ export const ResumeBuilderPage: React.FC = () => {
                                                         onChange={(e) => {
                                                             const newExp = [...tailoredContent.experience_highlights];
                                                             newExp[i].key_achievement = e.target.value;
+                                                            delete newExp[i].tailored_bullets;
                                                             setTailoredContent({ ...tailoredContent, experience_highlights: newExp });
                                                         }}
                                                         className="w-full text-gray-700 bg-white border border-gray-200 rounded p-2 text-xs leading-relaxed focus:border-purple-500 outline-none resize-none h-28"
@@ -1234,93 +1324,153 @@ export const ResumeBuilderPage: React.FC = () => {
                                     </div>
                                 </div>
 
-                                <div className="space-y-4">
-                                    <h3 className="font-semibold text-gray-800 border-b pb-2">Cover Letter Preview</h3>
-                                    <textarea
-                                        value={tailoredContent.cover_letter || ''}
-                                        onChange={(e) => setTailoredContent({ ...tailoredContent, cover_letter: e.target.value })}
-                                        className="w-full text-gray-700 leading-relaxed bg-gray-50 border border-gray-200 rounded-lg p-3 h-full min-h-[400px] resize-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none font-serif text-sm"
-                                    />
-                                </div>
                             </div>
 
-                            {/* Style Selection — compact reminder strip in Step 4 */}
-                            <h3 className="font-semibold text-gray-800 mb-2">Visual Style</h3>
-                            <p className="text-sm text-gray-500 mb-4">Confirm your style choice — this controls the final PDF layout and design.</p>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                                {[
-                                    {
-                                        id: 'jakes',
-                                        label: 'Jake\'s Minimalist',
-                                        badge: 'ATS-Optimised',
-                                        badgeColor: 'bg-blue-100 text-blue-800',
-                                        audience: 'Software Engineers, Tech roles, Academic',
-                                        features: ['Clean single-column', 'Proven ATS readability', 'Content-first approach', 'Minimalist aesthetics'],
-                                    },
-                                    {
-                                        id: 'faangpath',
-                                        label: 'FAANGPath Clean',
-                                        badge: 'Industry Standard',
-                                        badgeColor: 'bg-emerald-100 text-emerald-800',
-                                        audience: 'Tech professionals, structured corporate roles',
-                                        features: ['High-contrast headers', 'Structured sections', 'Easy parsing readability', 'Tailored for tech giants'],
-                                    },
-                                    {
-                                        id: 'deedy',
-                                        label: 'Deedy Two-Column',
-                                        badge: 'Modern & Compact',
-                                        badgeColor: 'bg-purple-100 text-purple-800',
-                                        audience: 'Designers, product managers, early career',
-                                        features: ['Two-column layout', 'Distinct typography', 'High information density', 'Visually striking'],
-                                    },
-                                ].map(tpl => (
-                                    <button
-                                        key={tpl.id}
-                                        onClick={() => setSelectedTemplate(tpl.id)}
-                                        className={`p-5 rounded-xl border-2 text-left relative flex flex-col h-full transition-[transform,box-shadow,border-color,opacity] duration-300 ${selectedTemplate === tpl.id
-                                            ? 'border-purple-600 bg-purple-50 shadow-[0_0_20px_rgba(147,51,234,0.3)] ring-4 ring-purple-600/20 transform scale-105 z-10'
-                                            : 'border-gray-200 bg-white hover:border-purple-300 hover:shadow-md opacity-70 hover:opacity-100 hover:scale-[1.02]'
-                                            }`}
-                                    >
-                                        <div className="flex items-start justify-between mb-2">
-                                            <span className="font-bold text-gray-900">{tpl.label}</span>
-                                            {selectedTemplate === tpl.id && <CheckCircle className="w-5 h-5 text-purple-600 flex-shrink-0" />}
-                                        </div>
-                                        <span className={`inline-block text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full mb-3 self-start ${tpl.badgeColor}`}>
-                                            {tpl.badge}
-                                        </span>
-                                        <p className="text-xs text-gray-500 mb-4 line-clamp-2 leading-relaxed italic">{tpl.audience}</p>
-                                        <ul className="space-y-2 mt-auto">
-                                            {tpl.features.map(f => (
-                                                <li key={f} className="text-[11px] text-gray-600 flex items-center gap-2">
-                                                    <div className="w-1 h-1 rounded-full bg-purple-400 flex-shrink-0" />
-                                                    {f}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </button>
+                            <div className="space-y-4">
+                                <h3 className="font-semibold text-gray-800 border-b pb-2">Cover Letter Preview</h3>
+                                <textarea
+                                    value={tailoredContent.cover_letter || ''}
+                                    onChange={(e) => setTailoredContent({ ...tailoredContent, cover_letter: e.target.value })}
+                                    className="w-full text-gray-700 leading-relaxed bg-gray-50 border border-gray-200 rounded-lg p-3 h-full min-h-[400px] resize-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none font-serif text-sm"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Editable Final Certifications - Step 4 */}
+                        <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-xl mb-8">
+                            <div className="flex justify-between items-center mb-4 border-b pb-2">
+                                <h3 className="font-semibold text-gray-800">Final Certifications Review</h3>
+                                <button
+                                    onClick={() => setTailoredContent({ ...tailoredContent, certifications: [...(tailoredContent.certifications || []), { name: "New Certification", issuer: "", year: "" }] })}
+                                    className="text-xs text-purple-600 hover:text-purple-800 font-medium bg-purple-50 px-3 py-1.5 rounded-lg"
+                                >
+                                    + Add Certification
+                                </button>
+                            </div>
+                            <div className="space-y-3">
+                                {(tailoredContent.certifications || []).map((cert: any, i: number) => (
+                                    <div key={i} className="flex flex-wrap gap-2 items-center bg-gray-50 p-2 rounded border border-gray-100 relative group pr-8">
+                                        <input
+                                            value={cert.name}
+                                            onChange={(e) => {
+                                                const newCerts = [...tailoredContent.certifications];
+                                                newCerts[i].name = e.target.value;
+                                                setTailoredContent({ ...tailoredContent, certifications: newCerts });
+                                            }}
+                                            className="text-sm font-medium text-gray-800 bg-white border border-gray-200 rounded px-2 py-1 focus:border-purple-500 outline-none w-full md:w-5/12"
+                                            placeholder="Certification Name"
+                                        />
+                                        <input
+                                            value={cert.issuer}
+                                            onChange={(e) => {
+                                                const newCerts = [...tailoredContent.certifications];
+                                                newCerts[i].issuer = e.target.value;
+                                                setTailoredContent({ ...tailoredContent, certifications: newCerts });
+                                            }}
+                                            className="text-sm text-gray-600 bg-white border border-gray-200 rounded px-2 py-1 focus:border-purple-500 outline-none w-full md:w-4/12"
+                                            placeholder="Issuer"
+                                        />
+                                        <input
+                                            value={cert.year}
+                                            onChange={(e) => {
+                                                const newCerts = [...tailoredContent.certifications];
+                                                newCerts[i].year = e.target.value;
+                                                setTailoredContent({ ...tailoredContent, certifications: newCerts });
+                                            }}
+                                            className="text-sm text-gray-600 bg-white border border-gray-200 rounded px-2 py-1 focus:border-purple-500 outline-none w-full md:w-2/12"
+                                            placeholder="Year"
+                                        />
+                                        <button
+                                            onClick={() => {
+                                                const newCerts = tailoredContent.certifications.filter((_: any, idx: number) => idx !== i);
+                                                setTailoredContent({ ...tailoredContent, certifications: newCerts });
+                                            }}
+                                            className="absolute right-2 text-gray-400 hover:text-red-500 hidden group-hover:block"
+                                        >×</button>
+                                    </div>
                                 ))}
+                                {(!tailoredContent.certifications || tailoredContent.certifications.length === 0) && (
+                                    <p className="text-sm text-gray-500 italic py-2">No certifications added. Click '+ Add Certification' to include them in the final PDF.</p>
+                                )}
                             </div>
+                        </div>
 
-                            <div className="border-t border-gray-100 pt-6 space-y-5">
+                        {/* Style Selection — compact reminder strip in Step 4 */}
+                        <h3 className="font-semibold text-gray-800 mb-2">Visual Style</h3>
+                        <p className="text-sm text-gray-500 mb-4">Confirm your style choice — this controls the final PDF layout and design.</p>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                            {[
+                                {
+                                    id: 'jakes',
+                                    label: 'Jake\'s Minimalist',
+                                    badge: 'ATS-Optimised',
+                                    badgeColor: 'bg-blue-100 text-blue-800',
+                                    audience: 'Software Engineers, Tech roles, Academic',
+                                    features: ['Clean single-column', 'Proven ATS readability', 'Content-first approach', 'Minimalist aesthetics'],
+                                },
+                                {
+                                    id: 'faangpath',
+                                    label: 'FAANGPath Clean',
+                                    badge: 'Industry Standard',
+                                    badgeColor: 'bg-emerald-100 text-emerald-800',
+                                    audience: 'Tech professionals, structured corporate roles',
+                                    features: ['High-contrast headers', 'Structured sections', 'Easy parsing readability', 'Tailored for tech giants'],
+                                },
+                                {
+                                    id: 'deedy',
+                                    label: 'Deedy Two-Column',
+                                    badge: 'Modern & Compact',
+                                    badgeColor: 'bg-purple-100 text-purple-800',
+                                    audience: 'Designers, product managers, early career',
+                                    features: ['Two-column layout', 'Distinct typography', 'High information density', 'Visually striking'],
+                                },
+                            ].map(tpl => (
+                                <button
+                                    key={tpl.id}
+                                    onClick={() => setSelectedTemplate(tpl.id)}
+                                    className={`p-5 rounded-xl border-2 text-left relative flex flex-col h-full transition-[transform,box-shadow,border-color,opacity] duration-300 ${selectedTemplate === tpl.id
+                                        ? 'border-purple-600 bg-purple-50 shadow-[0_0_20px_rgba(147,51,234,0.3)] ring-4 ring-purple-600/20 transform scale-105 z-10'
+                                        : 'border-gray-200 bg-white hover:border-purple-300 hover:shadow-md opacity-70 hover:opacity-100 hover:scale-[1.02]'
+                                        }`}
+                                >
+                                    <div className="flex items-start justify-between mb-2">
+                                        <span className="font-bold text-gray-900">{tpl.label}</span>
+                                        {selectedTemplate === tpl.id && <CheckCircle className="w-5 h-5 text-purple-600 flex-shrink-0" />}
+                                    </div>
+                                    <span className={`inline-block text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full mb-3 self-start ${tpl.badgeColor}`}>
+                                        {tpl.badge}
+                                    </span>
+                                    <p className="text-xs text-gray-500 mb-4 line-clamp-2 leading-relaxed italic">{tpl.audience}</p>
+                                    <ul className="space-y-2 mt-auto">
+                                        {tpl.features.map(f => (
+                                            <li key={f} className="text-[11px] text-gray-600 flex items-center gap-2">
+                                                <div className="w-1 h-1 rounded-full bg-purple-400 flex-shrink-0" />
+                                                {f}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </button>
+                            ))}
+                        </div>
 
-                                {/* Action Buttons */}
-                                <div className="flex justify-between items-center">
-                                    <button onClick={() => setStep(3)} className="text-gray-500 hover:text-gray-800 font-medium px-4 py-2">
-                                        ← Back to Tailor
-                                    </button>
-                                    <button
-                                        onClick={handleGeneratePDF}
-                                        disabled={generatingPDF}
-                                        className={`bg-black text-white px-8 py-3 rounded-xl font-bold flex items-center shadow-lg hover:bg-gray-800 transition-all ${generatingPDF ? 'opacity-70 cursor-not-allowed' : ''}`}
-                                    >
-                                        {generatingPDF ? (
-                                            <><RefreshCw className="w-5 h-5 mr-2 animate-spin" /> Generating Resume...</>
-                                        ) : (
-                                            <><Download className="w-5 h-5 mr-2" /> Finish & Generate Resume</>
-                                        )}
-                                    </button>
-                                </div>
+                        <div className="border-t border-gray-100 pt-6 space-y-5">
+
+                            {/* Action Buttons */}
+                            <div className="flex justify-between items-center">
+                                <button onClick={() => setStep(3)} className="text-gray-500 hover:text-gray-800 font-medium px-4 py-2">
+                                    ← Back to Tailor
+                                </button>
+                                <button
+                                    onClick={handleGeneratePDF}
+                                    disabled={generatingPDF}
+                                    className={`bg-black text-white px-8 py-3 rounded-xl font-bold flex items-center shadow-lg hover:bg-gray-800 transition-all ${generatingPDF ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                >
+                                    {generatingPDF ? (
+                                        <><RefreshCw className="w-5 h-5 mr-2 animate-spin" /> Generating Resume...</>
+                                    ) : (
+                                        <><Download className="w-5 h-5 mr-2" /> Finish & Generate Resume</>
+                                    )}
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -1402,16 +1552,19 @@ export const ResumeBuilderPage: React.FC = () => {
                             ← Edit Design & Regenerate
                         </button>
                     </div>
-                )}
-            </div>
+                )
+                }
+            </div >
 
-            {(uploading || tailoring || generatingPDF) && (
-                <ProcessingOverlay
-                    isOpen={true}
-                    headline={persona?.professional_title}
-                    skills={persona?.top_skills}
-                />
-            )}
+            {
+                (uploading || tailoring || generatingPDF) && (
+                    <ProcessingOverlay
+                        isOpen={true}
+                        headline={persona?.professional_title}
+                        skills={persona?.top_skills}
+                    />
+                )
+            }
 
             <DraftResumeModal
                 isOpen={isDraftModalOpen}
@@ -1424,7 +1577,7 @@ export const ResumeBuilderPage: React.FC = () => {
                 onClose={() => setShowUpgradeModal(false)}
                 currentPlan={user?.plan || 'free'}
             />
-        </div>
+        </div >
     );
 };
 

@@ -27,6 +27,7 @@ export const DraftResumeModal: React.FC<DraftResumeModalProps> = ({ isOpen, onCl
     const [experience, setExperience] = useState([{ role: '', company: '', duration: '', highlights: '' }]);
     const [projects, setProjects] = useState([{ name: '', description: '' }]);
     const [education, setEducation] = useState([{ degree: '', school: '', year: '' }]);
+    const [certifications, setCertifications] = useState([{ name: '', issuer: '', year: '' }]);
 
     if (!isOpen) return null;
 
@@ -70,6 +71,20 @@ export const DraftResumeModal: React.FC<DraftResumeModalProps> = ({ isOpen, onCl
         const newEdu = [...education];
         newEdu[index] = { ...newEdu[index], [field]: value };
         setEducation(newEdu);
+    };
+
+    const handleAddCertification = () => {
+        setCertifications([...certifications, { name: '', issuer: '', year: '' }]);
+    };
+
+    const handleRemoveCertification = (index: number) => {
+        setCertifications(certifications.filter((_, i) => i !== index));
+    };
+
+    const handleCertChange = (index: number, field: string, value: string) => {
+        const newCert = [...certifications];
+        newCert[index] = { ...newCert[index], [field]: value };
+        setCertifications(newCert);
     };
 
     const handleNextOrSubmit = () => {
@@ -118,6 +133,7 @@ export const DraftResumeModal: React.FC<DraftResumeModalProps> = ({ isOpen, onCl
             }));
 
             const formattedEdu = education.filter(e => e.degree && e.school);
+            const formattedCert = certifications.filter(c => c.name);
 
             const payload = {
                 full_name: fullName,
@@ -131,7 +147,8 @@ export const DraftResumeModal: React.FC<DraftResumeModalProps> = ({ isOpen, onCl
                 portfolio_url: portfolioUrl,
                 experience_highlights: formattedExp,
                 projects: formattedProj,
-                education: formattedEdu
+                education: formattedEdu,
+                certifications: formattedCert
             };
 
             await onSave(payload);
@@ -179,7 +196,7 @@ export const DraftResumeModal: React.FC<DraftResumeModalProps> = ({ isOpen, onCl
                         <span>Basic Info</span>
                         <span>Experience</span>
                         <span>Projects</span>
-                        <span>Education</span>
+                        <span>Edu & Certs</span>
                     </div>
                 </div>
 
@@ -329,6 +346,36 @@ export const DraftResumeModal: React.FC<DraftResumeModalProps> = ({ isOpen, onCl
 
                             <button onClick={handleAddEducation} className="flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 border border-dashed border-blue-300 dark:border-blue-800 rounded-lg w-full justify-center py-3 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
                                 <Plus size={16} /> Add Another Degree
+                            </button>
+
+                            <hr className="border-gray-200 dark:border-dark-border" />
+                            <h3 className="text-sm font-bold text-gray-800 dark:text-white mt-4">Certifications (Optional)</h3>
+                            {certifications.map((cert, index) => (
+                                <div key={`cert-${index}`} className="p-4 border border-gray-200 dark:border-gray-700 rounded-xl relative bg-gray-50/50 dark:bg-dark-bg/50">
+                                    {(certifications.length > 1 || cert.name) && (
+                                        <button onClick={() => handleRemoveCertification(index)} className="absolute top-3 right-3 text-gray-400 hover:text-red-500 transition-colors">
+                                            <Trash2 size={16} />
+                                        </button>
+                                    )}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 pr-6">
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Certification Name</label>
+                                            <input type="text" value={cert.name} onChange={e => handleCertChange(index, 'name', e.target.value)} placeholder="AWS Certified Solutions Architect" className="w-full px-3 py-1.5 text-sm bg-white dark:bg-dark-card border border-gray-300 dark:border-dark-border rounded-lg focus:border-blue-500 dark:text-white" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Issuer/Org</label>
+                                            <input type="text" value={cert.issuer} onChange={e => handleCertChange(index, 'issuer', e.target.value)} placeholder="Amazon Web Services" className="w-full px-3 py-1.5 text-sm bg-white dark:bg-dark-card border border-gray-300 dark:border-dark-border rounded-lg focus:border-blue-500 dark:text-white" />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Year</label>
+                                        <input type="text" value={cert.year} onChange={e => handleCertChange(index, 'year', e.target.value)} placeholder="2023" className="w-full px-3 py-1.5 text-sm bg-white dark:bg-dark-card border border-gray-300 dark:border-dark-border rounded-lg focus:border-blue-500 dark:text-white" />
+                                    </div>
+                                </div>
+                            ))}
+
+                            <button onClick={handleAddCertification} className="flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 border border-dashed border-blue-300 dark:border-blue-800 rounded-lg w-full justify-center py-3 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
+                                <Plus size={16} /> Add Certification
                             </button>
                         </div>
                     )}

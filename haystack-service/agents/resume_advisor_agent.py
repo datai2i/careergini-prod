@@ -13,6 +13,118 @@ logger = logging.getLogger(__name__)
 # Shared helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _clean_resume_text(text: str) -> str:
+    """
+    Pre-process garbled PDF text before feeding to LLM.
+    PDFs extracted by pdfplumber often have mid-word line breaks because
+    text columns wrap at the physical page boundary. This pass:
+      1. Rejoins words split across lines (heuristic: line ends mid-word).
+      2. Preserves intentional blank lines (paragraph breaks).
+    """
+    lines = text.splitlines()
+    cleaned = []
+    for i, line in enumerate(lines):
+        line = line.rstrip()
+        if not line:
+            cleaned.append("")
+            continue
+        # If the line doesn't end with punctuation/space and the NEXT line starts
+        # with a lowercase letter → likely a broken word: merge with a space.
+        if (i + 1 < len(lines)
+                and lines[i + 1]
+                and not line[-1] in '.,:;|•·-–—)'
+                and lines[i + 1][0].islower()):
+            cleaned.append(line + " ")  # will be joined to next loop
+        else:
+            cleaned.append(line)
+    # Join, then normalise multiple blanks to double-newline
+    joined = " ".join(cleaned)
+    # Restore section breaks
+    for section in ["Professional Experience", "Work Experience", "Projects",
+                    "Education", "Skills", "Certifications", "Awards",
+                    "Career Objective", "Leadership"]:
+        joined = joined.replace(section, f"\n\n{section}\n")
+    # Strip repeated spaces
+    joined = re.sub(r' {2,}', ' ', joined)
+    return joined.strip()
+
+
+def _extract_experience_fallback(raw_text: str) -> List[Dict[str, Any]]:
+    """
+    Deterministic experience extractor for garbled PDF text.
+
+    Strategy:
+    1. Find the 'Professional Experience' (or 'Work Experience') section.
+    2. Join the section's lines back into one long string (the cleaned text
+       already has bullet separators as '•').
+    3. Split by '•' to get individual sentence blocks.
+    4. Identify role-header blocks (they contain a year + comma-separated
+       'Role, Company Year' pattern) and group following bullets beneath them.
+    """
+    experiences = []
+
+    # ── 1. Isolate the experience section ─────────────────────────────────────
+    # Search case-insensitively for the section heading
+    sec_pattern = re.compile(
+        r'(?:Professional\s+Experience|Work\s+Experience|Internship(?:s)?)\s*\n(.*?)'
+        r'(?=\n(?:Skills|Education|Projects|Certifications|Awards|Languages|Leadership|$))',
+        re.IGNORECASE | re.DOTALL,
+    )
+    m = sec_pattern.search(raw_text)
+    if not m:
+        return []
+
+    section_raw = m.group(1)
+
+    # ── 2. Normalize the section: join split lines, then split on bullet '•' ──
+    # Join lines (the cleaner may have left newlines within a sentence)
+    section_joined = ' '.join(line.strip() for line in section_raw.splitlines() if line.strip())
+
+    # Now split on bullet character to get individual clauses
+    clauses = [c.strip() for c in section_joined.split('•') if c.strip()]
+
+    # ── 3. Walk clauses, detecting role headers ────────────────────────────────
+    # A role header clause looks like:   "Java Full Stack Intern, SkillDzire 2025"
+    # It contains a comma and a 4-digit year, and is relatively short.
+    role_header_re = re.compile(
+        r'^([A-Za-z][^,]{3,70}),\s*([A-Za-z][^,\d]{1,60?})\s*(\d{4}(?:\s*[-–]\s*(?:\d{4}|Present))?)\s*(.*)$',
+        re.IGNORECASE,
+    )
+
+    current_role    = None
+    current_company = None
+    current_dur     = None
+    current_bullets : List[str] = []
+
+    def _flush():
+        if current_role and current_company:
+            experiences.append({
+                "role":            current_role,
+                "company":         current_company,
+                "duration":        current_dur or "",
+                "tailored_bullets": current_bullets[:],
+            })
+
+    for clause in clauses:
+        hm = role_header_re.match(clause)
+        if hm:
+            _flush()
+            current_role    = hm.group(1).strip()
+            current_company = hm.group(2).strip().rstrip(',').strip()
+            current_dur     = hm.group(3).strip()
+            # Anything after the year on the same clause is a bullet
+            extra = hm.group(4).strip() if hm.group(4) else ""
+            current_bullets = [extra] if extra and len(extra) > 10 else []
+        else:
+            # Not a header → treat as a bullet for the current role
+            if len(clause) > 8:
+                if current_role is not None:
+                    current_bullets.append(clause)
+
+    _flush()  # flush the last role
+    return experiences
+
+
 def _sanitize_bullets_list(bullets):
     if not isinstance(bullets, list):
         bullets = [bullets]
@@ -44,9 +156,18 @@ def _sanitize_dict(data: dict) -> dict:
         clean_certs = []
         for c in data["certifications"]:
             if isinstance(c, dict):
-                clean_certs.append(" - ".join(str(v) for v in c.values() if v))
+                # Ensure it matches {name, issuer, year} shape if possible
+                name = c.get("name") or c.get("title") or c.get("certification") or ""
+                issuer = c.get("issuer") or c.get("organization") or c.get("authority") or ""
+                year = c.get("year") or c.get("date") or ""
+                
+                # If we couldn't extract a name but it's a dict, fallback to joining values
+                if not name and c.values():
+                    name = " - ".join(str(v) for v in c.values() if v)
+                    
+                clean_certs.append({"name": str(name), "issuer": str(issuer), "year": str(year)})
             else:
-                clean_certs.append(str(c))
+                clean_certs.append({"name": str(c), "issuer": "", "year": ""})
         data["certifications"] = clean_certs
     return data
 
@@ -73,15 +194,22 @@ def _parse_json(content: str) -> dict:
 
 
 def _fmt_exp(exp: dict) -> dict:
-    """Normalise an experience entry for prompt serialisation."""
-    ach = exp.get("key_achievement") or exp.get("tailored_bullets") or ""
-    if isinstance(ach, list):
-        ach = " | ".join(str(a) for a in ach)
+    """Normalise an experience entry for prompt serialisation.
+    Now preserves bullets as a LIST (not a joined string) to avoid lossy flattening.
+    """
+    raw = exp.get("tailored_bullets") or exp.get("key_achievement") or []
+    if isinstance(raw, str):
+        # Split semicolon / newline separated string back into list
+        bullets = [b.strip() for b in re.split(r'[;\n]', raw) if b.strip()]
+    elif isinstance(raw, list):
+        bullets = [str(b).strip() for b in raw if str(b).strip()]
+    else:
+        bullets = []
     return {
-        "role":    exp.get("role") or exp.get("title", ""),
-        "company": exp.get("company", ""),
-        "period":  exp.get("duration") or exp.get("period") or exp.get("dates", ""),
-        "highlights": ach,
+        "role":      exp.get("role") or exp.get("title", ""),
+        "company":   exp.get("company", ""),
+        "period":    exp.get("duration") or exp.get("period") or exp.get("dates", ""),
+        "bullets":   bullets,   # preserved as list, not joined string
     }
 
 
@@ -163,17 +291,17 @@ class TailorResumeComponent:
     async def run(self, persona: Dict[str, Any], job_description: str, target_industry: str = "", focus_area: str = "", template: str = "professional"):
         experiences = [
             _fmt_exp(e)
-            for e in (persona.get("experience_highlights") or [])[:8]
+            for e in (persona.get("experience_highlights") or [])[:15]
         ]
         candidate = {
             "name":          persona.get("full_name", ""),
             "title":         persona.get("professional_title", ""),
             "summary":       str(persona.get("summary", ""))[:1500],
-            "skills":        (persona.get("top_skills") or [])[:25],
+            "skills":        (persona.get("top_skills") or [])[:50],
             "experience":    experiences,
-            "projects":      (persona.get("projects") or [])[:6],
-            "education":     (persona.get("education") or [])[:3],
-            "certifications": (persona.get("certifications") or [])[:8],
+            "projects":      (persona.get("projects") or [])[:15],
+            "education":     (persona.get("education") or [])[:5],
+            "certifications": (persona.get("certifications") or [])[:15],
         }
         # Give the LLM a full view of the JD
         slim_jd = str(job_description)[:1500]
@@ -185,39 +313,39 @@ class TailorResumeComponent:
         if template == "executive":
             template_rules = """- Strategic executive narrative summary: positioning statement, career arc, top 3 strategic achievements, leadership philosophy.
 - Reframed skills as leadership domains (P&L Management, Enterprise Sales, etc).
-- Experience: write ALL bullet points as leadership-impact STAR statements (Scope -> Action -> Result). Ensure 4-6 quantitative bullets per role.
+- Experience: write ALL bullet points as leadership-impact STAR statements (Scope -> Action -> Result). Ensure 5-8 quantitative bullets per role. Do not drop existing history.
 - Tone: authoritative, visionary, board-room ready."""
         elif template == "fresher":
             template_rules = """- Compelling Career Objective summary: mention target role, learning mindset, and value.
 - NEVER repeat the candidate's name in the summary. Use implied pronouns (e.g., "Highly motivated engineer...").
 - Skills: concrete tool/tech names ONLY. NO sentences, long phrases, or project names.
-- Experience: write 3-4 bullets framing contributions -> tech used -> outcome (even small metrics).
+- Experience: write 4-6 bullets framing contributions -> tech used -> outcome (even small metrics). Expand heavily on any internships.
 - Projects: rich and results-oriented. Mention tools used, scale, and problem solved.
 - Tone: ambitious, enthusiastic, growth-focused."""
         elif template == "jakes":
             template_rules = """- Clean, ATS-optimised single-column style. Clarity above all.
-- Summary: 3-4 concise sentences. State the role target, core domain, top strengths, and what you bring. No fluff.
+- Summary: 3-5 concise sentences. State the role target, core domain, top strengths, and what you bring. No fluff.
 - Skills: ONLY exact, recognizable technical terms (e.g. Python, React, SQL). NO soft skills, no phrases.
-- Experience: 4-5 strong STAR-format bullets per role. Start every bullet with an action verb. Include quantified results.
+- Experience: 5-8 strong STAR-format bullets per role. Start every bullet with an action verb. Emphasize exhaustive details. Do not drop existing history.
 - Tone: confident, crisp, no-nonsense. Prioritise substance over storytelling."""
         elif template == "faangpath":
             template_rules = """- Industry-standard structured format used by top tech companies (FAANG). Precision and relevance are paramount.
 - Summary: 3-5 sentences. Be direct: target role, years of relevant experience, biggest technical strength, and key outcome or scale. Match JD keywords closely.
 - Skills: Reflect EXACTLY what is in the JD. Prioritise languages, frameworks, platforms, and tools from the JD first.
-- Experience: 4-6 impact-driven STAR bullets per role. Focus on SCALE (users, requests/sec, $ revenue, team size) and TECH used. Every bullet must pass the 'so what?' test.
+- Experience: 5-8 impact-driven STAR bullets per role. Focus on SCALE (users, requests/sec, $ revenue, team size) and TECH used. Do not drop existing history.
 - Tone: precise, data-driven, technical-depth oriented."""
         elif template == "deedy":
             template_rules = """- Two-column academic/designer format: left-column skills/education, right-column experience/projects.
 - Summary: 3-4 sentences. Highlight a distinctive skill or specialty, academic or industry pedigree, and 1-2 notable outcomes.
 - Skills: Group by category (e.g. Languages, Frameworks, Tools, Platforms). Keep each category to 4-6 items maximum.
-- Experience: 3-4 visually tight bullets per role. Balance technical depth with clarity — avoid vague verbs.
-- Projects: Give each a crisp 1-2 sentence narrative: what was built, tech used, outcome. Projects carry equal weight to experience in this format.
+- Experience: 4-6 visually tight bullets per role. Balance technical depth with clarity — avoid vague verbs.
+- Projects: Give each a crisp 2-3 sentence narrative: what was built, tech used, outcome. Projects carry equal weight to experience in this format.
 - Tone: technical, academic, distinctive — appeal to engineering-focused hiring managers."""
         else:
             template_rules = """- Rich 5-7 sentence professional summary: domain expertise, top strengths, problems solved, and value proposition.
 - NEVER repeat the candidate's name in the summary. Use implied pronouns (e.g., "Experienced engineer with a proven track record...").
 - Exactly matching JD keywords into the skills list. Skills MUST be short, recognizable technical skills ONLY (e.g., Python, SQL). NEVER include long phrases or project names.
-- Experience: write ALL bullet points as powerful STAR-format ATS-optimised statements.
+- Experience: write ALL bullet points as powerful STAR-format ATS-optimised statements. Extract 5-8 bullets per role to ensure depth.
 - Tone: professional, confident, results-focused. Quantify everything possible."""
 
         async def tailor_narrative():
@@ -246,103 +374,94 @@ Required JSON:
             if not experiences:
                 return {"tailored_experience": []}
 
-            # Create deterministic mapping
-            mapped_exps = []
-            payload_for_llm = []
-            
+            # Build per-role mapping, preserving original bullets for fallback
+            mapped_exps       = []  # role metadata + original bullets (for fallback)
+            payload_for_llm   = []  # what we send to the LLM
+
             for i, exp in enumerate(experiences):
                 exp_dict = dict(exp) if isinstance(exp, dict) else exp
-                bullets = exp_dict.get("tailored_bullets") or exp_dict.get("highlights") or []
-                if isinstance(bullets, str):
-                    bullets = [bullets]
-                
-                payload_for_llm.append({
-                    "id": i,
-                    "bullets": bullets
-                })
-                # Keep exact original data for reconstruction
+                # exp_dict["bullets"] is now a proper list thanks to _fmt_exp fix
+                orig_bullets = exp_dict.get("bullets") or []
+
+                payload_for_llm.append({"id": i, "existing_bullets": orig_bullets})
                 mapped_exps.append({
-                    "role": exp_dict.get("role", "Unknown"),
-                    "company": exp_dict.get("company", "Unknown"),
-                    "duration": exp_dict.get("period") or exp_dict.get("duration", "Unknown")
+                    "role":            exp_dict.get("role", "Unknown"),
+                    "company":         exp_dict.get("company", "Unknown"),
+                    "duration":        exp_dict.get("period") or exp_dict.get("duration", ""),
+                    "_orig_bullets":   orig_bullets,  # kept privately for fallback
                 })
 
-            prompt = f"""You are an expert resume writer. Rewrite the bullet points for the following {len(payload_for_llm)} roles to explicitly target the provided Job Description.
+            prompt = f"""You are an expert resume writer. For each role below, rewrite and ENRICH the given bullet points to highlight impact relevant to the Job Description.
 
-CRITICAL RULES (MUST FOLLOW):
+CRITICAL RULES:
 {template_rules}
 {industry_prompt}
 {focus_prompt}
-- You MUST output ALL {len(payload_for_llm)} items provided below. Do NOT drop any IDs.
-- Keep the exact "id" for each role in your output.
-- ONLY rewrite the bullet points. Generate 4-6 rich STAR bullets per role (Action Verb + task + quantified result).
-- Each bullet MUST be a plain string.
+- You MUST output ALL {len(payload_for_llm)} roles. Do NOT drop any IDs.
+- ENRICH the provided existing_bullets — keep the core facts, but expand upon them with action verbs and quantified impact.
+- DO NOT truncate or delete existing history! If there are many original bullets, enrich ALL of them. 
+- Expand up to 5-8 bullet points per role to create depth.
+- Generate bullet points where each is a plain string starting with an action verb.
+- If existing_bullets are empty, write 4-6 strong STAR-format bullets based on the role title and JD keywords.
 - Output ONLY valid JSON.
 
-Roles to Rewrite (preserve ALL IDs):
+Roles:
 {json.dumps(payload_for_llm, indent=2)}
 
 Job Description:
 {slim_jd}
 
-Required JSON (output ALL {len(payload_for_llm)} items):
-{{
-  "tailored_bullets": [
-    {{"id": 0, "bullets": ["STAR bullet 1", "STAR bullet 2"]}},
-    {{"id": 1, "bullets": ["STAR bullet 1"]}}
-  ]
-}}"""
+Required JSON:
+{{"tailored_bullets": [{{"id": 0, "bullets": ["Bullet 1", "Bullet 2"]}}, ...]}}"""
+
             loop = asyncio.get_event_loop()
             try:
-                resp = await loop.run_in_executor(None, lambda: self.generator.run(prompt=prompt))
+                resp   = await loop.run_in_executor(None, lambda: self.generator.run(prompt=prompt))
                 llm_res = _parse_json(resp["replies"][0])
             except Exception as e:
                 logger.error(f"Tailor experience LLM failed: {e}")
                 llm_res = {}
-            
+
             tailored_bullets_list = llm_res.get("tailored_bullets", [])
             bullets_by_id = {}
-            
-            # ── Robustly extract and sanitize bullets from LLM response ──
             for index, item in enumerate(tailored_bullets_list):
                 if not isinstance(item, dict):
                     continue
-                
-                # Determine the logical ID. If the LLM repeats 'id': 0, we fallback to the array index.
                 item_id = item.get("id")
                 if item_id is None or item_id in bullets_by_id:
                     item_id = index
-                    
                 raw_bullets = item.get("bullets", [])
                 if isinstance(raw_bullets, str):
                     raw_bullets = [raw_bullets]
-                    
-                # Aggressively split literal \n strings back into an array
-                sanitized_bullets = []
+                sanitized = []
                 for rb in raw_bullets:
                     if isinstance(rb, str):
-                        split_rb = [s.strip() for s in rb.replace(";", "\n").split("\n") if s.strip()]
-                        sanitized_bullets.extend(split_rb)
+                        sanitized.extend([s.strip() for s in rb.replace(";", "\n").split("\n") if s.strip()])
                     else:
-                        sanitized_bullets.append(str(rb).strip())
-                        
-                bullets_by_id[item_id] = sanitized_bullets
+                        sanitized.append(str(rb).strip())
+                bullets_by_id[item_id] = sanitized
 
             for i, exp in enumerate(mapped_exps):
-                llm_bullets = bullets_by_id.get(i)
-                if llm_bullets and isinstance(llm_bullets, list) and len(llm_bullets) > 0:
-                     exp["tailored_bullets"] = [str(b) for b in llm_bullets]
+                orig_bullets = exp.pop("_orig_bullets", [])  # remove private key
+                llm_bullets  = bullets_by_id.get(i, [])
+
+                if llm_bullets:
+                    # LLM wrote bullets — use them but guarantee minimum 3
+                    final_bullets = llm_bullets
+                    # If LLM returned fewer than original, merge to preserve richness
+                    if len(final_bullets) < len(orig_bullets):
+                        seen = set(b.lower()[:40] for b in final_bullets)
+                        for ob in orig_bullets:
+                            if ob.lower()[:40] not in seen:
+                                final_bullets.append(ob)
+                                seen.add(ob.lower()[:40])
                 else:
-                    original_exp_list = persona.get("experience_highlights") or []
-                    if i < len(original_exp_list):
-                        orig_dict = original_exp_list[i]
-                        orig_b = orig_dict.get("tailored_bullets") or orig_dict.get("key_achievement") or []
-                        if isinstance(orig_b, str):
-                            orig_b = [x.strip() for x in orig_b.replace(";", "\n").split("\n") if x.strip()]
-                        exp["tailored_bullets"] = orig_b
-                    else:
-                        exp["tailored_bullets"] = []
-                    
+                    # LLM returned nothing — fall back to original extracted bullets
+                    logger.warning(f"[tailor_exp] LLM returned no bullets for role {i} ({exp.get('role')}) — using original")
+                    final_bullets = orig_bullets
+
+                exp["tailored_bullets"] = final_bullets
+
             return {"tailored_experience": mapped_exps}
 
         async def tailor_projects():
@@ -502,7 +621,7 @@ class FinalizeResumeComponent:
         tailored_summary = persona.get("summary") or persona.get("tailored_summary", "")
         tailored_skills  = persona.get("top_skills") or persona.get("tailored_skills", [])
         tailored_exp     = []
-        for e in (persona.get("experience_highlights") or persona.get("tailored_experience") or [])[:8]:
+        for e in (persona.get("experience_highlights") or persona.get("tailored_experience") or [])[:15]:
             blist = e.get("tailored_bullets") or e.get("key_achievement") or []
             if isinstance(blist, str):
                 blist = [b.strip() for b in blist.replace(";", "\n").split("\n") if b.strip()]
@@ -641,7 +760,9 @@ class ResumeAdvisorAgent(BaseAgent):
         - Any one chunk failing corrupts the merged persona (e.g. no experience)
         - 1 Ollama call is faster under load than 3 competing calls
         """
-        resume_snippet = str(resume_text).strip()[:6000]
+        # Clean the raw text first — PDFs often have mid-word line breaks
+        cleaned_text   = _clean_resume_text(str(resume_text).strip())
+        resume_snippet = cleaned_text[:12000]  # increased window for rich resumes
         loop = asyncio.get_event_loop()
 
         # ── Pass 1: Full single-prompt extraction ────────────────────────────
@@ -681,7 +802,9 @@ Return ONLY this JSON object (no markdown, no explanation):
   "education": [
     {{"degree": "B.S. Computer Science", "school": "University Name", "year": "2020"}}
   ],
-  "certifications": ["AWS Certified Developer", "PMP"],
+  "certifications": [
+    {{"name": "Certification Name", "issuer": "Issuing Org", "year": "2023"}}
+  ],
   "awards": ["Dean's List 2019"],
   "languages": ["English", "Spanish"]
 }}"""
@@ -720,7 +843,7 @@ Resume:
 {resume_snippet}
 
 JSON (fill every field):
-{{"full_name":"","professional_title":"","years_experience":0,"email":"","phone":"","location":"","linkedin":"","portfolio_url":"","career_level":"Mid","summary":"","top_skills":[],"suggested_roles":[],"experience_highlights":[{{"role":"","company":"","duration":"","tailored_bullets":[]}}],"projects":[],"education":[{{"degree":"","school":"","year":""}}],"certifications":[],"awards":[],"languages":[]}}"""
+{{"full_name":"","professional_title":"","years_experience":0,"email":"","phone":"","location":"","linkedin":"","portfolio_url":"","career_level":"Mid","summary":"","top_skills":[],"suggested_roles":[],"experience_highlights":[{{"role":"","company":"","duration":"","tailored_bullets":[]}}],"projects":[],"education":[{{"degree":"","school":"","year":""}}],"certifications":[{{"name":"","issuer":"","year":""}}],"awards":[],"languages":[]}}"""
             result = await _call_llm(COMPACT_PROMPT, timeout_s=100)
 
         if not _is_useful(result):
@@ -745,6 +868,14 @@ JSON (fill every field):
         result.setdefault("certifications",        [])
         result.setdefault("awards",                [])
         result.setdefault("languages",             [])
+
+        # ── Deterministic fallback: rescue experiences the LLM missed ─────────
+        if not result["experience_highlights"]:
+            logger.warning("[extract_persona] LLM returned 0 experience entries — running regex fallback")
+            fallback_exps = _extract_experience_fallback(cleaned_text)
+            if fallback_exps:
+                result["experience_highlights"] = fallback_exps
+                logger.info(f"[extract_persona] Regex fallback rescued {len(fallback_exps)} experience(s)")
 
         logger.info(f"[extract_persona] Done — name: {result['full_name']}, "
                     f"skills: {len(result['top_skills'])}, "
